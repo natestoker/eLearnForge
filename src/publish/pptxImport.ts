@@ -1,0 +1,503 @@
+import JSZip from 'jszip';
+import type { Block, Project, Slide } from '../schema/types';
+import { createLayer, uid } from '../schema/factory';
+import { ttsEstimate } from '../runtime/tts';
+import { PRSTGEOM_TO_KIND } from '../blocks/shape/geometry';
+
+// PowerPoint import. A .pptx is a zip of XML: JSZip opens it, DOMParser
+// reads it. Hard-won rules honored here (from the PPTX Narrator work):
+// - Parse namespace-aware (getElementsByTagNameNS('*', local)) because
+//   prefixes are not guaranteed across files.
+// - EMU to px is emu / 9525 (96dpi).
+// - Slide count = max of presentation.xml sldIds and slideN.xml files,
+//   sorted numerically (slide2 before slide10).
+// - Notes: join a:t runs per a:p paragraph, drop slide-number fields.
+// This is an editable-approximation importer, not a fidelity renderer:
+// shapes relying on placeholder/layout inheritance for geometry or sizing
+// may land with defaults. That is the known gap; text and pictures with
+// local xfrm come through correctly.
+
+const EMU = 9525;
+
+function local(el: Element | Document, name: string): Element[] {
+  return Array.from(el.getElementsByTagNameNS('*', name));
+}
+
+function parseXml(s: string): Document {
+  return new DOMParser().parseFromString(s, 'application/xml');
+}
+
+async function fileString(zip: JSZip, path: string): Promise<string | null> {
+  const f = zip.files[path] || zip.files[path.replace(/\//g, '\\')];
+  return f ? f.async('string') : null;
+}
+
+interface Xfrm { x: number; y: number; w: number; h: number }
+
+function readXfrm(sp: Element): Xfrm | null {
+  const xfrm = local(sp, 'xfrm')[0];
+  if (!xfrm) return null;
+  const off = local(xfrm, 'off')[0];
+  const ext = local(xfrm, 'ext')[0];
+  if (!off || !ext) return null;
+  return {
+    x: Number(off.getAttribute('x')) / EMU,
+    y: Number(off.getAttribute('y')) / EMU,
+    w: Number(ext.getAttribute('cx')) / EMU,
+    h: Number(ext.getAttribute('cy')) / EMU
+  };
+}
+
+function textOf(sp: Element, theme: ThemeColors): { text: string; fontSize: number; bold: boolean; font: string | null; color: string | null } {
+  const paras = local(sp, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
+  const lines: string[] = [];
+  let size = 0;
+  let bold = false;
+  let font: string | null = null;
+  let color: string | null = null;
+  for (const p of paras) {
+    const runs = local(p, 't').map((t) => t.textContent ?? '');
+    lines.push(runs.join(''));
+    for (const rPr of local(p, 'rPr')) {
+      const sz = Number(rPr.getAttribute('sz'));
+      if (sz && !size) size = sz / 100;
+      if (rPr.getAttribute('b') === '1') bold = true;
+      // Font: <a:latin typeface="..."/> on the run properties.
+      if (!font) {
+        const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
+        if (latin && !latin.startsWith('+')) font = latin;
+      }
+      // Color: a solidFill on the run properties.
+      if (!color) {
+        const sf = local(rPr, 'solidFill')[0];
+        if (sf) color = resolveColorEl(sf, theme);
+      }
+    }
+    // Paragraph-level default run props (pPr>defRPr) as fallback for runs
+    // that don't carry their own rPr (common from some exporters).
+    const defRPr = local(p, 'defRPr')[0];
+    if (defRPr) {
+      if (!font) {
+        const defLatin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
+        if (defLatin && !defLatin.startsWith('+')) font = defLatin;
+      }
+      if (!color) {
+        const defSf = local(defRPr, 'solidFill')[0];
+        if (defSf) color = resolveColorEl(defSf, theme);
+      }
+      if (!size) {
+        const defSz = Number(defRPr.getAttribute('sz'));
+        if (defSz) size = defSz / 100;
+      }
+    }
+  }
+  return { text: lines.join('\n').trim(), fontSize: size || 18, bold, font, color };
+}
+
+// Placeholder inheritance. Shapes whose geometry lives on the layout
+// (titles, bodies) carry only <p:ph type= idx=>; their xfrm must be read
+// from the slideLayout's matching placeholder. Master-level inheritance is
+// not chased (layout covers the overwhelming majority of real decks).
+// PowerPoint colors are usually theme references (<a:schemeClr
+// val="accent1"/>), not literal srgbClr - which is why an importer that
+// only reads srgbClr paints everything with its own defaults. The scheme
+// lives in ppt/theme/theme1.xml; slides map scheme names through the
+// master's clrMap (tx1->dk1 etc). lumMod/lumOff tints are approximated in
+// linear RGB, which lands within a shade of PowerPoint's HSL math.
+type ThemeColors = Map<string, string>;
+
+const CLR_ALIAS: Record<string, string> = { tx1: 'dk1', tx2: 'dk2', bg1: 'lt1', bg2: 'lt2' };
+
+async function readTheme(zip: JSZip): Promise<ThemeColors> {
+  const map: ThemeColors = new Map();
+  const themePath = Object.keys(zip.files).find((p) => /^ppt\/theme\/theme\d+\.xml$/i.test(p));
+  if (!themePath) return map;
+  const str = await fileString(zip, themePath);
+  if (!str) return map;
+  const doc = parseXml(str);
+  const scheme = local(doc, 'clrScheme')[0];
+  if (!scheme) return map;
+  for (const entry of Array.from(scheme.children)) {
+    const name = entry.localName; // dk1, lt1, accent1..6, hlink, folHlink
+    const srgb = local(entry, 'srgbClr')[0]?.getAttribute('val');
+    const sys = local(entry, 'sysClr')[0]?.getAttribute('lastClr');
+    const hex = srgb ?? sys;
+    if (hex) map.set(name, `#${hex.toLowerCase()}`);
+  }
+  return map;
+}
+
+function applyLum(hex: string, lumModPct: number, lumOffPct: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) => {
+    let c = v / 255;
+    c = c * lumModPct + lumOffPct;
+    return Math.max(0, Math.min(255, Math.round(c * 255)));
+  };
+  const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), bl = ch(n & 255);
+  return '#' + [r, g, bl].map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+
+function resolveColorEl(clrParent: Element, theme: ThemeColors): string | null {
+  const srgb = local(clrParent, 'srgbClr')[0];
+  if (srgb?.getAttribute('val')) {
+    return `#${srgb.getAttribute('val')!.toLowerCase()}`;
+  }
+  const scheme = local(clrParent, 'schemeClr')[0];
+  if (scheme) {
+    const raw = scheme.getAttribute('val') ?? '';
+    const name = CLR_ALIAS[raw] ?? raw;
+    let hex = theme.get(name);
+    if (!hex) return null;
+    const lumMod = local(scheme, 'lumMod')[0]?.getAttribute('val');
+    const lumOff = local(scheme, 'lumOff')[0]?.getAttribute('val');
+    if (lumMod || lumOff) {
+      hex = applyLum(hex, lumMod ? Number(lumMod) / 100000 : 1, lumOff ? Number(lumOff) / 100000 : 0);
+    }
+    return hex;
+  }
+  return null;
+}
+
+type PhKey = string;
+function phKey(ph: Element): PhKey {
+  return `${ph.getAttribute('type') ?? 'body'}|${ph.getAttribute('idx') ?? ''}`;
+}
+
+async function layoutXfrms(zip: JSZip, slidePath: string): Promise<Map<PhKey, Xfrm>> {
+  const map = new Map<PhKey, Xfrm>();
+  const relsPath = slidePath.replace(/slides\/(slide\d+\.xml)$/i, 'slides/_rels/$1.rels');
+  const rels = await fileString(zip, relsPath);
+  const m = rels?.match(/Target="\.\.\/(slideLayouts\/slideLayout\d+\.xml)"/i);
+  if (!m) return map;
+  const layoutStr = await fileString(zip, `ppt/${m[1]}`);
+  if (!layoutStr) return map;
+  const doc = parseXml(layoutStr);
+  for (const sp of local(doc, 'sp')) {
+    const ph = local(sp, 'ph')[0];
+    if (!ph) continue;
+    const xfrm = readXfrm(sp);
+    if (xfrm) map.set(phKey(ph), xfrm);
+  }
+  return map;
+}
+
+function fillOf(sp: Element, theme: ThemeColors): { fill: string; border: string; borderWidth: number } {
+  const spPr = local(sp, 'spPr')[0];
+  let fill: string | null = null;
+  let border = 'transparent';
+  let borderWidth = 0;
+  if (spPr) {
+    for (const sf of local(spPr, 'solidFill')) {
+      const inLine = sf.parentElement?.localName === 'ln';
+      const hex = resolveColorEl(sf, theme);
+      if (!hex) continue;
+      if (inLine) border = hex;
+      else if (fill === null) fill = hex;
+    }
+    const ln = local(spPr, 'ln')[0];
+    if (ln) {
+      const w = Number(ln.getAttribute('w'));
+      if (w) borderWidth = Math.max(1, Math.round(w / EMU));
+      if (border === 'transparent' && borderWidth > 0) border = '#1c222b';
+      if (local(ln, 'noFill').length) { border = 'transparent'; borderWidth = 0; }
+    }
+  }
+  // No explicit fill: the shape inherits from its style's fillRef
+  // (add_shape's default in PowerPoint and python-pptx alike).
+  if (fill === null) {
+    const style = local(sp, 'style')[0];
+    const fillRef = style ? local(style, 'fillRef')[0] : null;
+    if (fillRef) fill = resolveColorEl(fillRef, theme);
+    if (border === 'transparent' && style) {
+      const lnRef = local(style, 'lnRef')[0];
+      const lnc = lnRef ? resolveColorEl(lnRef, theme) : null;
+      if (lnc) { border = lnc; if (!borderWidth) borderWidth = 1; }
+    }
+  }
+  return { fill: fill ?? '#e8f7f0', border, borderWidth };
+}
+
+function prstGeomOf(sp: Element): string | null {
+  const g = local(sp, 'prstGeom')[0];
+  return g?.getAttribute('prst') ?? null;
+}
+
+async function readNotes(zip: JSZip, slidePath: string): Promise<string> {
+  const relsPath = slidePath.replace(/slides\/(slide\d+\.xml)$/i, 'slides/_rels/$1.rels');
+  const rels = await fileString(zip, relsPath);
+  if (!rels) return '';
+  const m = rels.match(/Target="[^"]*notesSlide(\d+)\.xml"/i);
+  if (!m) return '';
+  const notesXmlStr = await fileString(zip, `ppt/notesSlides/notesSlide${m[1]}.xml`);
+  if (!notesXmlStr) return '';
+  const doc = parseXml(notesXmlStr);
+  const out: string[] = [];
+  for (const p of local(doc, 'p').filter((n) => n.namespaceURI?.includes('drawingml'))) {
+    // Drop paragraphs that are only a slide-number field.
+    const flds = local(p, 'fld');
+    const isSlideNum = flds.some((f) => f.getAttribute('type') === 'slidenum');
+    const text = local(p, 't').map((t) => t.textContent ?? '').join('');
+    if (!isSlideNum && text.trim()) out.push(text.trim());
+  }
+  return out.join('\n');
+}
+
+async function imageDataUrl(zip: JSZip, slidePath: string, rId: string): Promise<string | null> {
+  const relsPath = slidePath.replace(/slides\/(slide\d+\.xml)$/i, 'slides/_rels/$1.rels');
+  const rels = await fileString(zip, relsPath);
+  if (!rels) return null;
+  const re = new RegExp(`Id="${rId}"[^>]*Target="([^"]+)"`);
+  const m = rels.match(re);
+  if (!m) return null;
+  const target = m[1].replace(/^\.\.\//, 'ppt/');
+  const file = zip.files[target] || zip.files[target.replace(/^ppt\//, 'ppt/')];
+  if (!file) return null;
+  const ext = (target.split('.').pop() || 'png').toLowerCase();
+  const mime =
+    ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
+    ext === 'gif' ? 'image/gif' :
+    ext === 'svg' ? 'image/svg+xml' :
+    ext === 'webp' ? 'image/webp' : 'image/png';
+  const b64 = await file.async('base64');
+  return `data:${mime};base64,${b64}`;
+}
+
+async function importShape(
+  zip: JSZip, slidePath: string, node: Element,
+  groupOffset: { dx: number; dy: number },
+  layout: Map<PhKey, Xfrm>,
+  theme: ThemeColors,
+  out: Block[],
+  usedFonts: Set<string>
+): Promise<void> {
+  const name = node.localName;
+
+  let xfrm = readXfrm(node);
+  if (!xfrm) {
+    // Geometry may be inherited: look the placeholder up on the layout.
+    const ph = local(node, 'ph')[0];
+    if (ph) xfrm = layout.get(phKey(ph)) ?? layout.get(`${ph.getAttribute('type') ?? 'body'}|`) ?? null;
+  }
+  if (name === 'pic') {
+    const blip = local(node, 'blip')[0];
+    const rId = blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed')
+      ?? blip?.getAttribute('r:embed') ?? blip?.getAttribute('r:link');
+    if (!rId) return;
+    const src = await imageDataUrl(zip, slidePath, rId);
+    if (!src) return;
+    const f = xfrm ?? { x: 80, y: 80, w: 360, h: 240 };
+    out.push({
+      id: uid('blk'), type: 'image',
+      x: Math.round(f.x + groupOffset.dx), y: Math.round(f.y + groupOffset.dy),
+      w: Math.max(24, Math.round(f.w)), h: Math.max(24, Math.round(f.h)),
+      props: { src, fit: 'contain', alt: '' }
+    } as Block);
+    return;
+  }
+
+  if (name === 'sp') {
+    const { text, fontSize, bold, font, color: runColor } = textOf(node, theme);
+    const prst = prstGeomOf(node);
+    const kind = prst ? PRSTGEOM_TO_KIND[prst] : undefined;
+    const f = xfrm ?? { x: 80, y: 80, w: 500, h: 80 };
+    const x = Math.round(f.x + groupOffset.dx);
+    const y = Math.round(f.y + groupOffset.dy);
+    const w = Math.max(24, Math.round(f.w));
+    const h = Math.max(24, Math.round(f.h));
+
+    // A shape with visible geometry becomes a shape block; text inside it
+    // becomes a text block stacked on top (our text block has no fill).
+    const isTextBox = !prst || prst === 'rect' && !local(node, 'spPr')[0]?.getElementsByTagNameNS('*', 'solidFill').length && !local(node, 'ln')[0];
+    if (kind && !isTextBox) {
+      const { fill, border, borderWidth } = fillOf(node, theme);
+      out.push({
+        id: uid('blk'), type: 'shape', x, y, w, h,
+        props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12 }
+      } as Block);
+    }
+
+    if (text) {
+      const color = runColor ?? firstTextColor(node, theme);
+      if (font) usedFonts.add(font);
+      out.push({
+        id: uid('blk'), type: 'text',
+        x: kind && !isTextBox ? x + 8 : x,
+        y: kind && !isTextBox ? y + Math.max(0, Math.round(h / 2 - fontSize)) : y,
+        w: Math.max(60, kind && !isTextBox ? w - 16 : w),
+        h: Math.max(32, kind && !isTextBox ? Math.round(fontSize * 2.2) : h),
+        props: {
+          html: text,
+          fontSize: Math.round(fontSize),
+          align: kind && !isTextBox ? 'center' : 'left',
+          ...(color ? { color } : {}),
+          ...(font ? { fontFamily: font } : {}),
+          ...(bold ? { bold } : {})
+        }
+      } as Block);
+    }
+  }
+}
+
+function firstTextColor(sp: Element, theme: ThemeColors): string | null {
+  for (const rPr of local(sp, 'rPr')) {
+    const sf = local(rPr, 'solidFill')[0];
+    if (sf) {
+      const hex = resolveColorEl(sf, theme);
+      if (hex) return hex;
+    }
+  }
+  return null;
+}
+
+export interface PptxImportResult {
+  project: Project;
+  warnings: string[];
+}
+
+export async function importPptx(file: File, existingTitle?: string): Promise<PptxImportResult> {
+  const zip = await JSZip.loadAsync(file);
+  const warnings: string[] = [];
+
+  // Slide size
+  let width = 1280;
+  let height = 720;
+  const presXml = await fileString(zip, 'ppt/presentation.xml');
+  if (presXml) {
+    const m = presXml.match(/<p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+    if (m) {
+      width = Math.round(Number(m[1]) / EMU);
+      height = Math.round(Number(m[2]) / EMU);
+    }
+  }
+
+  // Slide files, numerically sorted; count cross-checked against sldIds.
+  const slidePaths = Object.keys(zip.files)
+    .filter((p) => /^ppt\/slides\/slide\d+\.xml$/i.test(p))
+    .sort((a, b) => Number(a.match(/slide(\d+)/i)![1]) - Number(b.match(/slide(\d+)/i)![1]));
+  const fromPres = (presXml?.match(/<p:sldId /g) || []).length;
+  if (fromPres > slidePaths.length) {
+    warnings.push(`presentation.xml lists ${fromPres} slides but ${slidePaths.length} slide files were found.`);
+  }
+  if (slidePaths.length === 0) throw new Error('No slides found - is this a .pptx file?');
+
+  const theme = await readTheme(zip);
+  // Fonts the deck actually uses (for embedding) and any font files the deck
+  // itself embeds (ppt/fonts/*.fntdata).
+  const usedFonts = new Set<string>();
+  const slides: Slide[] = [];
+  for (const path of slidePaths) {
+    const xmlStr = await fileString(zip, path);
+    if (!xmlStr) continue;
+    const doc = parseXml(xmlStr);
+    const spTree = local(doc, 'spTree')[0];
+    const blocks: Block[] = [];
+
+    const layout = await layoutXfrms(zip, path);
+    const walk = async (parent: Element, offset: { dx: number; dy: number }) => {
+      for (const child of Array.from(parent.children)) {
+        if (child.localName === 'AlternateContent') {
+          // mc:AlternateContent wraps newer shapes; the Fallback branch is
+          // the plain-OOXML rendering, so walk that (Choice may need
+          // extensions we do not implement).
+          const fb = local(child, 'Fallback')[0] ?? local(child, 'Choice')[0];
+          if (fb) await walk(fb, offset);
+        } else if (child.localName === 'grpSp') {
+          const gx = readXfrm(child);
+          const chOff = local(child, 'chOff')[0];
+          const dx = gx && chOff ? gx.x - Number(chOff.getAttribute('x')) / EMU : 0;
+          const dy = gx && chOff ? gx.y - Number(chOff.getAttribute('y')) / EMU : 0;
+          await walk(child, { dx: offset.dx + dx, dy: offset.dy + dy });
+        } else if (child.localName === 'sp' || child.localName === 'pic') {
+          await importShape(zip, path, child, offset, layout, theme, blocks, usedFonts);
+        } else if (child.localName === 'graphicFrame') {
+          warnings.push(`Slide ${slides.length + 1}: a table/chart/SmartArt frame was skipped.`);
+        }
+      }
+    };
+    if (spTree) await walk(spTree, { dx: 0, dy: 0 });
+
+    const layer = createLayer('Base layer', true);
+    layer.blocks = blocks;
+    const notes = await readNotes(zip, path);
+    const n = slides.length + 1;
+    slides.push({
+      id: uid('sl'),
+      name: `Slide ${n}`,
+      width, height,
+      layers: [layer],
+      triggers: [],
+      notes: notes || undefined,
+      // Narrator behavior: slides with speaker notes narrate them with
+      // browser TTS and advance when the voice finishes. Authors can swap
+      // in recorded audio or turn this off per slide.
+      timeline: notes
+        ? { duration: Math.max(3, Math.round(ttsEstimate(notes, 1))), autoAdvance: true, tts: { rate: 1 } }
+        : undefined
+    });
+    if (blocks.length === 0) warnings.push(`Slide ${n}: nothing importable (shapes may rely on layout placeholders).`);
+  }
+
+  const title = existingTitle || file.name.replace(/\.pptx$/i, '');
+  const embeddedFonts = await readEmbeddedFonts(zip, presXml ?? '');
+  return {
+    project: {
+      id: uid('prj'),
+      title,
+      slides,
+      variables: [],
+      completion: { mode: 'allSlides' },
+      fonts: [...usedFonts].filter((f) => !embeddedFonts.some((e) => e.family === f)),
+      embeddedFonts: embeddedFonts.length ? embeddedFonts : undefined
+    },
+    warnings
+  };
+}
+
+// Pull any fonts the PowerPoint embedded (ppt/fonts/*.fntdata) so the deck's
+// own typefaces render without depending on Google Fonts. Each style maps to
+// an @font-face via a data URL. PowerPoint stores these as obfuscated or
+// plain font files; modern .pptx uses standard TTF/OTF which browsers load
+// directly through FontFace/@font-face.
+async function readEmbeddedFonts(
+  zip: JSZip,
+  presXml: string
+): Promise<{ family: string; dataUrl: string; weight?: number; italic?: boolean }[]> {
+  const out: { family: string; dataUrl: string; weight?: number; italic?: boolean }[] = [];
+  if (!presXml.includes('embeddedFont')) return out;
+  const presRels = await fileString(zip, 'ppt/_rels/presentation.xml.rels');
+  if (!presRels) return out;
+  const relDoc = parseXml(presRels);
+  const relMap = new Map<string, string>();
+  for (const rel of local(relDoc, 'Relationship')) {
+    const id = rel.getAttribute('Id');
+    const target = rel.getAttribute('Target');
+    if (id && target) relMap.set(id, target.replace(/^\.\.\//, '').replace(/^\//, ''));
+  }
+  const doc = parseXml(presXml);
+  const styles: [string, number, boolean][] = [
+    ['regular', 400, false], ['bold', 700, false], ['italic', 400, true], ['boldItalic', 700, true]
+  ];
+  for (const ef of local(doc, 'embeddedFont')) {
+    const family = local(ef, 'font')[0]?.getAttribute('typeface');
+    if (!family) continue;
+    for (const [tag, weight, italic] of styles) {
+      const node = Array.from(ef.children).find((c) => c.localName === tag);
+      const rid = node?.getAttribute('r:id') || node?.getAttributeNS('*', 'id');
+      if (!rid) continue;
+      const target = relMap.get(rid);
+      if (!target) continue;
+      const path = target.startsWith('ppt/') ? target : `ppt/${target}`;
+      const f = zip.file(path) ?? zip.file(target);
+      if (!f) continue;
+      try {
+        const b64 = await f.async('base64');
+        // .fntdata is font binary; declare as font/otf which browsers sniff.
+        out.push({ family, dataUrl: `data:font/otf;base64,${b64}`, weight, italic });
+      } catch { /* skip unreadable font */ }
+    }
+  }
+  return out;
+}
