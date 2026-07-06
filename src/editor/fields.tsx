@@ -126,113 +126,57 @@ export function ImagePicker(props: { src: string; onChange: (src: string) => voi
 
 
 export function ColorInput(props: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  // Swatch picker (the browser's native popup, including its built-in
+  // eyedropper) plus a hex text field.
+  //
+  // The picker fires 'input' continuously while the author drags a slider
+  // or moves the eyedropper. Two rules keep that safe:
+  //
+  // 1. Commit ONCE, from the NATIVE 'change' event. React's synthetic
+  //    onChange on <input type="color"> is an alias for 'input', so wiring
+  //    onChange={commit} pushes a full-project history snapshot (two deep
+  //    clones of a document that embeds data-URL media) on EVERY tick of
+  //    an eyedropper drag - that render/clone storm is what froze and
+  //    crashed the tab. The native 'change' event fires exactly once, when
+  //    the popup closes or the eyedropper picks.
+  // 2. Never write to the input element while its picker is open. The
+  //    element is uncontrolled; external value changes sync through a ref
+  //    only between interactions.
   const hex = /^#[0-9a-fA-F]{6}$/.test(props.value) ? props.value : '#888888';
   const [local, setLocal] = useState<string | null>(null);
   const shown = local ?? props.value;
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-  const lastCommittedValue = useRef<string | null>(null);
-  const timeoutRef = useRef<any>(null);
+
+  const colorRef = useRef<HTMLInputElement>(null);
+  const onChangeRef = useRef(props.onChange);
+  onChangeRef.current = props.onChange;
 
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.value = hex;
-    }
-  }, [hex]);
-
-  useEffect(() => {
-    const el = inputRef.current;
+    const el = colorRef.current;
     if (!el) return;
-    
-    let debounceTimeout: any = null;
-
-    const commitValue = (v: string) => {
-      lastCommittedValue.current = v;
-      props.onChange(v);
-    };
-
-    const handleInput = (e: Event) => {
-      const v = (e.target as HTMLInputElement).value;
-      setLocal(v);
-      
-      if (debounceTimeout) clearTimeout(debounceTimeout);
-      debounceTimeout = setTimeout(() => {
-        commitValue(v);
-      }, 100); // 100ms debounce prevents rendering storms during eyedropper dragging
-    };
-
-    const handleChange = (e: Event) => {
-      const v = (e.target as HTMLInputElement).value;
-      if (debounceTimeout) clearTimeout(debounceTimeout);
+    const onNativeChange = () => {
       setLocal(null);
-      commitValue(v);
+      onChangeRef.current(el.value);
     };
+    el.addEventListener('change', onNativeChange);
+    return () => el.removeEventListener('change', onNativeChange);
+  }, []);
 
-    el.addEventListener('input', handleInput);
-    el.addEventListener('change', handleChange);
-    
-    return () => {
-      el.removeEventListener('input', handleInput);
-      el.removeEventListener('change', handleChange);
-      if (debounceTimeout) clearTimeout(debounceTimeout);
-    };
-  }, [props.onChange]);
-
-  const hasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window;
-
-  const activateEyeDropper = async () => {
-    try {
-      const picker = new (window as any).EyeDropper();
-      const result = await picker.open();
-      if (result.sRGBHex) {
-        lastCommittedValue.current = result.sRGBHex;
-        setLocal(null);
-        if (inputRef.current) {
-          inputRef.current.value = result.sRGBHex;
-        }
-        props.onChange(result.sRGBHex);
-      }
-    } catch (err) {
-      console.log('EyeDropper closed or failed:', err);
-    }
-  };
+  // Sync external value changes (undo, another field) into the swatch,
+  // but only while no interaction is in flight.
+  useEffect(() => {
+    const el = colorRef.current;
+    if (el && local === null && el.value !== hex) el.value = hex;
+  }, [hex, local]);
 
   return (
     <div className={`color-input ${props.disabled ? 'disabled' : ''}`}>
       <input
-        ref={inputRef}
+        ref={colorRef}
         type="color"
         defaultValue={hex}
         disabled={props.disabled}
+        onInput={(e) => setLocal((e.target as HTMLInputElement).value)}
       />
-      {hasEyeDropper && (
-        <button
-          type="button"
-          className="eyedropper-btn"
-          disabled={props.disabled}
-          onClick={activateEyeDropper}
-          title="Pick color from screen"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0 6px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'inherit',
-            opacity: props.disabled ? 0.4 : 0.7,
-            height: '100%'
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m2 22 1-1" />
-            <path d="M14 6 8 12v3h3l6-6-3-3Z" />
-            <path d="m18 2 4 4" />
-            <path d="m17 3 4 4" />
-          </svg>
-        </button>
-      )}
       <input
         className="input"
         value={shown}

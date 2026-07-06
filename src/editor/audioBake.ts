@@ -23,8 +23,6 @@ function loadKokoroModule(): Promise<KokoroModule> {
 // then cached by the browser. The published course still ships the baked
 // file and stays fully offline.
 
-export type BakeFormat = 'wav' | 'mp3';
-
 export interface BakeResult {
   blob: Blob;
   dataUrl: string;
@@ -190,28 +188,25 @@ export async function synthesize(text: string, voiceId: string, onProgress?: (pc
   return { data: merged, sampleRate };
 }
 
-export async function bufferToResultF32(data: Float32Array, sampleRate: number, format: BakeFormat): Promise<BakeResult> {
+// All bakes land in one format: MP3. It embeds an order of magnitude
+// smaller than WAV in the project JSON and every target browser plays it.
+export async function bakeSpeech(opts: {
+  text: string;
+  voiceId: string;
+  onProgress?: (pct: number) => void;
+}): Promise<BakeResult> {
+  const { data, sampleRate } = await synthesize(opts.text, opts.voiceId, opts.onProgress);
   const trimmed = trimSilence(data, sampleRate);
-  const blob = format === 'mp3' ? encodeMp3(trimmed.data, sampleRate) : encodeWav(trimmed.data, sampleRate);
+  const blob = encodeMp3(trimmed.data, sampleRate);
   const dataUrl = await blobToDataUrl(blob);
   return { blob, dataUrl, seconds: trimmed.seconds };
 }
 
-export async function bakeSpeech(opts: {
-  text: string;
-  voiceId: string;
-  format: BakeFormat;
-  onProgress?: (pct: number) => void;
-}): Promise<BakeResult> {
-  const { data, sampleRate } = await synthesize(opts.text, opts.voiceId, opts.onProgress);
-  return bufferToResultF32(data, sampleRate, opts.format);
-}
-
-export function downloadBake(result: BakeResult, baseName: string, format: BakeFormat): void {
+export function downloadBake(result: BakeResult, baseName: string): void {
   const url = URL.createObjectURL(result.blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${baseName}.${format}`;
+  a.download = `${baseName}.mp3`;
   document.body.appendChild(a);
   a.click();
   a.remove();

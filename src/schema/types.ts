@@ -180,6 +180,11 @@ export interface Block {
   // force it. accLabel overrides the announced text.
   aria?: 'auto' | 'include' | 'exclude';
   accLabel?: string;
+  // Audio attached to the block (an uploaded file or a Kokoro bake). Plays
+  // through the same file-based pipeline as audio blocks: on a timeline it
+  // follows the slide clock from the block's start; otherwise it plays when
+  // the block appears. playAudio/pauseAudio triggers target it too.
+  audio?: { src: string };
   // Looping attention animation (GSAP), independent of the timeline.
   emphasis?: 'none' | 'pulse' | 'bounce' | 'shake' | 'float' | 'wobble' | 'tada' | 'heartbeat' | 'glow';
   // Grouping: blocks sharing a groupId select and move together. (Deprecated, migrated to type: 'group')
@@ -286,12 +291,6 @@ export interface SlideTimeline {
   duration: number;       // seconds; ignored when narration drives the clock
   narrationSrc?: string;  // slide audio; its length becomes the duration
   autoAdvance: boolean;   // go to the next slide when the timeline ends
-  tts?: TtsSettings;      // narrate slide.notes with the Web Speech API
-}
-
-export interface TtsSettings {
-  voiceName?: string; // browser voice; absent = system default
-  rate: number;       // 0.5 - 2.0
 }
 
 export interface PlayerButton {
@@ -304,7 +303,6 @@ export interface PlayerSettings {
   back: PlayerButton;
   submit: PlayerButton;
   menu: { show: boolean; locked?: boolean }; // locked = view-only (no jumping)
-  voiceControls: boolean; // learner-facing voice/rate controls for TTS slides
   // Chrome styling.
   accent?: string;        // player accent (buttons, progress) - defaults to theme
   chrome?: 'dark' | 'light' | 'minimal';
