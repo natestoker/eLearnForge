@@ -85,7 +85,9 @@ interface ProjectStore {
   alignBlocks: (edge: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom', to: 'stage' | 'selection') => void;
   distributeBlocks: (axis: 'h' | 'v') => void;
   deleteLayer: (slideId: string, layerId: string) => void;
-  addBlock: (type: BlockType) => void;
+  // init runs on the new block after defaults/theming, e.g. to set a
+  // specific shape kind picked in the Insert menu.
+  addBlock: (type: BlockType, init?: (b: Block) => void) => void;
   deleteBlock: (blockId: string) => void;
   copyBlocks: () => void;
   cutBlocks: () => void;
@@ -298,7 +300,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  addBlock: (type) => {
+  addBlock: (type, init) => {
     const { selection } = get();
     const block = createBlock(type, 120 + Math.random() * 60, 120 + Math.random() * 60);
     get().mutate((p) => {
@@ -335,6 +337,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           defaultValue: ''
         });
       }
+      init?.(block);
     });
     get().select({ blockId: block.id });
   },

@@ -4,10 +4,9 @@ import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, Row, Select
 import { VoiceRecorder } from './VoiceRecorder';
 import { StatesSection } from './StatesSection';
 import { BakeNarration } from './BakeNarration';
+import { BlockAudioSection } from './BlockAudioSection';
 import { defaultPlayerSettings } from '../schema/factory';
-import { useEffect, useState } from 'react';
-
-// useVoices removed
+import { useState } from 'react';
 
 // Panel design note (open question #2 from the brief): hand-built panels per
 // block type for v1's four blocks, sharing field primitives. A schema-driven
@@ -115,12 +114,10 @@ export function PropertyPanel() {
                   if (s?.timeline) {
                     s.timeline.narrationSrc = dataUrl;
                     s.timeline.duration = Math.max(1, Math.round(seconds * 10) / 10);
-                    s.timeline.tts = undefined; // recorded voice replaces TTS
                   }
                 })
               }
             />
-            {/* Narrate speaker notes (browser text-to-speech) removed */}
             <CheckboxInput
               label="Auto-advance to the next slide at the end"
               checked={slide.timeline.autoAdvance}
@@ -172,7 +169,7 @@ export function PropertyPanel() {
         <textarea
           className="input code-area"
           rows={4}
-          placeholder="Notes for this slide. TTS narration reads this text."
+          placeholder="Notes for this slide. Bake narration reads this text."
           value={slide.notes ?? ''}
           onChange={(e) =>
             mutate((p) => {
@@ -253,6 +250,13 @@ export function PropertyPanel() {
         block={block}
         onUpdateProps={(fn, history = true) => updateBlock(block.id, (b) => fn(b.props), history)}
       />
+      {block.type === 'text' && (
+        <>
+          <div className="divider" />
+          <h3 className="panel-title">Audio</h3>
+          <BlockAudioSection block={block} />
+        </>
+      )}
       {(block.type === 'shape' || block.type === 'button' || block.type === 'image' || block.type === 'text' || block.type === 'hotspot') && (
         <>
           <div className="divider" />
@@ -306,9 +310,6 @@ export function PropertyPanel() {
     </div>
   );
 }
-
-
-// TtsControls removed
 
 
 function PlayerSettingsSection() {
@@ -380,7 +381,6 @@ function PlayerSettingsSection() {
           onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.buttonStyle = v as 'solid'; })}
         />
       </Field>
-      {/* Learner voice controls on TTS slides removed */}
       <p className="hint">Triggers can also enable/disable Next, Back, and Submit per slide (Enable/disable player button action).</p>
     </>
   );

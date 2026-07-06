@@ -27,8 +27,7 @@ export function defaultPlayerSettings(): PlayerSettings {
     next: { show: true, label: 'Next' },
     back: { show: true, label: 'Back' },
     submit: { show: false, label: 'Submit' },
-    menu: { show: true },
-    voiceControls: true
+    menu: { show: true }
   };
 }
 

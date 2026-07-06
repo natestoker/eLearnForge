@@ -224,7 +224,9 @@ export function Player({ project, adapter, startSlideId }: {
                 const acc = accessibilityFor(block);
                 const clickable = !disabled && (runtime.blockHasInteractionTrigger(block.id) || Boolean(block.stateStyles?.selected || block.stateStyles?.visited));
                 const tState = hasTimeline ? blockStateAt(t, block.timing, duration) : null;
-                const timedMedia = hasTimeline && block.timing && (block.type === 'audio' || block.type === 'video');
+                const attachedAudio = block.audio?.src;
+                const timedMedia = hasTimeline && block.timing &&
+                  (block.type === 'audio' || block.type === 'video' || Boolean(attachedAudio));
                 // Effective style: persistent state first, transient pointer
                 // states layered on top when interactive.
                 let stateStyle: StateStyle | undefined =
@@ -281,6 +283,14 @@ export function Player({ project, adapter, startSlideId }: {
                         }}
                       >
                         <def.Runtime block={block} runtime={runtime} stateStyle={stateStyle} t={hasTimeline ? t : undefined} tState={tState} />
+                        {/* Block-attached audio (Add/Bake audio) rides the
+                            same pipeline as audio blocks: TimedMedia drives
+                            it when the block has a timeline bar; otherwise it
+                            plays when the block appears. playAudio triggers
+                            find it via the data-block-id query above. */}
+                        {attachedAudio && (
+                          <audio src={attachedAudio} preload="auto" autoPlay={!timedMedia} style={{ display: 'none' }} />
+                        )}
                       </div>
                     </BlockFx>
                   </div>

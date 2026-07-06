@@ -588,3 +588,46 @@ fills, takes a border, animates, and clips just like the built-in shapes.
 Custom points live in the same 0..100 coordinate space as the preset
 geometry, so a drawn shape or clip stretches with its block the way
 PowerPoint geometry does.
+
+
+# v6.1
+
+## One color picker, crash fixed at the root
+The color field is back to a single implementation: the browser's native
+swatch popup (with its built-in eyedropper) plus a hex field. The crash
+that motivated the extra custom eyedropper button was diagnosed and fixed:
+React's synthetic onChange on <input type="color"> is an alias for the
+'input' event, so every tick of an eyedropper drag was committing a
+full-project undo snapshot (two deep clones of a document that embeds
+data-URL media) - a render/clone storm that froze the tab. ColorInput now
+previews locally during interaction and commits exactly once, from the
+NATIVE 'change' event, when the popup closes or the eyedropper picks. The
+custom eyedropper button and its debounce machinery are removed.
+
+## One audio pipeline
+Browser speechSynthesis is gone (engine, voice list, learner voice
+controls, TtsSettings). Everything speaks through files: attach an
+existing audio file, or bake speech with Kokoro - always to MP3 - and the
+result plays through the one file-based player path (audio elements,
+TimedMedia against the slide clock, playAudio/pauseAudio triggers).
+
+Text blocks gained an Audio section with exactly two options: **Add
+audio** (attach a file) and **Bake audio** (synthesize the element's text;
+the MP3 becomes the element's permanent audio). Attached audio plays when
+the element appears, or with its timeline bar on timed slides. Slide-level
+narration baking remains and now shares the same AudioBaker component.
+
+## Insert menu: categories + visual shape picker
+Insert opens a two-pane menu: category rail (Shapes / Text / Media /
+Interactive / Widgets) and a content pane. Shapes render as a grid of
+real geometry thumbnails (the same ShapeSvg the canvas uses), so you
+recognize the shape instead of reading its name; picking one inserts a
+shape block already set to that kind. The same ShapePicker replaces the
+long dropdown in shape properties. New insertables scale by adding one
+entry to a category - the toolbar never grows.
+
+## Run + File menus
+The toolbar now holds only always-on editing controls (Insert, undo/redo).
+Preview project / Preview this slide / Publish live in a Run menu; New /
+Demo / Save / Load / Import PPTX live in a File menu. Future targets
+(SCORM export, HTML export, share) slot into Run without new buttons.

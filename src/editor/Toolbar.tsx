@@ -1,26 +1,125 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Icon } from './icons';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
-import type { BlockType } from '../schema/types';
-
-const INSERT_GROUPS: { title: string; types: BlockType[] }[] = [
-  { title: 'Basics', types: ['text', 'shape', 'image', 'button'] },
-  { title: 'Media', types: ['video', 'audio'] },
-  { title: 'Interactive', types: ['multipleChoice', 'matching', 'textEntry', 'hotspot', 'statement', 'code'] }
-];
+import type { BlockType, ShapeProps } from '../schema/types';
+import { ShapePicker } from '../blocks/shape/ShapePicker';
 import { exportProjectJson, importProjectJson, importProjectJsonWithPicker, resetFileHandle } from '../state/persistence';
 import { createDemoProject, createProject } from '../schema/factory';
-import { useState } from 'react';
 import { PublishDialog } from './PublishDialog';
 import { importPptx } from '../publish/pptxImport';
+
+// Toolbar layout principle: the bar itself holds only the always-on editing
+// actions (Insert, Undo/Redo); everything project-level lives in two menus -
+// File (open/save/import) and Run (preview/publish/export) - so new targets
+// can be added without widening the bar.
+
+// Insert is organized by category. Shapes render as a visual grid (recognize,
+// don't recall); the other categories are short labeled lists. Adding a new
+// insertable means adding one entry here - the menu scales, the toolbar
+// doesn't grow.
+const INSERT_CATEGORIES: { id: string; label: string; types?: BlockType[] }[] = [
+  { id: 'shapes', label: 'Shapes' }, // rendered as the ShapePicker grid
+  { id: 'text', label: 'Text', types: ['text', 'textEntry'] },
+  { id: 'media', label: 'Media', types: ['image', 'video', 'audio'] },
+  { id: 'interactive', label: 'Interactive', types: ['button', 'hotspot', 'multipleChoice', 'matching', 'statement'] },
+  { id: 'widgets', label: 'Widgets', types: ['code'] }
+];
+
+// The one dropdown pattern for every toolbar menu: opens on click, closes on
+// outside click, Escape, or item selection (items call close()).
+function ToolbarMenu({ label, title, accent, align = 'left', menuClass, children }: {
+  label: ReactNode;
+  title?: string;
+  accent?: boolean;
+  align?: 'left' | 'right';
+  menuClass?: string;
+  children: (close: () => void) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <div className="menu-anchor" ref={ref}>
+      <button
+        className={`btn btn-icon-label ${accent ? 'btn-accent' : ''}`}
+        title={title}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {label} <span className="menu-caret">{'▾'}</span>
+      </button>
+      {open && (
+        <div className={`menu ${align === 'right' ? 'menu-right' : ''} ${menuClass ?? ''}`} role="menu">
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InsertMenu({ close }: { close: () => void }) {
+  const addBlock = useProjectStore((s) => s.addBlock);
+  const [catId, setCatId] = useState(INSERT_CATEGORIES[0].id);
+  const cat = INSERT_CATEGORIES.find((c) => c.id === catId) ?? INSERT_CATEGORIES[0];
+  return (
+    <div className="insert-menu">
+      <div className="insert-cats">
+        {INSERT_CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            className={`menu-item ${c.id === catId ? 'active' : ''}`}
+            onPointerEnter={() => setCatId(c.id)}
+            onClick={() => setCatId(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div className="insert-pane">
+        {cat.id === 'shapes' ? (
+          <ShapePicker
+            onPick={(kind) => {
+              addBlock('shape', (b) => { (b.props as ShapeProps).kind = kind; });
+              close();
+            }}
+          />
+        ) : (
+          (cat.types ?? []).map((type) => (
+            <button
+              key={type}
+              className="menu-item"
+              onClick={() => { addBlock(type); close(); }}
+            >
+              <span className="menu-glyph">{BLOCKS[type].glyph}</span>
+              {BLOCKS[type].label}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
   const project = useProjectStore((s) => s.project);
   const mutate = useProjectStore((s) => s.mutate);
   const setProject = useProjectStore((s) => s.setProject);
-  const addBlock = useProjectStore((s) => s.addBlock);
   const undo = useProjectStore((s) => s.undo);
   const redo = useProjectStore((s) => s.redo);
   const canUndo = useProjectStore((s) => s.past.length > 0);
@@ -29,7 +128,6 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
   const selection = useProjectStore((s) => s.selection);
   const fileRef = useRef<HTMLInputElement>(null);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [insertOpen, setInsertOpen] = useState(false);
   const pptxRef = useRef<HTMLInputElement>(null);
 
   const onPptx = async (file: File) => {
@@ -44,6 +142,19 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
     }
   };
 
+  const loadFromPicker = async () => {
+    try {
+      const loaded = await importProjectJsonWithPicker();
+      if (loaded) {
+        setProject(loaded);
+      } else {
+        fileRef.current?.click();
+      }
+    } catch (err: any) {
+      if (err && err.name === 'AbortError') return; // User cancelled
+      alert(err instanceof Error ? err.message : 'Could not read that file.');
+    }
+  };
 
   return (
     <header className="toolbar">
@@ -59,88 +170,70 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       </div>
 
       <div className="toolbar-group">
-        <div className="menu-anchor">
-          <button className="btn" onClick={() => setInsertOpen((o) => !o)}>
-            Insert v
-          </button>
-          {insertOpen && (
-            <div className="menu" onPointerLeave={() => setInsertOpen(false)}>
-              {INSERT_GROUPS.map((group) => (
-                <div key={group.title} className="menu-group">
-                  <div className="menu-group-title">{group.title}</div>
-                  {group.types.map((type) => (
-                    <button
-                      key={type}
-                      className="menu-item"
-                      onClick={() => {
-                        addBlock(type);
-                        setInsertOpen(false);
-                      }}
-                    >
-                      <span className="menu-glyph">{BLOCKS[type].glyph}</span>
-                      {BLOCKS[type].label}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="toolbar-group">
+        <ToolbarMenu label={<><Icon.plus /> Insert</>} menuClass="menu-insert">
+          {(close) => <InsertMenu close={close} />}
+        </ToolbarMenu>
         <button className="btn btn-ghost btn-icon-label" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
         <button className="btn btn-ghost btn-icon-label" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
       </div>
 
       <div className="toolbar-group toolbar-right">
-        <button
-          className="btn btn-ghost btn-icon-label"
-          title="Start over with a blank project"
-          onClick={() => {
-            if (confirm('Replace the current project with a blank one?')) {
-              resetFileHandle();
-              setProject(createProject());
-            }
-          }}
-        >
-          <Icon.file /> New
-        </button>
-        <button
-          className="btn btn-ghost btn-icon-label"
-          title="Load the demo project"
-          onClick={() => {
-            if (confirm('Replace the current project with the demo?')) {
-              resetFileHandle();
-              setProject(createDemoProject());
-            }
-          }}
-        >
-          <Icon.sparkles /> Demo
-        </button>
-        <button className="btn btn-ghost btn-icon-label" onClick={() => exportProjectJson(project)} title="Save the project as a .json file"><Icon.save /> Save</button>
-        <button
-          className="btn btn-ghost btn-icon-label"
-          title="Load a saved .json project"
-          onClick={async () => {
-            try {
-              const loaded = await importProjectJsonWithPicker();
-              if (loaded) {
-                setProject(loaded);
-              } else {
-                fileRef.current?.click();
-              }
-            } catch (err: any) {
-              if (err && err.name === 'AbortError') return; // User cancelled
-              alert(err instanceof Error ? err.message : 'Could not read that file.');
-            }
-          }}
-        >
-          <Icon.load /> Load
-        </button>
-        <button className="btn btn-ghost btn-icon-label" onClick={() => pptxRef.current?.click()} title="Import a PowerPoint as an editable starting point">
-          <Icon.pptx /> Import PPTX
-        </button>
+        <ToolbarMenu label={<><Icon.file /> File</>} align="right" title="New, save, load, and import">
+          {(close) => (
+            <>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  close();
+                  if (confirm('Replace the current project with a blank one?')) {
+                    resetFileHandle();
+                    setProject(createProject());
+                  }
+                }}
+              >
+                <Icon.file /> New project
+              </button>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  close();
+                  if (confirm('Replace the current project with the demo?')) {
+                    resetFileHandle();
+                    setProject(createDemoProject());
+                  }
+                }}
+              >
+                <Icon.sparkles /> Load demo project
+              </button>
+              <div className="menu-sep" />
+              <button className="menu-item" onClick={() => { exportProjectJson(project); close(); }}>
+                <Icon.save /> Save as .json
+              </button>
+              <button className="menu-item" onClick={() => { close(); void loadFromPicker(); }}>
+                <Icon.load /> Load .json
+              </button>
+              <button className="menu-item" onClick={() => { close(); pptxRef.current?.click(); }}>
+                <Icon.pptx /> Import PPTX
+              </button>
+            </>
+          )}
+        </ToolbarMenu>
+        <ToolbarMenu label={<><Icon.play /> Run</>} accent align="right" title="Preview and publish the project">
+          {(close) => (
+            <>
+              <button className="menu-item" onClick={() => { setPreviewOpen(true); close(); }}>
+                <Icon.play /> Preview project
+              </button>
+              <button className="menu-item" onClick={() => { setPreviewOpen(true, selection.slideId); close(); }}>
+                <Icon.slide /> Preview this slide
+              </button>
+              <div className="menu-sep" />
+              <button className="menu-item" onClick={() => { setPublishOpen(true); close(); }}>
+                <Icon.publish /> Publish...
+              </button>
+            </>
+          )}
+        </ToolbarMenu>
         <input
           ref={pptxRef}
           type="file"
@@ -169,15 +262,6 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
             e.target.value = '';
           }}
         />
-        <button className="btn btn-accent btn-icon-label" onClick={() => setPreviewOpen(true)}><Icon.play /> Preview</button>
-        <button
-          className="btn btn-icon-label"
-          title="Preview from the current slide"
-          onClick={() => setPreviewOpen(true, selection.slideId)}
-        >
-          <Icon.slide /> This slide
-        </button>
-        <button className="btn btn-accent btn-icon-label" onClick={() => setPublishOpen(true)}><Icon.publish /> Publish</button>
       </div>
       {publishOpen && <PublishDialog onClose={() => setPublishOpen(false)} />}
     </header>

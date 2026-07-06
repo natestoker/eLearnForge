@@ -1,7 +1,8 @@
 import type { PropertiesRendererProps } from '../blockApi';
-import type { ShapeKind, ShapeProps } from '../../schema/types';
-import { ColorInput, Field, NumberInput, Row, SelectInput } from '../../editor/fields';
+import type { ShapeProps } from '../../schema/types';
+import { ColorInput, Field, NumberInput, Row } from '../../editor/fields';
 import { SHAPE_LABELS } from './geometry';
+import { ShapePicker } from './ShapePicker';
 import { useUiStore } from '../../state/uiStore';
 
 export function ShapeProperties({ block, onUpdateProps }: PropertiesRendererProps) {
@@ -9,14 +10,10 @@ export function ShapeProperties({ block, onUpdateProps }: PropertiesRendererProp
   const openPen = useUiStore((s) => s.openPenEditor);
   return (
     <>
-      <Field label="Shape">
-        <SelectInput
-          value={props.points ? '__custom' : props.kind}
-          options={[
-            ...(Object.keys(SHAPE_LABELS) as ShapeKind[]).map((k) => ({ value: k, label: SHAPE_LABELS[k] })),
-            ...(props.points ? [{ value: '__custom', label: 'Custom (pen)' }] : [])
-          ]}
-          onChange={(v) => onUpdateProps((p: ShapeProps) => { if (v !== '__custom') { p.kind = v as ShapeKind; p.points = undefined; } })}
+      <Field label={`Shape: ${props.points ? 'Custom (pen)' : SHAPE_LABELS[props.kind]}`}>
+        <ShapePicker
+          value={props.points ? null : props.kind}
+          onPick={(kind) => onUpdateProps((p: ShapeProps) => { p.kind = kind; p.points = undefined; })}
         />
       </Field>
       <button className="btn" onClick={() => openPen(block.id, 'shape')} title="Draw or edit a custom shape with the pen tool">

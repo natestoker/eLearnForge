@@ -1,8 +1,14 @@
 import JSZip from 'jszip';
 import type { Block, Project, Slide } from '../schema/types';
 import { createLayer, uid } from '../schema/factory';
-import { ttsEstimate } from '../runtime/tts';
 import { PRSTGEOM_TO_KIND } from '../blocks/shape/geometry';
+
+// Reading pace for pre-estimating a slide duration from its speaker notes
+// (average narration speed measured in the PPTX Narrator work).
+const NARRATION_CHARS_PER_SEC = 14.5;
+function narrationEstimate(text: string): number {
+  return Math.max(0.5, text.length / NARRATION_CHARS_PER_SEC);
+}
 
 // PowerPoint import. A .pptx is a zip of XML: JSZip opens it, DOMParser
 // reads it. Hard-won rules honored here (from the PPTX Narrator work):
@@ -669,10 +675,10 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
       layers: [layer],
       triggers: [],
       notes: notes || undefined,
-      // Narrator behavior: slides with speaker notes get a pre-estimated timeline
-      // duration but do not auto-run browser-side TTS.
+      // Slides with speaker notes get a pre-estimated timeline duration; the
+      // author can then bake the notes to a narration file with Kokoro.
       timeline: notes
-        ? { duration: Math.max(3, Math.round(ttsEstimate(notes, 1))), autoAdvance: true }
+        ? { duration: Math.max(3, Math.round(narrationEstimate(notes))), autoAdvance: true }
         : undefined
     });
     if (blocks.length === 0) warnings.push(`Slide ${n}: nothing importable (shapes may rely on layout placeholders).`);
