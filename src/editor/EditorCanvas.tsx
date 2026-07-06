@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Block, Layer } from '../schema/types';
-import { useCurrentSlide, useProjectStore } from '../state/projectStore';
+import type { Block, Layer, ShapeProps } from '../schema/types';
+import { useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
+import { CALLOUT_BODY, DEFAULT_TAIL } from '../blocks/shape/geometry';
+import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 
 const GRID = 8;
 const MIN_SIZE = 40;
@@ -27,7 +29,9 @@ export function BlockNode({
   selection,
   updateBlock,
   startMove,
-  startResize
+  startResize,
+  startTail,
+  previewStyle
 }: {
   block: Block;
   layer?: Layer;
@@ -35,16 +39,52 @@ export function BlockNode({
   updateBlock: (id: string, fn: (b: Block) => void, history?: boolean) => void;
   startMove: (e: React.PointerEvent, block: Block, layer?: Layer) => void;
   startResize: (e: React.PointerEvent, block: Block, h: any) => void;
+  startTail?: (e: React.PointerEvent, block: Block) => void;
+  previewStyle?: React.CSSProperties;
 }) {
+  const openPen = useUiStore((s) => s.openPenEditor);
   if (block.editorHidden) return null;
   const def = BLOCKS[block.type];
   const isSelected = selection.blockId === block.id;
   const isMultiSel = isSelected || (selection.blockIds ?? []).includes(block.id);
+  const shapeProps = block.type === 'shape' ? (block.props as ShapeProps) : null;
+  const isCallout = Boolean(shapeProps && CALLOUT_BODY[shapeProps.kind] && !shapeProps.points);
+  const tail = shapeProps?.tail ?? DEFAULT_TAIL;
   return (
     <div
       className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''}`}
-      style={{ left: block.x, top: block.y, width: block.w, height: block.h }}
+      style={{ left: block.x, top: block.y, width: block.w, height: block.h, ...previewStyle }}
       onPointerDown={(e) => startMove(e, block, layer)}
+      onDoubleClick={
+        block.type === 'group'
+          ? (e) => {
+              // Drill into the group: select the top-most child under the
+              // cursor so its properties (color, text...) are editable.
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const lx = ((e.clientX - rect.left) / rect.width) * block.w;
+              const ly = ((e.clientY - rect.top) / rect.height) * block.h;
+              const children = (block.props as { blocks: Block[] }).blocks;
+              for (let i = children.length - 1; i >= 0; i--) {
+                const c = children[i];
+                if (lx >= c.x && lx <= c.x + c.w && ly >= c.y && ly <= c.y + c.h) {
+                  useProjectStore.getState().select({ blockId: c.id, blockIds: [] });
+                  return;
+                }
+              }
+            }
+          : undefined
+      }
+      onContextMenu={
+        block.type === 'shape' || block.type === 'image'
+          ? (e) => {
+              // Right-click a shape (or image) to edit its geometry with the
+              // pen tool; preset shapes seed the editor with their points.
+              e.preventDefault();
+              e.stopPropagation();
+              openPen(block.id, block.type === 'shape' ? 'shape' : 'imageClip');
+            }
+          : undefined
+      }
     >
       <def.Canvas
         block={block}
@@ -62,6 +102,14 @@ export function BlockNode({
               onPointerDown={(e) => startResize(e, block, h)}
             />
           ))}
+          {isCallout && startTail && (
+            <div
+              className="tail-handle"
+              style={{ left: `${tail.x}%`, top: `${tail.y}%` }}
+              title="Drag to move the callout tail"
+              onPointerDown={(e) => startTail(e, block)}
+            />
+          )}
           <div className="block-badge">{def.label}</div>
         </>
       )}
@@ -70,7 +118,7 @@ export function BlockNode({
 }
 
 interface Gesture {
-  kind: 'move' | 'resize';
+  kind: 'move' | 'resize' | 'tail';
   blockId: string;
   startClientX: number;
   startClientY: number;
@@ -78,6 +126,8 @@ interface Gesture {
   handle?: { l: number; t: number; r: number; b: number };
   // For multi-move: every selected block's starting position, keyed by id.
   group?: Record<string, { x: number; y: number }>;
+  // For tail drags: the callout tail's starting point (0..100 space).
+  tail?: { x: number; y: number };
 }
 
 interface Marquee {
@@ -172,6 +222,14 @@ export function EditorCanvas() {
           if (g.kind === 'move') {
             b.x = snap(g.start.x + dx, noSnap);
             b.y = snap(g.start.y + dy, noSnap);
+          } else if (g.kind === 'tail' && g.tail) {
+            // Callout tail: deltas map into the shape's 0..100 space; the
+            // tip may go well past the block bounds, Storyline-style.
+            const sp = b.props as ShapeProps;
+            sp.tail = {
+              x: Math.round(Math.max(-100, Math.min(200, g.tail.x + (dx / g.start.w) * 100)) * 10) / 10,
+              y: Math.round(Math.max(-100, Math.min(200, g.tail.y + (dy / g.start.h) * 100)) * 10) / 10
+            };
           } else if (g.handle) {
             let { x, y, w, h } = g.start;
             if (g.handle.r) w = Math.max(MIN_SIZE, snap(g.start.w + dx, noSnap));
@@ -185,6 +243,22 @@ export function EditorCanvas() {
               const ny = snap(g.start.y + dy, noSnap);
               h = Math.max(MIN_SIZE, g.start.h + (g.start.y - ny));
               y = g.start.y + g.start.h - h;
+            }
+            // Shift keeps the starting aspect ratio: corners scale by the
+            // dominant axis, edge handles derive the other dimension.
+            if (e.shiftKey) {
+              const corner = (g.handle.l || g.handle.r) && (g.handle.t || g.handle.b);
+              if (corner) {
+                const s = Math.max(w / g.start.w, h / g.start.h);
+                w = Math.max(MIN_SIZE, Math.round(g.start.w * s));
+                h = Math.max(MIN_SIZE, Math.round(g.start.h * s));
+              } else if (g.handle.l || g.handle.r) {
+                h = Math.max(MIN_SIZE, Math.round(w * (g.start.h / g.start.w)));
+              } else {
+                w = Math.max(MIN_SIZE, Math.round(h * (g.start.w / g.start.h)));
+              }
+              if (g.handle.l) x = g.start.x + g.start.w - w;
+              if (g.handle.t) y = g.start.y + g.start.h - h;
             }
             b.x = x; b.y = y; b.w = w; b.h = h;
           }
@@ -329,7 +403,36 @@ export function EditorCanvas() {
     };
   };
 
+  const startTail = (e: React.PointerEvent, block: Block) => {
+    e.stopPropagation();
+    record();
+    const tail = (block.props as ShapeProps).tail ?? DEFAULT_TAIL;
+    gestureRef.current = {
+      kind: 'tail',
+      blockId: block.id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      start: { x: block.x, y: block.y, w: block.w, h: block.h },
+      tail: { ...tail }
+    };
+  };
+
   const selectedLayerIndex = slide.layers.findIndex((l) => l.id === selection.layerId);
+
+  // Timeline scrub preview: with a playhead set, each block renders in its
+  // state at that moment - absent blocks ghost out (still clickable for
+  // authoring), entering/exiting blocks show their animation mid-flight.
+  const scrubT = useUiStore((s) => s.scrubT);
+  const scrubDuration = timelineDuration(slide.timeline, slide.layers.flatMap((l) => walkBlocks(l.blocks)));
+  const previewFor = (block: Block): React.CSSProperties | undefined => {
+    if (scrubT === null || !slide.timeline) return undefined;
+    const st = blockStateAt(scrubT, block.timing, scrubDuration);
+    if (!st.present) return { opacity: 0.15, filter: 'grayscale(0.8)' };
+    const css = styleFor(st);
+    delete css.pointerEvents; // authoring: everything stays selectable
+    delete css.visibility;
+    return css;
+  };
 
   return (
     <div 
@@ -386,6 +489,8 @@ export function EditorCanvas() {
                   updateBlock={updateBlock}
                   startMove={startMove}
                   startResize={startResize}
+                  startTail={startTail}
+                  previewStyle={previewFor(block)}
                 />
               ))}
             </div>

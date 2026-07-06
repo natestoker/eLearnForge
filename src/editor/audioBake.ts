@@ -140,6 +140,13 @@ export function encodeMp3(mono: Float32Array, sampleRate: number, kbps = 128): B
   return new Blob(out, { type: 'audio/mpeg' });
 }
 
+// Resolve after the browser has actually painted (double rAF).
+function nextPaint(): Promise<void> {
+  return new Promise((res) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => res()))
+  );
+}
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -164,6 +171,12 @@ export async function synthesize(text: string, voiceId: string, onProgress?: (pc
   let sampleRate = 24000;
 
   for (let i = 0; i < sentences.length; i++) {
+    // Kokoro's WASM inference blocks the main thread for the whole sentence,
+    // so without this yield the browser never repaints and the progress bar
+    // looks frozen. Two rAFs guarantee at least one committed paint between
+    // sentences.
+    onProgress?.(Math.round((i / sentences.length) * 100));
+    await nextPaint();
     const s = sentences[i];
     const out = await tts.generate(s, { voice: voiceId as never });
     if (out.audio) {
@@ -172,9 +185,7 @@ export async function synthesize(text: string, voiceId: string, onProgress?: (pc
     if (out.sampling_rate) {
       sampleRate = out.sampling_rate as number;
     }
-    if (onProgress) {
-      onProgress(Math.round(((i + 1) / sentences.length) * 100));
-    }
+    onProgress?.(Math.round(((i + 1) / sentences.length) * 100));
   }
 
   const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);

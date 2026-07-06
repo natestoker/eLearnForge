@@ -1,4 +1,4 @@
-import React, { Fragment, useRef, useState } from 'react';
+import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { timelineDuration } from '../engine/timeline';
@@ -41,7 +41,12 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const mutate = useProjectStore((s) => s.mutate);
   const snap = useUiStore((s) => s.timelineSnap);
   const setSnap = useUiStore((s) => s.setTimelineSnap);
+  const scrubT = useUiStore((s) => s.scrubT);
+  const setScrubT = useUiStore((s) => s.setScrubT);
   const trackRef = useRef<HTMLDivElement>(null);
+
+  // The playhead is per-slide-visit state: switching slides clears it.
+  useEffect(() => { setScrubT(null); }, [slide.id, setScrubT]);
   const gesture = useRef<{
     blockId: string; mode: GestureMode;
     startX: number; origStart: number; origEnd: number | undefined;
@@ -144,6 +149,27 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
 
   const pct = (sec: number) => `${(sec / duration) * 100}%`;
 
+  // Scrub: press/drag on the ruler places the playhead; the canvas previews
+  // every block's presence and animation at that time.
+  const scrubFromEvent = (e: { clientX: number }) => {
+    const content = trackRef.current?.querySelector('.timeline-grid-scroll-content') as HTMLElement | null;
+    if (!content) return;
+    const r = content.getBoundingClientRect();
+    const t = Math.max(0, Math.min(duration, ((e.clientX - r.left) / r.width) * duration));
+    setScrubT(Math.round(t * 20) / 20);
+  };
+  const onRulerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    scrubFromEvent(e);
+    const onMove = (ev: PointerEvent) => scrubFromEvent(ev);
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   // Render the left-hand column track info recursively
   const renderHeaderRow = (b: Block, layerBlocks: Block[], depth = 0): React.ReactNode => {
     const idx = layerBlocks.indexOf(b);
@@ -171,13 +197,16 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <button className="tl-row-action-btn" style={{ opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false); }}>
               {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
             </button>
-            <button className="tl-row-action-btn" title="Bring forward" disabled={idx >= layerBlocks.length - 1} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'forward'); }}>{'\u25B2'}</button>
-            <button className="tl-row-action-btn" title="Send backward" disabled={idx <= 0} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'backward'); }}>{'\u25BC'}</button>
+            {/* Rows list top-most first (the lists are reversed), so index 0
+                is already frontmost - it can't come further forward. */}
+            <button className="tl-row-action-btn" title="Bring forward" disabled={idx <= 0} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'forward'); }}>{'\u25B2'}</button>
+            <button className="tl-row-action-btn" title="Send backward" disabled={idx >= layerBlocks.length - 1} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'backward'); }}>{'\u25BC'}</button>
           </div>
         </div>
         {b.type === 'group' && expandedGroups.has(b.id) && (
           <Fragment key={b.id + '_children_headers'}>
-            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderHeaderRow(child, arr, depth + 1))}
+            {/* Reversed like top-level rows: top of the list = paints on top. */}
+            {[...((b.props as any).blocks as Block[])].reverse().map((child, _i, arr) => renderHeaderRow(child, arr, depth + 1))}
           </Fragment>
         )}
       </Fragment>
@@ -219,7 +248,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
         </div>
         {b.type === 'group' && expandedGroups.has(b.id) && (
           <Fragment key={b.id + '_children_lanes'}>
-            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderLaneRow(child, arr, depth + 1))}
+            {[...((b.props as any).blocks as Block[])].reverse().map((child, _i, arr) => renderLaneRow(child, arr, depth + 1))}
           </Fragment>
         )}
       </Fragment>
@@ -257,6 +286,15 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
           snap
         </label>
+        {scrubT !== null && (
+          <button
+            className="btn btn-ghost tl-playhead-chip"
+            title="Clear the playhead (show everything at rest)"
+            onClick={() => setScrubT(null)}
+          >
+            {'⏱'} {scrubT.toFixed(1)}s {'✕'}
+          </button>
+        )}
         <span className="hint">
           {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out.'}
         </span>
@@ -284,12 +322,23 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
         {/* Right scrollable grid column */}
         <div className="timeline-grid-col" ref={trackRef} onPointerDown={() => select({ blockId: null, blockIds: [] })}>
           <div className="timeline-grid-scroll-content" style={{ width: `${timelineZoom * 100}%` }}>
-            {/* Ruler */}
-            <div className="timeline-ruler" style={{ position: 'relative', height: 20, top: 'auto', left: 'auto', right: 'auto' }}>
+            {/* Ruler: click or drag to place the playhead */}
+            <div
+              className="timeline-ruler scrubbable"
+              style={{ position: 'relative', height: 20, top: 'auto', left: 'auto', right: 'auto' }}
+              title="Click or drag to seek - the canvas previews this moment"
+              onPointerDown={onRulerDown}
+            >
               {ticks.map((s) => (
                 <span key={s} className="timeline-tick" style={{ left: pct(s) }}>{s}s</span>
               ))}
             </div>
+
+            {scrubT !== null && (
+              <div className="timeline-playhead" style={{ left: pct(Math.min(scrubT, duration)) }}>
+                <div className="timeline-playhead-cap" />
+              </div>
+            )}
 
             {/* Overflow Shading & Setmark */}
             {duration > slide.timeline.duration + 0.01 && (

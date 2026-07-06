@@ -10,8 +10,10 @@ export function GroupRuntime({ block, runtime }: RuntimeRendererProps) {
         const def = BLOCKS[child.type];
         if (!def) return null;
         
-        // Check if the child is visible
-        const isVisible = runtime.isBlockVisible(child.id) && child.initialState !== 'hidden';
+        // Runtime state honors the authored initial state AND setState /
+        // show-hide triggers (checking child.initialState directly would
+        // make a hidden child unrevealable).
+        const isVisible = runtime.isBlockVisible(child.id) && runtime.getBlockState(child.id) !== 'hidden';
 
         return (
           <div

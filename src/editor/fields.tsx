@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useProjectStore } from '../state/projectStore';
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -7,6 +8,20 @@ export function Field({ label, children }: { label: string; children: ReactNode 
       <span className="field-label">{label}</span>
       {children}
     </label>
+  );
+}
+
+// A field whose content contains buttons (pickers, grids). Rendered as a
+// <div>, NOT a <label>: the browser forwards clicks on a label's
+// non-interactive area to its first labelable descendant - with a button
+// grid inside, any stray click (tile gaps, the caption, the click that
+// closes a native color popup) would silently "press" the first tile.
+export function ButtonField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      {children}
+    </div>
   );
 }
 
@@ -130,16 +145,21 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
   // eyedropper) plus a hex text field.
   //
   // The picker fires 'input' continuously while the author drags a slider
-  // or moves the eyedropper. Two rules keep that safe:
+  // or moves the eyedropper. Three rules keep that safe AND live:
   //
-  // 1. Commit ONCE, from the NATIVE 'change' event. React's synthetic
-  //    onChange on <input type="color"> is an alias for 'input', so wiring
+  // 1. One undo step per interaction. React's synthetic onChange on
+  //    <input type="color"> is an alias for 'input', so a naive
   //    onChange={commit} pushes a full-project history snapshot (two deep
   //    clones of a document that embeds data-URL media) on EVERY tick of
   //    an eyedropper drag - that render/clone storm is what froze and
-  //    crashed the tab. The native 'change' event fires exactly once, when
-  //    the popup closes or the eyedropper picks.
-  // 2. Never write to the input element while its picker is open. The
+  //    crashed the tab. Instead the first tick opens a store gesture
+  //    (records once, then suppresses record()), live ticks commit
+  //    throttled and history-free, and the NATIVE 'change' event (fires
+  //    once, when the popup closes or the eyedropper picks) commits the
+  //    final value and closes the gesture.
+  // 2. Live ticks are throttled (~90ms) so the canvas previews the fill in
+  //    real time without cloning the project at pointer-move rate.
+  // 3. Never write to the input element while its picker is open. The
   //    element is uncontrolled; external value changes sync through a ref
   //    only between interactions.
   const hex = /^#[0-9a-fA-F]{6}$/.test(props.value) ? props.value : '#888888';
@@ -149,6 +169,22 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
   const colorRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(props.onChange);
   onChangeRef.current = props.onChange;
+  const inGesture = useRef(false);
+  const lastLiveCommit = useRef(0);
+
+  const liveTick = (v: string) => {
+    if (!inGesture.current) {
+      inGesture.current = true;
+      useProjectStore.getState().beginGesture();
+    }
+    const now = performance.now();
+    if (now - lastLiveCommit.current > 90) {
+      lastLiveCommit.current = now;
+      // The gesture suppresses the caller's record(), so this repaints the
+      // canvas without growing undo history.
+      onChangeRef.current(v);
+    }
+  };
 
   useEffect(() => {
     const el = colorRef.current;
@@ -156,9 +192,20 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
     const onNativeChange = () => {
       setLocal(null);
       onChangeRef.current(el.value);
+      if (inGesture.current) {
+        inGesture.current = false;
+        useProjectStore.getState().endGesture();
+      }
     };
     el.addEventListener('change', onNativeChange);
-    return () => el.removeEventListener('change', onNativeChange);
+    return () => {
+      el.removeEventListener('change', onNativeChange);
+      // Unmount mid-interaction: never leave record() suppressed.
+      if (inGesture.current) {
+        inGesture.current = false;
+        useProjectStore.getState().endGesture();
+      }
+    };
   }, []);
 
   // Sync external value changes (undo, another field) into the swatch,
@@ -175,7 +222,11 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
         type="color"
         defaultValue={hex}
         disabled={props.disabled}
-        onInput={(e) => setLocal((e.target as HTMLInputElement).value)}
+        onInput={(e) => {
+          const v = (e.target as HTMLInputElement).value;
+          setLocal(v);
+          liveTick(v);
+        }}
       />
       <input
         className="input"

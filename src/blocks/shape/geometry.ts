@@ -35,13 +35,15 @@ export const SHAPE_PATHS: Partial<Record<ShapeKind, string>> = {
   smileyFace: 'M 50,0 A 50,50 0 1,0 50,100 A 50,50 0 1,0 50,0 Z M 35,35 A 5,5 0 1,1 35,45 A 5,5 0 1,1 35,35 Z M 65,35 A 5,5 0 1,1 65,45 A 5,5 0 1,1 65,35 Z M 25,60 C 25,60 35,80 50,80 C 65,80 75,60 75,60 C 75,60 65,72 50,72 C 35,72 25,60 25,60 Z',
   cloud: 'M 25,80 C 15,80 5,70 5,55 C 5,42 15,32 28,32 C 33,18 48,10 62,15 C 75,20 82,32 82,45 C 92,45 100,53 100,65 C 100,75 92,80 82,80 Z',
   moon: 'M 80,10 A 45,45 0 1,0 80,90 A 35,35 0 1,1 80,10 Z',
-  database: 'M 10,15 C 10,5 90,5 90,15 L 90,85 C 90,95 10,95 10,85 Z M 10,15 C 10,25 90,25 90,15 M 10,48 C 10,58 90,58 90,48 M 10,75 C 10,85 90,85 90,75',
+  // Cylinder: closed body, then the top ellipse as its own CLOSED subpath.
+  // (The old version used open subpaths for the stripes, which fill-painted
+  // as lens shapes and stroked as floating arcs - it looked broken.)
+  database:
+    'M 10,14 C 10,4 90,4 90,14 L 90,86 C 90,96 10,96 10,86 Z ' +
+    'M 10,14 C 10,24 90,24 90,14 C 90,4 10,4 10,14 Z',
   flowchartDocument: 'M 0,0 L 100,0 L 100,80 C 75,70 50,90 0,80 Z',
   flowchartTerminator: 'M 25,0 L 75,0 C 90,0 100,20 100,50 C 100,80 90,100 75,100 L 25,100 C 10,100 0,80 0,50 C 0,20 10,0 25,0 Z',
   scrollHorizontal: 'M 10,20 C 5,20 0,30 0,40 L 0,80 C 0,90 5,100 10,100 L 90,100 C 95,100 100,90 100,80 L 100,40 C 100,30 95,20 90,20 Z M 10,20 L 90,20',
-  calloutRectangle: 'M 0,0 L 100,0 L 100,70 L 45,70 L 30,100 L 35,70 L 0,70 Z',
-  calloutRoundRect: 'M 15,0 L 85,0 C 93,0 100,7 100,15 L 100,55 C 100,63 93,70 85,70 L 45,70 L 30,100 L 35,70 L 15,70 C 7,70 0,63 0,55 L 0,15 C 0,7 7,0 15,0 Z',
-  calloutEllipse: 'M 50,0 C 78,0 100,16 100,35 C 100,54 78,70 50,70 C 45,70 35,73 25,85 C 27,77 30,73 30,70 C 12,70 0,54 0,35 C 0,16 12,0 50,0 Z',
   leftRightArrow: 'M 0,50 L 25,20 L 25,35 L 75,35 L 75,20 L 100,50 L 75,80 L 75,65 L 25,65 L 25,80 Z',
   upDownArrow: 'M 50,0 L 80,25 L 65,25 L 65,75 L 80,75 L 50,100 L 20,75 L 35,75 L 35,25 L 20,25 Z',
   quadArrow: 'M 50,0 L 65,15 L 58,15 L 58,42 L 85,42 L 85,35 L 100,50 L 85,65 L 85,58 L 58,58 L 58,85 L 65,85 L 50,100 L 35,85 L 42,85 L 42,58 L 15,58 L 15,65 L 0,50 L 15,35 L 15,42 L 42,42 L 42,15 L 35,15 Z',
@@ -141,6 +143,74 @@ export const PRSTGEOM_TO_KIND: Record<string, ShapeKind> = {
   stripedRightArrow: 'stripedRightArrow',
   notchedRightArrow: 'notchedRightArrow'
 };
+
+// Parametric callouts ---------------------------------------------------
+// Callout bodies fill y = 0..70 of the shape space; the tail is a triangle
+// from the body edge to a draggable tip (ShapeProps.tail), the Storyline /
+// PowerPoint model. Tip coordinates may exceed 0..100 to reach outside the
+// block (the SVG has overflow visible).
+
+export const CALLOUT_BODY: Partial<Record<ShapeKind, 'rect' | 'roundRect' | 'ellipse'>> = {
+  calloutRectangle: 'rect',
+  calloutRoundRect: 'roundRect',
+  calloutEllipse: 'ellipse'
+};
+
+export const DEFAULT_TAIL = { x: 30, y: 100 };
+
+// Tail triangle for a callout tip: the base sits on the body boundary along
+// the center->tip direction (inset a little so it overlaps the body and the
+// outline reads as one continuous shape). Returns null when the tip is
+// inside the body (no tail to draw).
+export function calloutTailTriangle(kind: ShapeKind, tip: { x: number; y: number }):
+  { base1: [number, number]; base2: [number, number]; tip: [number, number] } | null {
+  const cx = 50, cy = 35;
+  let dx = tip.x - cx, dy = tip.y - cy;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return null;
+  dx /= len; dy /= len;
+  // Distance from the body center to its boundary along (dx, dy).
+  let t: number;
+  if (CALLOUT_BODY[kind] === 'ellipse') {
+    t = 1 / Math.sqrt((dx / 50) ** 2 + (dy / 35) ** 2);
+  } else {
+    const tx = dx !== 0 ? 50 / Math.abs(dx) : Infinity;
+    const ty = dy !== 0 ? 35 / Math.abs(dy) : Infinity;
+    t = Math.min(tx, ty);
+  }
+  if (len <= t) return null; // tip is inside the body
+  const inset = 6;
+  const bx = cx + dx * Math.max(2, t - inset);
+  const by = cy + dy * Math.max(2, t - inset);
+  const half = 8; // half base width
+  return {
+    base1: [bx - dy * half, by + dx * half],
+    base2: [bx + dy * half, by - dx * half],
+    tip: [tip.x, tip.y]
+  };
+}
+
+// Custom-shape smoothing: a closed Catmull-Rom spline through the pen nodes,
+// emitted as cubic Beziers. Same 0..100 space as the polygon it replaces.
+export function smoothPathFromPoints(points: string): string {
+  const pts = points.trim().split(/\s+/).map((p) => p.split(',').map(Number) as [number, number]);
+  const n = pts.length;
+  if (n < 3) return '';
+  let d = `M ${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${r1(c1x)},${r1(c1y)} ${r1(c2x)},${r1(c2y)} ${p2[0]},${p2[1]}`;
+  }
+  return d + ' Z';
+}
+const r1 = (v: number) => Math.round(v * 10) / 10;
 
 // A CSS clip-path polygon (percentages) for a preset shape kind. Used to clip
 // image blocks to a shape. Rectangles/rounded/ellipse are handled separately

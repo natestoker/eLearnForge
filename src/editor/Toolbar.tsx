@@ -4,9 +4,9 @@ import { Icon } from './icons';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
-import type { BlockType, ShapeProps } from '../schema/types';
+import type { Block, BlockType, ShapeProps } from '../schema/types';
 import { ShapePicker } from '../blocks/shape/ShapePicker';
-import { exportProjectJson, importProjectJson, importProjectJsonWithPicker, resetFileHandle } from '../state/persistence';
+import { exportProjectJson, exportProjectJsonAs, importProjectJson, importProjectJsonWithPicker, resetFileHandle } from '../state/persistence';
 import { createDemoProject, createProject } from '../schema/factory';
 import { PublishDialog } from './PublishDialog';
 import { importPptx } from '../publish/pptxImport';
@@ -73,6 +73,21 @@ function ToolbarMenu({ label, title, accent, align = 'left', menuClass, children
   );
 }
 
+// A straight connector: a shape block in line mode. Arrows are the same
+// block with a PowerPoint-style triangle on the end.
+function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
+  addBlock('shape', (b) => {
+    const p = b.props as ShapeProps;
+    p.isLine = true;
+    p.points = '0,50 100,50';
+    p.fill = 'transparent';
+    p.borderWidth = 3;
+    if (withArrow) p.lineEnd = { type: 'triangle', size: 'md' };
+    b.w = 260;
+    b.h = 40;
+  });
+}
+
 function InsertMenu({ close }: { close: () => void }) {
   const addBlock = useProjectStore((s) => s.addBlock);
   const [catId, setCatId] = useState(INSERT_CATEGORIES[0].id);
@@ -93,12 +108,22 @@ function InsertMenu({ close }: { close: () => void }) {
       </div>
       <div className="insert-pane">
         {cat.id === 'shapes' ? (
-          <ShapePicker
-            onPick={(kind) => {
-              addBlock('shape', (b) => { (b.props as ShapeProps).kind = kind; });
-              close();
-            }}
-          />
+          <>
+            <div className="field-row" style={{ marginBottom: 6 }}>
+              <button className="menu-item" onClick={() => { insertLine(addBlock, false); close(); }}>
+                <span className="menu-glyph">{'—'}</span> Line
+              </button>
+              <button className="menu-item" onClick={() => { insertLine(addBlock, true); close(); }}>
+                <span className="menu-glyph">{'→'}</span> Arrow
+              </button>
+            </div>
+            <ShapePicker
+              onPick={(kind) => {
+                addBlock('shape', (b) => { (b.props as ShapeProps).kind = kind; });
+                close();
+              }}
+            />
+          </>
         ) : (
           (cat.types ?? []).map((type) => (
             <button
@@ -206,8 +231,19 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
                 <Icon.sparkles /> Load demo project
               </button>
               <div className="menu-sep" />
-              <button className="menu-item" onClick={() => { exportProjectJson(project); close(); }}>
-                <Icon.save /> Save as .json
+              <button
+                className="menu-item"
+                title="Overwrites the current file; prompts only if there is no file yet"
+                onClick={() => { void exportProjectJson(project); close(); }}
+              >
+                <Icon.save /> Save
+              </button>
+              <button
+                className="menu-item"
+                title="Always prompts for a new file, which becomes the current file"
+                onClick={() => { void exportProjectJsonAs(project); close(); }}
+              >
+                <Icon.save /> Save as...
               </button>
               <button className="menu-item" onClick={() => { close(); void loadFromPicker(); }}>
                 <Icon.load /> Load .json

@@ -1,5 +1,5 @@
 import type {
-  Action, BlockState, Condition, Project, Slide, Trigger, VariableValue
+  Action, Block, BlockState, Condition, Project, Slide, Trigger, VariableValue
 } from '../schema/types';
 import type { TrackingEvent } from '../tracking/adapter';
 
@@ -13,6 +13,13 @@ import type { TrackingEvent } from '../tracking/adapter';
 // Still no compound logic and no JS-execute. Depth guard stops loops.
 
 const MAX_DEPTH = 25;
+
+// Blocks including group children (groups nest their blocks in props).
+function walk(blocks: Block[]): Block[] {
+  return blocks.flatMap((b) =>
+    b.type === 'group' ? [b, ...walk((b.props as { blocks: Block[] }).blocks)] : [b]
+  );
+}
 
 export interface RuntimeSnapshot {
   slideId: string;
@@ -158,6 +165,15 @@ export class Runtime {
     const layerVisible: Record<string, boolean> = {};
     for (const layer of slide.layers) layerVisible[layer.id] = layer.visibleByDefault;
     this.snapshot = { ...this.snapshot, slideId, layerVisible, blockVisible: {} };
+    // Seed block states from each block's authored initial state; states
+    // reset on every visit (like layer visibility and button gating), and
+    // triggers can then change them.
+    for (const layer of slide.layers) {
+      for (const b of walk(layer.blocks)) {
+        if (b.initialState && b.initialState !== 'normal') this.blockStates[b.id] = b.initialState;
+        else delete this.blockStates[b.id];
+      }
+    }
     this.viewedSlideIds.add(slideId);
     // Player button gating resets on each slide visit.
     this.playerButtons = { next: true, back: true, submit: true };
@@ -298,7 +314,7 @@ export class Runtime {
   private findBlock(blockId: string) {
     for (const s of this.project.slides) {
       for (const l of s.layers) {
-        const b = l.blocks.find((bl) => bl.id === blockId);
+        const b = walk(l.blocks).find((bl) => bl.id === blockId);
         if (b) return b;
       }
     }

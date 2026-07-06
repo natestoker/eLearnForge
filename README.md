@@ -631,3 +631,62 @@ The toolbar now holds only always-on editing controls (Insert, undo/redo).
 Preview project / Preview this slide / Publish live in a Run menu; New /
 Demo / Save / Load / Import PPTX live in a File menu. Future targets
 (SCORM export, HTML export, share) slot into Run without new buttons.
+
+
+# v6.2
+
+## Color editing: live fill + gesture-scoped undo
+Dragging in the native color popup (or its eyedropper) now previews the
+fill on the canvas live. The first tick opens a store "gesture" - one undo
+snapshot, then record() is suppressed - live ticks commit throttled and
+history-free, and the native change event commits the final color and
+closes the gesture. One drag = one undo step, no clone storms.
+
+Fixed alongside it: picking a color could flip the shape to Rectangle.
+The shape grid lived inside a <label>, and browsers forward clicks on a
+label's non-interactive area to its first labelable descendant - the
+rectangle tile. Button-holding fields render as ButtonField (a div) now.
+
+## Shapes
+- Flowchart database redrawn with closed subpaths (the old open arcs
+  filled as lenses and looked broken).
+- Callouts are parametric: drag the orange tail handle to point the tail
+  anywhere, Storyline-style (ShapeProps.tail, 0..100 space, may extend
+  past the block).
+- Lines and arrows, PowerPoint-style: Insert > Shapes has Line and Arrow;
+  each line end takes a type (triangle, stealth, open, oval, diamond) and
+  size (S/M/L) that scales with line width. PPTX import maps headEnd /
+  tailEnd type+len 1:1 - no more oversized fixed heads.
+- Pen tool: right-click any shape to edit its geometry (presets seed
+  their points), "Smooth curves" renders the nodes as a closed
+  Catmull-Rom spline, and Apply trims the drawing to its content -
+  points normalize to their bounding box and the block resizes to match.
+
+## Groups
+- Selecting a group child (timeline row, or double-click into the group
+  on canvas) now shows its real property panel, so colors and text are
+  editable in place.
+- Timeline group children list top-most first like every other row, and
+  the forward/back buttons disable on the correct ends.
+
+## Player
+- Initial state "Hidden" is honored: entering a slide seeds each block's
+  authored initial state (groups included); triggers can then show or
+  change it. Hidden group children can be revealed by triggers too.
+
+## Editor timeline
+Click or drag the ruler to place a playhead: the canvas previews that
+moment - absent blocks ghost to 15% (still selectable), entering/exiting
+blocks render mid-animation. A chip in the timeline header clears it.
+
+## Editing
+- Shift while resizing keeps the block's aspect ratio (corners scale by
+  the dominant axis; edge handles derive the other dimension).
+- File > Save overwrites the current file (prompting only the first
+  time); Save as... always prompts and the new file becomes current.
+
+## Baking
+Synthesis yields to the event loop between sentences so the progress bar
+actually repaints (Kokoro's WASM blocks the main thread per sentence -
+the bar used to look frozen), and the fill has a shimmer while a long
+sentence synthesizes.

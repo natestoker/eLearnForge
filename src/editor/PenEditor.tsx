@@ -1,13 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { useProjectStore } from '../state/projectStore';
+import { useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import type { ImageProps, ShapeProps } from '../schema/types';
+import { SHAPE_POINTS, smoothPathFromPoints } from '../blocks/shape/geometry';
 
 // A pen / node editor for custom shapes and image clip masks. Click on the
 // canvas to drop points; drag a node to move it; double-click a node to
 // remove it. Points live in a 0..100 space (stretched to the block, the same
 // model as our preset geometry), so the drawn path scales with the block.
 // For image clips the current image shows underneath so you can trace it.
+// Editing a preset shape starts from that preset's points (right-click a
+// shape on the canvas to get here directly). "Smooth" renders the nodes as
+// a closed curve instead of straight segments. On apply, the drawing is
+// trimmed to its content: the points are normalized to their bounding box
+// and the block is resized to match, so no dead margin is kept.
 
 const SIZE = 480; // editor canvas is square; maps 0..100 -> 0..SIZE
 
@@ -27,21 +33,36 @@ export function PenEditor() {
   const close = useUiStore((s) => s.closePenEditor);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const block = useProjectStore((s) =>
-    penEditor ? s.project.slides.flatMap((sl) => sl.layers.flatMap((l) => l.blocks)).find((b) => b.id === penEditor.blockId) : undefined
+    penEditor
+      ? s.project.slides.flatMap((sl) => sl.layers.flatMap((l) => walkBlocks(l.blocks))).find((b) => b.id === penEditor.blockId)
+      : undefined
   );
 
-  const initial = (() => {
+  const initial = (): [number, number][] => {
     if (!penEditor || !block) return [];
     if (penEditor.mode === 'imageClip') return parsePoints((block.props as ImageProps).clipPoints);
-    return parsePoints((block.props as ShapeProps).points);
-  })();
+    const sp = block.props as ShapeProps;
+    if (sp.points) return parsePoints(sp.points);
+    // Editing a preset: seed with its geometry so "update the shape" starts
+    // from what's on the canvas. Rect kinds seed as a square; path-based
+    // presets (hearts, clouds...) have no polygon to seed and start blank.
+    if (sp.kind === 'rectangle' || sp.kind === 'roundedRectangle') {
+      return [[0, 0], [100, 0], [100, 100], [0, 100]];
+    }
+    return parsePoints(SHAPE_POINTS[sp.kind]);
+  };
 
   const [points, setPoints] = useState<[number, number][]>(initial);
+  const [smooth, setSmooth] = useState(false);
   const [drag, setDrag] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Reset when the target changes.
-  useEffect(() => { setPoints(initial); /* eslint-disable-next-line */ }, [penEditor?.blockId]);
+  useEffect(() => {
+    setPoints(initial());
+    setSmooth(penEditor?.mode === 'shape' ? Boolean((block?.props as ShapeProps | undefined)?.smooth) : false);
+    // eslint-disable-next-line
+  }, [penEditor?.blockId]);
 
   if (!penEditor || !block) return null;
 
@@ -76,21 +97,44 @@ export function PenEditor() {
   };
 
   const apply = () => {
-    const str = points.length >= 3 ? serialize(points) : undefined;
     updateBlock(penEditor.blockId, (b) => {
       if (penEditor.mode === 'imageClip') {
         const ip = b.props as ImageProps;
-        ip.clipPoints = str;
-        if (str) ip.clipKind = undefined;
-      } else {
-        (b.props as ShapeProps).points = str;
+        ip.clipPoints = points.length >= 3 ? serialize(points) : undefined;
+        if (ip.clipPoints) ip.clipKind = undefined;
+        return;
       }
+      const sp = b.props as ShapeProps;
+      if (points.length < 3) {
+        sp.points = undefined;
+        sp.smooth = undefined;
+        return;
+      }
+      // Trim to content: normalize the drawing to its bounding box and
+      // resize the block by the same fraction, so the shape stays exactly
+      // where it was drawn but the block carries no unused margin.
+      const xs = points.map((p) => p[0]);
+      const ys = points.map((p) => p[1]);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const bw = maxX - minX, bh = maxY - minY;
+      if (bw > 1 && bh > 1) {
+        sp.points = serialize(points.map(([x, y]) => [((x - minX) / bw) * 100, ((y - minY) / bh) * 100]));
+        b.x = Math.round(b.x + (minX / 100) * b.w);
+        b.y = Math.round(b.y + (minY / 100) * b.h);
+        b.w = Math.max(20, Math.round((bw / 100) * b.w));
+        b.h = Math.max(20, Math.round((bh / 100) * b.h));
+      } else {
+        sp.points = serialize(points);
+      }
+      sp.smooth = smooth || undefined;
     });
     close();
   };
 
   const imgSrc = penEditor.mode === 'imageClip' ? (block.props as ImageProps).src : null;
   const polyPoints = points.map(([x, y]) => `${(x / 100) * SIZE},${(y / 100) * SIZE}`).join(' ');
+  const showSmooth = penEditor.mode === 'shape';
 
   return (
     <div className="pen-overlay" onClick={close}>
@@ -112,7 +156,19 @@ export function PenEditor() {
           {imgSrc && <image href={imgSrc} x="0" y="0" width={SIZE} height={SIZE} preserveAspectRatio="none" opacity="0.55" />}
           <rect x="0" y="0" width={SIZE} height={SIZE} fill="none" stroke="#2c3648" />
           {points.length >= 2 && (
-            <polygon points={polyPoints} fill="rgba(61,220,151,0.25)" stroke="#3ddc97" strokeWidth={1.5} />
+            smooth && points.length >= 3 ? (
+              <g transform={`scale(${SIZE / 100})`}>
+                <path
+                  d={smoothPathFromPoints(serialize(points))}
+                  fill="rgba(61,220,151,0.25)"
+                  stroke="#3ddc97"
+                  strokeWidth={1.5}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+            ) : (
+              <polygon points={polyPoints} fill="rgba(61,220,151,0.25)" stroke="#3ddc97" strokeWidth={1.5} />
+            )
           )}
           {points.map(([x, y], i) => (
             <circle
@@ -128,6 +184,12 @@ export function PenEditor() {
         </svg>
         <div className="pen-actions">
           <button className="btn btn-ghost" onClick={() => setPoints([])}>Clear</button>
+          {showSmooth && (
+            <label className="checkbox" title="Draw a smooth closed curve through the nodes">
+              <input type="checkbox" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} />
+              <span>Smooth curves</span>
+            </label>
+          )}
           <span className="pen-count">{points.length} points</span>
           <div className="pen-spacer" />
           <button className="btn" onClick={close}>Cancel</button>

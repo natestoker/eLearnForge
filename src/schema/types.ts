@@ -90,6 +90,13 @@ export interface ShapeProps {
   // renders this path instead of its preset kind - this is what the pen tool
   // produces.
   points?: string;
+  // Render the custom points as a smooth closed curve (Catmull-Rom through
+  // the nodes) instead of straight segments.
+  smooth?: boolean;
+  // Callout kinds only: where the tail points, in the same 0..100 space
+  // (values outside 0..100 reach beyond the block, PowerPoint-style).
+  // Absent = the classic default tail.
+  tail?: { x: number; y: number };
   kind: ShapeKind;
   fill: string;
   borderColor: string;
@@ -97,7 +104,20 @@ export interface ShapeProps {
   cornerRadius: number;
   shadow?: boolean;
   isLine?: boolean;
+  // Legacy line arrows (v6 and earlier): a fixed triangle at start/end.
+  // Superseded by lineStart/lineEnd; the renderer migrates on the fly.
   arrow?: 'none' | 'start' | 'end' | 'both';
+  // PowerPoint-style line ends: independent head/tail type and size.
+  // lineStart draws at the line's first point, lineEnd at its second.
+  lineStart?: LineEnd;
+  lineEnd?: LineEnd;
+}
+
+export type LineEndType = 'none' | 'triangle' | 'stealth' | 'open' | 'oval' | 'diamond';
+export type LineEndSize = 'sm' | 'md' | 'lg';
+export interface LineEnd {
+  type: LineEndType;
+  size?: LineEndSize; // default md; scales with the line width like PowerPoint
 }
 
 export interface VideoProps {

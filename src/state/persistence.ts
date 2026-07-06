@@ -74,6 +74,19 @@ export async function importProjectJsonWithPicker(): Promise<Project | null> {
   return null;
 }
 
+// Save As: always prompt for a (new) file, then keep writing there. Plain
+// Save (exportProjectJson) overwrites the current file silently once a
+// handle exists - from a Save As or from loading via the file picker.
+export async function exportProjectJsonAs(project: Project): Promise<void> {
+  currentFileHandle = null;
+  return exportProjectJson(project);
+}
+
+// True when Save will overwrite a known file rather than prompting.
+export function hasFileHandle(): boolean {
+  return currentFileHandle !== null;
+}
+
 export async function exportProjectJson(project: Project): Promise<void> {
   if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
     try {

@@ -72,6 +72,12 @@ interface ProjectStore {
   setProject: (p: Project, resetHistory?: boolean) => void;
   select: (sel: Partial<Selection>) => void;
   record: () => void;
+  // Continuous gestures (color-picker drags, canvas drags done through
+  // history-recording callers): beginGesture records ONE undo snapshot and
+  // then suppresses record() until endGesture, so the whole gesture is a
+  // single undo step no matter how the mutations arrive.
+  beginGesture: () => void;
+  endGesture: () => void;
   mutate: (fn: (draft: Project) => void, history?: boolean) => void;
   undo: () => void;
   redo: () => void;
@@ -104,6 +110,7 @@ interface ProjectStore {
 // persists across selection and slide changes within the session.
 let clipboard: Block[] = [];
 let pasteOffset = false;
+let gestureActive = false;
 
 export function selectedIds(sel: Selection): string[] {
   const ids = new Set<string>();
@@ -134,11 +141,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   select: (sel) => set((s) => ({ selection: { ...s.selection, ...sel } })),
 
-  record: () =>
+  record: () => {
+    if (gestureActive) return;
     set((s) => ({
       past: [...s.past.slice(-(HISTORY_CAP - 1)), structuredClone(s.project)],
       future: []
-    })),
+    }));
+  },
+
+  beginGesture: () => {
+    if (gestureActive) return;
+    get().record();
+    gestureActive = true;
+  },
+
+  endGesture: () => {
+    gestureActive = false;
+  },
 
   mutate: (fn, history = true) => {
     if (history) get().record();
@@ -508,8 +527,10 @@ export function useSelectedBlock(): Block | null {
     if (!s.selection.blockId) return null;
     const slide = s.project.slides.find((sl) => sl.id === s.selection.slideId);
     if (!slide) return null;
+    // Recurse into groups so a child selected from the timeline (or by
+    // double-clicking a group) gets a real property panel.
     for (const layer of slide.layers) {
-      const b = layer.blocks.find((bl) => bl.id === s.selection.blockId);
+      const b = walkBlocks(layer.blocks).find((bl) => bl.id === s.selection.blockId);
       if (b) return b;
     }
     return null;

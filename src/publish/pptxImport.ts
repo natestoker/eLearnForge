@@ -515,17 +515,28 @@ async function importShape(
       
       const points = `${x1},${y1} ${x2},${y2}`;
       
+      // Line ends: DrawingML headEnd/tailEnd carry a type (triangle, stealth,
+      // arrow=open, oval, diamond) and w/len size hints (sm|med|lg). headEnd
+      // sits at the line's first point. Mapped 1:1 so round-tripping a deck
+      // keeps its arrows, at PowerPoint's size instead of the old oversized
+      // fixed marker.
       const ln = local(node, 'spPr')[0]?.getElementsByTagNameNS('*', 'ln')[0];
-      let arrow: 'none' | 'start' | 'end' | 'both' = 'none';
-      if (ln) {
-        const headEnd = local(ln, 'headEnd')[0];
-        const tailEnd = local(ln, 'tailEnd')[0];
-        const hasHead = headEnd && headEnd.getAttribute('type') && headEnd.getAttribute('type') !== 'none';
-        const hasTail = tailEnd && tailEnd.getAttribute('type') && tailEnd.getAttribute('type') !== 'none';
-        if (hasHead && hasTail) arrow = 'both';
-        else if (hasHead) arrow = 'start';
-        else if (hasTail) arrow = 'end';
-      }
+      const readEnd = (el: Element | undefined) => {
+        const t = el?.getAttribute('type');
+        if (!t || t === 'none') return undefined;
+        const type =
+          t === 'triangle' ? 'triangle'
+          : t === 'stealth' ? 'stealth'
+          : t === 'arrow' ? 'open'
+          : t === 'oval' ? 'oval'
+          : t === 'diamond' ? 'diamond'
+          : 'triangle';
+        const lenAttr = el?.getAttribute('len') ?? el?.getAttribute('w');
+        const size = lenAttr === 'sm' ? 'sm' : lenAttr === 'lg' ? 'lg' : 'md';
+        return { type, size } as const;
+      };
+      const lineStart = ln ? readEnd(local(ln, 'headEnd')[0]) : undefined;
+      const lineEnd = ln ? readEnd(local(ln, 'tailEnd')[0]) : undefined;
 
       out.push({
         id: uid('blk'), type: 'shape', x, y, w, h,
@@ -537,7 +548,8 @@ async function importShape(
           cornerRadius: 0,
           points,
           isLine: true,
-          arrow,
+          ...(lineStart ? { lineStart } : {}),
+          ...(lineEnd ? { lineEnd } : {}),
           ...(shadow ? { shadow } : {})
         }
       } as Block);

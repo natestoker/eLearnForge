@@ -25,6 +25,10 @@ interface UiStore {
   toggleLayerHidden: (layerId: string) => void;
   setRightTab: (tab: RightTab) => void;
   setPreviewOpen: (open: boolean, startSlideId?: string | null) => void;
+  // Editor timeline playhead (seconds). null = no scrub preview; the canvas
+  // shows every block at rest. Transient, never saved.
+  scrubT: number | null;
+  setScrubT: (t: number | null) => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -64,5 +68,7 @@ export const useUiStore = create<UiStore>((set) => ({
       try { localStorage.setItem('elearnforge.collapsed', JSON.stringify(collapsed)); } catch { /* ignore */ }
       return { collapsed };
     }),
-  setPreviewOpen: (open, startSlideId = null) => set({ previewOpen: open, previewStartSlideId: open ? startSlideId : null })
+  setPreviewOpen: (open, startSlideId = null) => set({ previewOpen: open, previewStartSlideId: open ? startSlideId : null }),
+  scrubT: null,
+  setScrubT: (t) => set({ scrubT: t })
 }));
