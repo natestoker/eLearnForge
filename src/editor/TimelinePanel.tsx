@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import React, { Fragment, useRef, useState } from 'react';
 import { useCurrentSlide, useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { timelineDuration } from '../engine/timeline';
@@ -19,11 +19,23 @@ type GestureMode = 'move' | 'trim' | 'trimStart' | 'animIn' | 'animOut';
 
 export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; onCollapse?: () => void }) {
   const slide = useCurrentSlide();
-  const select = useProjectStore((s) => s.select);
   const selection = useProjectStore((s) => s.selection);
+  const select = useProjectStore((s) => s.select);
   const record = useProjectStore((s) => s.record);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const moveBlockZ = useProjectStore((s) => s.moveBlockZ);
+  
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [timelineZoom, setTimelineZoom] = useState(1);
+  const toggleGroup = (e: React.PointerEvent, id: string) => {
+    e.stopPropagation();
+    setExpandedGroups((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const mutate = useProjectStore((s) => s.mutate);
   const snap = useUiStore((s) => s.timelineSnap);
   const setSnap = useUiStore((s) => s.setTimelineSnap);
@@ -60,7 +72,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const duration = timelineDuration(slide.timeline, blocks);
   const driven = Boolean(slide.timeline.narrationSrc || slide.timeline.tts);
 
-  const pxPerSec = () => (trackRef.current?.clientWidth ?? 600) / duration;
+  const pxPerSec = () => ((trackRef.current?.clientWidth ?? 600) * timelineZoom) / duration;
   const q = (v: number) => (snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 100) / 100);
 
   const onDown = (e: React.PointerEvent, blockId: string, mode: GestureMode) => {
@@ -130,7 +142,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
 
   const pct = (sec: number) => `${(sec / duration) * 100}%`;
 
-  const renderBar = (b: Block, layerBlocks: Block[]) => {
+  const renderBar = (b: Block, layerBlocks: Block[], depth = 0): React.ReactNode => {
     const start = b.timing?.start ?? 0;
     const end = b.timing?.end ?? duration;
     const selected = selection.blockId === b.id;
@@ -140,12 +152,16 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     const animOut = b.timing?.animOut?.duration ?? 0;
     const idx = layerBlocks.indexOf(b);
     return (
-      <div key={b.id} className="timeline-row" style={{ height: ROW_H }}>
-        <div className="timeline-row-controls">
-          <button className="tl-z" title="Bring forward" disabled={idx >= layerBlocks.length - 1} onClick={() => moveBlockZ(b.id, 'forward')}>{'\u25B2'}</button>
-          <button className="tl-z" title="Send backward" disabled={idx <= 0} onClick={() => moveBlockZ(b.id, 'backward')}>{'\u25BC'}</button>
-        </div>
-        <div className="timeline-lane">
+      <Fragment key={b.id}>
+        <div className="timeline-row" style={{ height: ROW_H }}>
+          <div className="timeline-row-controls">
+            <button className="tl-z" title="Bring forward" disabled={idx >= layerBlocks.length - 1} onClick={() => moveBlockZ(b.id, 'forward')}>{'\u25B2'}</button>
+            <button className="tl-z" title="Send backward" disabled={idx <= 0} onClick={() => moveBlockZ(b.id, 'backward')}>{'\u25BC'}</button>
+            <button className="tl-z" style={{ marginLeft: 4, opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onClick={() => updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false)}>
+              {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
+            </button>
+          </div>
+          <div className="timeline-lane">
           <div
             className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''}`}
             style={{ left: pct(start), width: pct(span) }}
@@ -155,7 +171,15 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             {!untimed && animIn > 0 && <div className="tl-ramp tl-ramp-in" style={{ width: `${(animIn / span) * 100}%` }} />}
             {!untimed && animOut > 0 && <div className="tl-ramp tl-ramp-out" style={{ width: `${(animOut / span) * 100}%` }} />}
             {b.type === 'audio' && <BarWaveform src={(b.props as { src?: string }).src} />}
-            <span className="timeline-bar-label">{blockDisplayName(b)}</span>
+            <span className="timeline-bar-label" style={{ paddingLeft: depth * 12 + 4 }}>
+              {depth > 0 && <span style={{ opacity: 0.5 }}>{'\u2514 '}</span>}
+              {b.type === 'group' && (
+                <span onPointerDown={(e) => toggleGroup(e, b.id)} style={{ cursor: 'pointer', marginRight: 4, display: 'inline-block', width: 12 }}>
+                  {expandedGroups.has(b.id) ? '\u25BC' : '\u25B6'}
+                </span>
+              )}
+              {blockDisplayName(b)}
+            </span>
             {/* Anim handles live on a thin strip along the TOP edge only, as
                 small diamonds, so the whole bar body stays grabbable for
                 move/trim even when a ramp is zero-width at the start. */}
@@ -169,7 +193,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <span className="timeline-bar-handle" onPointerDown={(e) => onDown(e, b.id, 'trim')} title="Drag to trim the end" />
           </div>
         </div>
-      </div>
+        </div>
+        {b.type === 'group' && expandedGroups.has(b.id) && (
+          <Fragment key={b.id + '_children'}>
+            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderBar(child, arr, depth + 1))}
+          </Fragment>
+        )}
+      </Fragment>
     );
   };
 
@@ -196,6 +226,10 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           />
           s
         </label>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'var(--muted)' }}>Zoom</span>
+          <input type="range" min="1" max="5" step="0.1" value={timelineZoom} onChange={(e) => setTimelineZoom(parseFloat(e.target.value))} style={{ width: 60 }} />
+        </div>
         <label className="tl-snap">
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
           snap
@@ -204,7 +238,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out.'}
         </span>
       </div>
-      <div className="timeline-track" ref={trackRef}>
+      <div className="timeline-track" ref={trackRef} onPointerDown={() => select({ blockId: null, blockIds: [] })} style={{ overflowX: 'auto', paddingBottom: 16 }}>
+        <div style={{ width: `${timelineZoom * 100}%`, position: 'relative', minHeight: '100%' }}>
         {/* When content extends past the set length, the timeline auto-grows
             to fit it. Mark the author-set length and shade the region beyond
             it so it's clear the slide runs longer than the number they set. */}
@@ -225,12 +260,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           const ordered = [...layer.blocks].reverse();
           return (
             <div key={layer.id} className="timeline-layer-group">
-              <div className="timeline-layer-name">{layer.name}{li === 0 ? ' (base)' : ''}</div>
-              {ordered.map((b) => renderBar(b, layer.blocks))}
+              <div className="timeline-layer-name" onPointerDown={(e) => e.stopPropagation()}>{layer.name}{li === 0 ? ' (base)' : ''}</div>
+              {ordered.map((b) => renderBar(b, ordered, 0))}
               {layer.blocks.length === 0 && <p className="empty-note">empty layer</p>}
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,19 @@ import { SHAPE_POINTS } from './geometry';
 // One SVG renderer shared by canvas and runtime. Non-uniform stretch of a
 // 100x100 viewBox matches how PowerPoint scales preset geometry.
 export function ShapeSvg({ props }: { props: ShapeProps }) {
+  if (props.kind === 'rectangle' || props.kind === 'roundedRectangle') {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: props.fill,
+        border: props.borderWidth > 0 ? `${props.borderWidth}px solid ${props.borderColor}` : 'none',
+        borderRadius: props.kind === 'roundedRectangle' ? props.cornerRadius : 0,
+        boxSizing: 'border-box'
+      }} />
+    );
+  }
+
   const stroke = props.borderWidth > 0 ? props.borderColor : 'none';
   const common = {
     fill: props.fill,
@@ -24,10 +37,6 @@ export function ShapeSvg({ props }: { props: ShapeProps }) {
         <polygon points={props.points} {...common} />
       ) : (
         <>
-          {props.kind === 'rectangle' && <rect x="0" y="0" width="100" height="100" {...common} />}
-          {props.kind === 'roundedRectangle' && (
-            <rect x="0" y="0" width="100" height="100" rx={Math.min(40, props.cornerRadius)} {...common} />
-          )}
           {props.kind === 'ellipse' && <ellipse cx="50" cy="50" rx="50" ry="50" {...common} />}
           {SHAPE_POINTS[props.kind] && <polygon points={SHAPE_POINTS[props.kind]} {...common} />}
         </>

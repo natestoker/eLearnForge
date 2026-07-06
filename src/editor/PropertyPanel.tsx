@@ -222,6 +222,16 @@ export function PropertyPanel() {
           onChange={(v) => updateBlock(block.id, (b) => { b.name = v || undefined; })}
         />
       </Field>
+      <Field label="Initial state">
+        <SelectInput
+          value={block.initialState ?? 'normal'}
+          options={[
+            { value: 'normal', label: 'Normal' },
+            { value: 'hidden', label: 'Hidden' }
+          ]}
+          onChange={(v) => updateBlock(block.id, (b) => { b.initialState = v === 'normal' ? undefined : (v as 'hidden'); })}
+        />
+      </Field>
       <Field label="Screen readers">
         <SelectInput
           value={block.aria ?? 'auto'}

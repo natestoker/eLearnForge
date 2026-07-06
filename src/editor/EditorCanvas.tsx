@@ -10,7 +10,7 @@ const MIN_SIZE = 40;
 const snap = (v: number, disable: boolean) => (disable ? Math.round(v) : Math.round(v / GRID) * GRID);
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
-const HANDLES: { id: HandleId; l: number; t: number; r: number; b: number }[] = [
+export const HANDLES: { id: HandleId; l: number; t: number; r: number; b: number }[] = [
   { id: 'nw', l: 1, t: 1, r: 0, b: 0 },
   { id: 'n', l: 0, t: 1, r: 0, b: 0 },
   { id: 'ne', l: 0, t: 1, r: 1, b: 0 },
@@ -20,6 +20,54 @@ const HANDLES: { id: HandleId; l: number; t: number; r: number; b: number }[] = 
   { id: 'sw', l: 1, t: 0, r: 0, b: 1 },
   { id: 'w', l: 1, t: 0, r: 0, b: 0 }
 ];
+
+export function BlockNode({
+  block,
+  layer,
+  selection,
+  updateBlock,
+  startMove,
+  startResize
+}: {
+  block: Block;
+  layer?: Layer;
+  selection: { blockId: string | null; blockIds?: string[] };
+  updateBlock: (id: string, fn: (b: Block) => void, history?: boolean) => void;
+  startMove: (e: React.PointerEvent, block: Block, layer?: Layer) => void;
+  startResize: (e: React.PointerEvent, block: Block, h: any) => void;
+}) {
+  if (block.editorHidden) return null;
+  const def = BLOCKS[block.type];
+  const isSelected = selection.blockId === block.id;
+  const isMultiSel = isSelected || (selection.blockIds ?? []).includes(block.id);
+  return (
+    <div
+      className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''}`}
+      style={{ left: block.x, top: block.y, width: block.w, height: block.h }}
+      onPointerDown={(e) => startMove(e, block, layer)}
+    >
+      <def.Canvas
+        block={block}
+        selected={isSelected}
+        onUpdateProps={(fn, history = true) =>
+          updateBlock(block.id, (b) => fn(b.props), history)
+        }
+      />
+      {isSelected && (
+        <>
+          {HANDLES.map((h) => (
+            <div
+              key={h.id}
+              className={`handle handle-${h.id}`}
+              onPointerDown={(e) => startResize(e, block, h)}
+            />
+          ))}
+          <div className="block-badge">{def.label}</div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface Gesture {
   kind: 'move' | 'resize';
@@ -51,6 +99,9 @@ export function EditorCanvas() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
+  const [manualScale, setManualScale] = useState(1);
+  const activeScale = zoomMode === 'fit' ? scale : manualScale;
   const gestureRef = useRef<Gesture | null>(null);
   const marqueeRef = useRef<Marquee | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -85,8 +136,8 @@ export function EditorCanvas() {
         const stageEl = containerRef.current?.querySelector('.stage') as HTMLElement | null;
         if (stageEl) {
           const rect = stageEl.getBoundingClientRect();
-          const cx = (e.clientX - rect.left) / scale;
-          const cy = (e.clientY - rect.top) / scale;
+          const cx = (e.clientX - rect.left) / activeScale;
+          const cy = (e.clientY - rect.top) / activeScale;
           const x = Math.min(m.startX, cx);
           const y = Math.min(m.startY, cy);
           const w = Math.abs(cx - m.startX);
@@ -112,8 +163,8 @@ export function EditorCanvas() {
       // Toggle is the base mode; holding Alt inverts it for one gesture.
       const snapOn = useUiStore.getState().snapEnabled;
       const noSnap = e.altKey ? snapOn : !snapOn;
-      const dx = (e.clientX - g.startClientX) / scale;
-      const dy = (e.clientY - g.startClientY) / scale;
+      const dx = (e.clientX - g.startClientX) / activeScale;
+      const dy = (e.clientY - g.startClientY) / activeScale;
 
       updateBlock(
         g.blockId,
@@ -208,10 +259,13 @@ export function EditorCanvas() {
     return () => window.removeEventListener('keydown', onKey);
   }, [record, updateBlock, deleteBlock]);
 
-  const startMove = (e: React.PointerEvent, block: Block, layer: Layer) => {
+  const startMove = (e: React.PointerEvent, block: Block, layer?: Layer) => {
     if (e.button !== 0) return;
-    const allBlocks = slide.layers.flatMap((l) => l.blocks);
-    // Grouped blocks act as one: clicking any member selects the whole group.
+    const allBlocks = slide.layers.flatMap((l) => {
+      const walk = (blocks: Block[]): Block[] => blocks.flatMap(b => b.type === 'group' ? [b, ...walk((b.props as any).blocks)] : [b]);
+      return walk(l.blocks);
+    });
+    // Grouped blocks act as one (deprecated groupId path, though we'll keep it for now)
     const groupMembers = block.groupId
       ? allBlocks.filter((b) => b.groupId === block.groupId).map((b) => b.id)
       : null;
@@ -223,22 +277,24 @@ export function EditorCanvas() {
       const allIn = toToggle.every((id) => cur.has(id) || id === block.id);
       for (const id of toToggle) { if (allIn) cur.delete(id); else cur.add(id); }
       cur.delete(block.id);
-      select({ blockId: block.id, layerId: layer.id, blockIds: [...cur] });
+      const targetLayerId = layer?.id ?? selection.layerId;
+      select({ blockId: block.id, layerId: targetLayerId, blockIds: [...cur] });
       return;
     }
     // If the pressed block is in a group, or part of the existing
     // multi-selection, drag them all together.
     const currentIds = new Set([...(selection.blockIds ?? []), ...(selection.blockId ? [selection.blockId] : [])]);
     let dragIds: Set<string>;
+    const targetLayerId = layer?.id ?? selection.layerId;
     if (groupMembers) {
       dragIds = new Set(groupMembers);
-      select({ blockId: block.id, layerId: layer.id, blockIds: groupMembers.filter((id) => id !== block.id) });
+      select({ blockId: block.id, layerId: targetLayerId, blockIds: groupMembers.filter((id) => id !== block.id) });
     } else if (currentIds.has(block.id) && currentIds.size > 1) {
       dragIds = currentIds;
-      select({ blockId: block.id, layerId: layer.id, blockIds: [...currentIds].filter((id) => id !== block.id) });
+      select({ blockId: block.id, layerId: targetLayerId, blockIds: [...currentIds].filter((id) => id !== block.id) });
     } else {
       dragIds = new Set([block.id]);
-      select({ blockId: block.id, layerId: layer.id, blockIds: [] });
+      select({ blockId: block.id, layerId: targetLayerId, blockIds: [] });
     }
     record();
 
@@ -276,17 +332,35 @@ export function EditorCanvas() {
   const selectedLayerIndex = slide.layers.findIndex((l) => l.id === selection.layerId);
 
   return (
-    <div className="canvas-area" ref={containerRef}>
-      <div
-        className="stage"
-        style={{ width: slide.width, height: slide.height, transform: `scale(${scale})` }}
+    <div 
+      className="canvas-area" 
+      ref={containerRef} 
+      style={{ overflow: 'auto', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) select({ blockId: null, blockIds: [] });
+      }}
+    >
+      <div style={{ position: 'absolute', right: 16, bottom: 16, display: 'flex', gap: 4, background: '#11151a', padding: 4, borderRadius: 6, border: '1px solid #1c222b', zIndex: 10 }}>
+        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.max(0.1, s - 0.1)); }}>-</button>
+        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
+        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.min(3, s + 0.1)); }}>+</button>
+        <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
+      </div>
+      <div style={{ width: slide.width * activeScale, height: slide.height * activeScale, flexShrink: 0, position: 'relative' }}
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) select({ blockId: null, blockIds: [] });
+        }}
+      >
+        <div
+          className="stage"
+          style={{ width: slide.width, height: slide.height, transform: `scale(${activeScale})`, transformOrigin: "top left", position: 'absolute', top: 0, left: 0 }}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget) return;
           // Empty-canvas press starts a marquee. Shift keeps the current
           // selection and adds to it.
           const rect = e.currentTarget.getBoundingClientRect();
-          const sx = (e.clientX - rect.left) / scale;
-          const sy = (e.clientY - rect.top) / scale;
+          const sx = (e.clientX - rect.left) / activeScale;
+          const sy = (e.clientY - rect.top) / activeScale;
           if (!e.shiftKey) select({ blockId: null, blockIds: [] });
           marqueeRef.current = { startX: sx, startY: sy, x: sx, y: sy, w: 0, h: 0, additive: e.shiftKey };
           setMarquee({ x: sx, y: sy, w: 0, h: 0 });
@@ -303,42 +377,21 @@ export function EditorCanvas() {
           const dimmed = selectedLayerIndex > 0 && layerIndex !== selectedLayerIndex;
           return (
             <div key={layer.id} className={`stage-layer ${dimmed ? 'dimmed' : ''}`}>
-              {layer.blocks.map((block) => {
-                const def = BLOCKS[block.type];
-                const isSelected = selection.blockId === block.id;
-                const isMultiSel = isSelected || (selection.blockIds ?? []).includes(block.id);
-                return (
-                  <div
-                    key={block.id}
-                    className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''}`}
-                    style={{ left: block.x, top: block.y, width: block.w, height: block.h }}
-                    onPointerDown={(e) => startMove(e, block, layer)}
-                  >
-                    <def.Canvas
-                      block={block}
-                      selected={isSelected}
-                      onUpdateProps={(fn, history = true) =>
-                        updateBlock(block.id, (b) => fn(b.props), history)
-                      }
-                    />
-                    {isSelected && (
-                      <>
-                        {HANDLES.map((h) => (
-                          <div
-                            key={h.id}
-                            className={`handle handle-${h.id}`}
-                            onPointerDown={(e) => startResize(e, block, h)}
-                          />
-                        ))}
-                        <div className="block-badge">{def.label}</div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+              {layer.blocks.map((block) => (
+                <BlockNode
+                  key={block.id}
+                  block={block}
+                  layer={layer}
+                  selection={selection}
+                  updateBlock={updateBlock}
+                  startMove={startMove}
+                  startResize={startResize}
+                />
+              ))}
             </div>
           );
         })}
+      </div>
       </div>
       <div className="canvas-meta">
         <span>

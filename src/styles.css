@@ -1019,12 +1019,7 @@ select.input { appearance: auto; }
   text-transform: uppercase;
   margin: 4px 0 2px;
 }
-.timeline-bar.untimed {
-  background: rgba(107, 118, 137, 0.16);
-  border-color: #3a4356;
-}
-.timeline-bar.untimed .timeline-bar-label { color: #9aa4b5; }
-.timeline-bar.untimed .timeline-bar-handle::after { background: #6b7689; }
+
 
 .color-input { display: flex; gap: 8px; align-items: center; }
 .color-input input[type="color"] {

@@ -48,16 +48,7 @@ export function PlayerChrome({ runtime, project, slideIndex, settings, clock, us
 
   return (
     <>
-      {settings.menu.show && (
-        <button
-          className="player-hamburger"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-        >
-          <span /><span /><span />
-        </button>
-      )}
+      
       {menuOpen && (
         <>
           <div className="player-menu-scrim" onClick={() => setMenuOpen(false)} />

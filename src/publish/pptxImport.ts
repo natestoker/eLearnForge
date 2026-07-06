@@ -48,33 +48,39 @@ function readXfrm(sp: Element): Xfrm | null {
   };
 }
 
-function textOf(sp: Element, theme: ThemeColors): { text: string; fontSize: number; bold: boolean; font: string | null; color: string | null } {
+function textOf(sp: Element, theme: ThemeColors, layoutSp?: Element): { text: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null } {
   const paras = local(sp, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
   const lines: string[] = [];
-  let size = 0;
+  let size: number | null = null;
   let bold = false;
   let font: string | null = null;
   let color: string | null = null;
+  let align: string | null = null;
   for (const p of paras) {
     const runs = local(p, 't').map((t) => t.textContent ?? '');
     lines.push(runs.join(''));
+    
+    const pPr = local(p, 'pPr')[0];
+    if (pPr && !align) {
+      const algn = pPr.getAttribute('algn');
+      if (algn === 'ctr') align = 'center';
+      else if (algn === 'r') align = 'right';
+      else if (algn === 'just' || algn === 'dist') align = 'justify';
+      else if (algn === 'l') align = 'left';
+    }
     for (const rPr of local(p, 'rPr')) {
       const sz = Number(rPr.getAttribute('sz'));
       if (sz && !size) size = sz / 100;
       if (rPr.getAttribute('b') === '1') bold = true;
-      // Font: <a:latin typeface="..."/> on the run properties.
       if (!font) {
         const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
         if (latin && !latin.startsWith('+')) font = latin;
       }
-      // Color: a solidFill on the run properties.
       if (!color) {
         const sf = local(rPr, 'solidFill')[0];
         if (sf) color = resolveColorEl(sf, theme);
       }
     }
-    // Paragraph-level default run props (pPr>defRPr) as fallback for runs
-    // that don't carry their own rPr (common from some exporters).
     const defRPr = local(p, 'defRPr')[0];
     if (defRPr) {
       if (!font) {
@@ -91,7 +97,14 @@ function textOf(sp: Element, theme: ThemeColors): { text: string; fontSize: numb
       }
     }
   }
-  return { text: lines.join('\n').trim(), fontSize: size || 18, bold, font, color };
+  if (layoutSp) {
+    const l = textOf(layoutSp, theme);
+    if (!size) size = l.fontSize;
+    if (!font) font = l.font;
+    if (!color) color = l.color;
+    if (!align) align = l.align;
+  }
+  return { text: lines.join('\n').trim(), fontSize: size, bold, font, color, align };
 }
 
 // Placeholder inheritance. Shapes whose geometry lives on the layout
@@ -145,6 +158,27 @@ function resolveColorEl(clrParent: Element, theme: ThemeColors): string | null {
   if (srgb?.getAttribute('val')) {
     return `#${srgb.getAttribute('val')!.toLowerCase()}`;
   }
+  const scrgb = local(clrParent, 'scrgbClr')[0];
+  if (scrgb) {
+    const r = Math.round((Number(scrgb.getAttribute('r')) / 100000) * 255);
+    const g = Math.round((Number(scrgb.getAttribute('g')) / 100000) * 255);
+    const b = Math.round((Number(scrgb.getAttribute('b')) / 100000) * 255);
+    return `#${[r, g, b].map(v => Math.min(255, Math.max(0, v)).toString(16).padStart(2, '0')).join('')}`;
+  }
+  const sys = local(clrParent, 'sysClr')[0];
+  if (sys?.getAttribute('lastClr')) {
+    return `#${sys.getAttribute('lastClr')!.toLowerCase()}`;
+  }
+  const prst = local(clrParent, 'prstClr')[0];
+  if (prst?.getAttribute('val')) {
+    const val = prst.getAttribute('val')!.toLowerCase();
+    const prstMap: Record<string, string> = {
+      black: '#000000', white: '#ffffff', red: '#ff0000', green: '#00ff00', blue: '#0000ff',
+      yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', lightgray: '#d3d3d3',
+      darkgray: '#a9a9a9'
+    };
+    if (prstMap[val]) return prstMap[val];
+  }
   const scheme = local(clrParent, 'schemeClr')[0];
   if (scheme) {
     const raw = scheme.getAttribute('val') ?? '';
@@ -166,36 +200,62 @@ function phKey(ph: Element): PhKey {
   return `${ph.getAttribute('type') ?? 'body'}|${ph.getAttribute('idx') ?? ''}`;
 }
 
-async function layoutXfrms(zip: JSZip, slidePath: string): Promise<Map<PhKey, Xfrm>> {
-  const map = new Map<PhKey, Xfrm>();
+function extractBgFill(bg: Element | undefined, theme: ThemeColors): string | null {
+  if (!bg) return null;
+  const bgPr = local(bg, 'bgPr')[0];
+  if (bgPr) {
+    const sf = local(bgPr, 'solidFill')[0];
+    if (sf) return resolveColorEl(sf, theme);
+    const gf = local(bgPr, 'gradFill')[0];
+    if (gf) return resolveColorEl(local(gf, 'gs')[0] || gf, theme);
+  }
+  const bgRef = local(bg, 'bgRef')[0];
+  if (bgRef) return resolveColorEl(bgRef, theme);
+  return null;
+}
+
+async function readLayout(zip: JSZip, slidePath: string, theme: ThemeColors): Promise<{ spMap: Map<PhKey, Element>; bgFill: string | null }> {
+  const spMap = new Map<PhKey, Element>();
+  let bgFill: string | null = null;
   const relsPath = slidePath.replace(/slides\/(slide\d+\.xml)$/i, 'slides/_rels/$1.rels');
   const rels = await fileString(zip, relsPath);
   const m = rels?.match(/Target="\.\.\/(slideLayouts\/slideLayout\d+\.xml)"/i);
-  if (!m) return map;
+  if (!m) return { spMap, bgFill };
   const layoutStr = await fileString(zip, `ppt/${m[1]}`);
-  if (!layoutStr) return map;
+  if (!layoutStr) return { spMap, bgFill };
   const doc = parseXml(layoutStr);
   for (const sp of local(doc, 'sp')) {
     const ph = local(sp, 'ph')[0];
-    if (!ph) continue;
-    const xfrm = readXfrm(sp);
-    if (xfrm) map.set(phKey(ph), xfrm);
+    if (ph) spMap.set(phKey(ph), sp);
   }
-  return map;
+  bgFill = extractBgFill(local(doc, 'bg')[0], theme);
+  return { spMap, bgFill };
 }
 
-function fillOf(sp: Element, theme: ThemeColors): { fill: string; border: string; borderWidth: number } {
+function fillOf(sp: Element, theme: ThemeColors, layoutSp?: Element): { fill: string; border: string; borderWidth: number } {
   const spPr = local(sp, 'spPr')[0];
   let fill: string | null = null;
   let border = 'transparent';
   let borderWidth = 0;
   if (spPr) {
+    if (local(spPr, 'noFill').length) fill = 'transparent';
     for (const sf of local(spPr, 'solidFill')) {
       const inLine = sf.parentElement?.localName === 'ln';
       const hex = resolveColorEl(sf, theme);
       if (!hex) continue;
       if (inLine) border = hex;
       else if (fill === null) fill = hex;
+    }
+    for (const gf of local(spPr, 'gradFill')) {
+      const inLine = gf.parentElement?.localName === 'ln';
+      const gs = local(gf, 'gs')[0];
+      if (gs) {
+        const hex = resolveColorEl(gs, theme);
+        if (hex) {
+          if (inLine) border = hex;
+          else if (fill === null) fill = hex;
+        }
+      }
     }
     const ln = local(spPr, 'ln')[0];
     if (ln) {
@@ -205,8 +265,6 @@ function fillOf(sp: Element, theme: ThemeColors): { fill: string; border: string
       if (local(ln, 'noFill').length) { border = 'transparent'; borderWidth = 0; }
     }
   }
-  // No explicit fill: the shape inherits from its style's fillRef
-  // (add_shape's default in PowerPoint and python-pptx alike).
   if (fill === null) {
     const style = local(sp, 'style')[0];
     const fillRef = style ? local(style, 'fillRef')[0] : null;
@@ -217,7 +275,12 @@ function fillOf(sp: Element, theme: ThemeColors): { fill: string; border: string
       if (lnc) { border = lnc; if (!borderWidth) borderWidth = 1; }
     }
   }
-  return { fill: fill ?? '#e8f7f0', border, borderWidth };
+  if (layoutSp) {
+    const lp = fillOf(layoutSp, theme);
+    if (fill === null || fill === '#e8f7f0') fill = lp.fill;
+    if (border === 'transparent') { border = lp.border; borderWidth = lp.borderWidth; }
+  }
+  return { fill: fill ?? 'transparent', border, borderWidth };
 }
 
 function prstGeomOf(sp: Element): string | null {
@@ -268,7 +331,7 @@ async function imageDataUrl(zip: JSZip, slidePath: string, rId: string): Promise
 async function importShape(
   zip: JSZip, slidePath: string, node: Element,
   groupOffset: { dx: number; dy: number },
-  layout: Map<PhKey, Xfrm>,
+  layout: { spMap: Map<PhKey, Element>; bgFill: string | null },
   theme: ThemeColors,
   out: Block[],
   usedFonts: Set<string>
@@ -276,10 +339,11 @@ async function importShape(
   const name = node.localName;
 
   let xfrm = readXfrm(node);
-  if (!xfrm) {
-    // Geometry may be inherited: look the placeholder up on the layout.
-    const ph = local(node, 'ph')[0];
-    if (ph) xfrm = layout.get(phKey(ph)) ?? layout.get(`${ph.getAttribute('type') ?? 'body'}|`) ?? null;
+  let layoutSp: Element | undefined;
+  const ph = local(node, 'ph')[0];
+  if (ph) {
+    layoutSp = layout.spMap.get(phKey(ph)) ?? layout.spMap.get(`${ph.getAttribute('type') ?? 'body'}|`);
+    if (!xfrm && layoutSp) xfrm = readXfrm(layoutSp);
   }
   if (name === 'pic') {
     const blip = local(node, 'blip')[0];
@@ -299,7 +363,7 @@ async function importShape(
   }
 
   if (name === 'sp') {
-    const { text, fontSize, bold, font, color: runColor } = textOf(node, theme);
+    const { text, fontSize, bold, font, color: runColor, align } = textOf(node, theme, layoutSp);
     const prst = prstGeomOf(node);
     const kind = prst ? PRSTGEOM_TO_KIND[prst] : undefined;
     const f = xfrm ?? { x: 80, y: 80, w: 500, h: 80 };
@@ -307,12 +371,12 @@ async function importShape(
     const y = Math.round(f.y + groupOffset.dy);
     const w = Math.max(24, Math.round(f.w));
     const h = Math.max(24, Math.round(f.h));
+    const finalFontSize = fontSize || 18;
 
-    // A shape with visible geometry becomes a shape block; text inside it
-    // becomes a text block stacked on top (our text block has no fill).
-    const isTextBox = !prst || prst === 'rect' && !local(node, 'spPr')[0]?.getElementsByTagNameNS('*', 'solidFill').length && !local(node, 'ln')[0];
+    const { fill, border, borderWidth } = fillOf(node, theme, layoutSp);
+    const isTextBox = !prst || (prst === 'rect' && fill === 'transparent' && border === 'transparent');
+    
     if (kind && !isTextBox) {
-      const { fill, border, borderWidth } = fillOf(node, theme);
       out.push({
         id: uid('blk'), type: 'shape', x, y, w, h,
         props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12 }
@@ -325,13 +389,13 @@ async function importShape(
       out.push({
         id: uid('blk'), type: 'text',
         x: kind && !isTextBox ? x + 8 : x,
-        y: kind && !isTextBox ? y + Math.max(0, Math.round(h / 2 - fontSize)) : y,
+        y: kind && !isTextBox ? y + Math.max(0, Math.round(h / 2 - finalFontSize)) : y,
         w: Math.max(60, kind && !isTextBox ? w - 16 : w),
-        h: Math.max(32, kind && !isTextBox ? Math.round(fontSize * 2.2) : h),
+        h: Math.max(32, kind && !isTextBox ? Math.round(finalFontSize * 2.2) : h),
         props: {
           html: text,
-          fontSize: Math.round(fontSize),
-          align: kind && !isTextBox ? 'center' : 'left',
+          fontSize: Math.round(finalFontSize),
+          align: align ?? (kind && !isTextBox ? 'center' : 'left'),
           ...(color ? { color } : {}),
           ...(font ? { fontFamily: font } : {}),
           ...(bold ? { bold } : {})
@@ -395,7 +459,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
     const spTree = local(doc, 'spTree')[0];
     const blocks: Block[] = [];
 
-    const layout = await layoutXfrms(zip, path);
+    const layout = await readLayout(zip, path, theme);
     const walk = async (parent: Element, offset: { dx: number; dy: number }) => {
       for (const child of Array.from(parent.children)) {
         if (child.localName === 'AlternateContent') {
@@ -420,6 +484,15 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
     if (spTree) await walk(spTree, { dx: 0, dy: 0 });
 
     const layer = createLayer('Base layer', true);
+    
+    let bgHex = extractBgFill(local(doc, 'bg')[0], theme) || layout.bgFill;
+    if (bgHex && bgHex !== 'transparent') {
+      blocks.unshift({
+        id: uid('blk'), type: 'shape', x: 0, y: 0, w: width, h: height,
+        props: { kind: 'rectangle', fill: bgHex, borderColor: 'transparent', borderWidth: 0, cornerRadius: 0 }
+      } as Block);
+    }
+    
     layer.blocks = blocks;
     const notes = await readNotes(zip, path);
     const n = slides.length + 1;

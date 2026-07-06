@@ -5,7 +5,7 @@
 export type BlockType =
   | 'text' | 'image' | 'statement' | 'multipleChoice'
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
-  | 'code' | 'matching';
+  | 'code' | 'matching' | 'group';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -123,11 +123,15 @@ export interface CodeProps {
   js: string;
 }
 
+export interface GroupProps {
+  blocks: Block[];
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
-  | TextEntryProps | CodeProps;
+  | TextEntryProps | CodeProps | GroupProps;
 
 export type AnimType =
   | 'none' | 'fade'
@@ -170,8 +174,12 @@ export interface Block {
   accLabel?: string;
   // Looping attention animation (GSAP), independent of the timeline.
   emphasis?: 'none' | 'pulse' | 'bounce' | 'shake' | 'float' | 'wobble' | 'tada' | 'heartbeat' | 'glow';
-  // Grouping: blocks sharing a groupId select and move together.
+  // Grouping: blocks sharing a groupId select and move together. (Deprecated, migrated to type: 'group')
   groupId?: string;
+  // Timeline authoring visibility (eye icon toggle)
+  editorHidden?: boolean;
+  // Starting state of the object (e.g. 'hidden')
+  initialState?: BlockState;
 }
 
 export interface Layer {

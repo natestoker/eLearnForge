@@ -13,6 +13,46 @@ import {
 
 const HISTORY_CAP = 100;
 
+// --- Grouping / Recursion Helpers ---
+export function walkBlocks(blocks: Block[]): Block[] {
+  return blocks.flatMap(b => b.type === 'group' ? [b, ...walkBlocks((b.props as any).blocks)] : [b]);
+}
+
+export function removeBlocksRecursive(blocks: Block[], idsToRemove: Set<string>): Block[] {
+  return blocks.filter(b => !idsToRemove.has(b.id)).map(b => {
+    if (b.type === 'group') {
+      return { ...b, props: { ...b.props, blocks: removeBlocksRecursive((b.props as any).blocks, idsToRemove) } } as Block;
+    }
+    return b;
+  });
+}
+
+export function mutateBlockRecursive(blocks: Block[], id: string, fn: (b: Block) => void): boolean {
+  for (const b of blocks) {
+    if (b.id === id) { fn(b); return true; }
+    if (b.type === 'group' && mutateBlockRecursive((b.props as any).blocks, id, fn)) return true;
+  }
+  return false;
+}
+
+export function moveBlockZRecursive(blocks: Block[], blockId: string, dir: string): boolean {
+  const idx = blocks.findIndex(b => b.id === blockId);
+  if (idx >= 0) {
+    const [b] = blocks.splice(idx, 1);
+    if (dir === 'front') blocks.push(b);
+    else if (dir === 'back') blocks.unshift(b);
+    else if (dir === 'forward') blocks.splice(Math.min(blocks.length, idx + 1), 0, b);
+    else if (dir === 'backward') blocks.splice(Math.max(0, idx - 1), 0, b);
+    return true;
+  }
+  for (const b of blocks) {
+    if (b.type === 'group' && moveBlockZRecursive((b.props as any).blocks, blockId, dir)) return true;
+  }
+  return false;
+}
+// ------------------------------------
+
+
 export interface Selection {
   slideId: string;
   layerId: string;
@@ -185,17 +225,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().mutate((p) => {
       for (const slide of p.slides) {
         for (const layer of slide.layers) {
-          const i = layer.blocks.findIndex((b) => b.id === blockId);
-          if (i < 0) continue;
-          const [b] = layer.blocks.splice(i, 1);
-          // DOM order is stacking order: later paints on top.
-          const j =
-            dir === 'front' ? layer.blocks.length :
-            dir === 'back' ? 0 :
-            dir === 'forward' ? Math.min(layer.blocks.length, i + 1) :
-            Math.max(0, i - 1);
-          layer.blocks.splice(j, 0, b);
-          return;
+          if (moveBlockZRecursive(layer.blocks, blockId, dir)) return;
         }
       }
     }),
@@ -206,7 +236,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const slide = p.slides.find((s) => s.id === selection.slideId);
       if (!slide) return;
       const ids = selectedIds(selection);
-      const all = slide.layers.flatMap((l) => l.blocks);
+      const all = slide.layers.flatMap((l) => walkBlocks(l.blocks));
       const targets = all.filter((b) => ids.includes(b.id));
       if (targets.length === 0) return;
 
@@ -237,7 +267,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const slide = p.slides.find((s) => s.id === selection.slideId);
       if (!slide) return;
       const ids = selectedIds(selection);
-      const targets = slide.layers.flatMap((l) => l.blocks).filter((b) => ids.includes(b.id));
+      const targets = slide.layers.flatMap((l) => walkBlocks(l.blocks)).filter((b) => ids.includes(b.id));
       if (targets.length < 3) return; // distribution needs 3+ to place gaps
       // Even spacing between block centers from first to last along the axis.
       const key = axis === 'h' ? 'x' : 'y';
@@ -313,8 +343,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().mutate((p) => {
       for (const slide of p.slides) {
         for (const layer of slide.layers) {
-          const idx = layer.blocks.findIndex((b) => b.id === blockId);
-          if (idx >= 0) layer.blocks.splice(idx, 1);
+          layer.blocks = removeBlocksRecursive(layer.blocks, new Set([blockId]));
         }
       }
     });
@@ -324,7 +353,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   copyBlocks: () => {
     const { selection, project } = get();
     const ids = selectedIds(selection);
-    const all = project.slides.flatMap((s) => s.layers.flatMap((l) => l.blocks));
+    const all = project.slides.flatMap((s) => s.layers.flatMap((l) => walkBlocks(l.blocks)));
     const picked = all.filter((b) => ids.includes(b.id));
     if (picked.length) clipboard = structuredClone(picked);
   },
@@ -333,10 +362,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().copyBlocks();
     const ids = selectedIds(get().selection);
     if (!ids.length) return;
+    const idSet = new Set(ids);
     get().mutate((p) => {
       for (const slide of p.slides) {
         for (const layer of slide.layers) {
-          layer.blocks = layer.blocks.filter((b) => !ids.includes(b.id));
+          layer.blocks = removeBlocksRecursive(layer.blocks, idSet);
         }
       }
     });
@@ -381,43 +411,73 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   groupBlocks: () => {
     const ids = selectedIds(get().selection);
     if (ids.length < 2) return;
+    const idSet = new Set(ids);
     const gid = uid('grp');
     get().mutate((p) => {
-      for (const slide of p.slides) {
-        for (const layer of slide.layers) {
-          for (const b of layer.blocks) {
-            if (ids.includes(b.id)) b.groupId = gid;
-          }
-        }
-      }
+      const slide = p.slides.find((s) => s.id === get().selection.slideId) ?? p.slides[0];
+      const layer = slide.layers.find((l) => l.id === get().selection.layerId) ?? slide.layers[0];
+      
+      const all = walkBlocks(layer.blocks);
+      const targets = all.filter(b => idSet.has(b.id));
+      if (targets.length < 2) return;
+
+      const minX = Math.min(...targets.map(b => b.x));
+      const minY = Math.min(...targets.map(b => b.y));
+      const maxX = Math.max(...targets.map(b => b.x + b.w));
+      const maxY = Math.max(...targets.map(b => b.y + b.h));
+
+      // Adjust child coords to be relative
+      const children = targets.map(b => ({ ...b, x: b.x - minX, y: b.y - minY }));
+
+      const groupBlock: Block = {
+        id: gid,
+        type: 'group',
+        name: 'Group',
+        x: minX, y: minY, w: maxX - minX, h: maxY - minY,
+        props: { blocks: children }
+      };
+
+      layer.blocks = removeBlocksRecursive(layer.blocks, idSet);
+      layer.blocks.push(groupBlock);
     });
+    get().select({ blockId: gid, blockIds: [] });
   },
 
   ungroupBlocks: () => {
     const ids = selectedIds(get().selection);
-    const { project } = get();
-    // Collect every group touched by the selection, then clear it.
-    const groups = new Set<string>();
-    const all = project.slides.flatMap((s) => s.layers.flatMap((l) => l.blocks));
-    for (const b of all) if (ids.includes(b.id) && b.groupId) groups.add(b.groupId);
-    if (!groups.size) return;
+    if (!ids.length) return;
+    const idSet = new Set(ids);
+    const newSel: string[] = [];
     get().mutate((p) => {
-      for (const slide of p.slides) {
-        for (const layer of slide.layers) {
-          for (const b of layer.blocks) {
-            if (b.groupId && groups.has(b.groupId)) b.groupId = undefined;
-          }
+      const slide = p.slides.find((s) => s.id === get().selection.slideId) ?? p.slides[0];
+      const layer = slide.layers.find((l) => l.id === get().selection.layerId) ?? slide.layers[0];
+      
+      const groupsToUngroup = walkBlocks(layer.blocks).filter(b => b.type === 'group' && idSet.has(b.id));
+      if (!groupsToUngroup.length) return;
+
+      const idsToRemove = new Set(groupsToUngroup.map(g => g.id));
+      layer.blocks = removeBlocksRecursive(layer.blocks, idsToRemove);
+
+      for (const g of groupsToUngroup) {
+        const children = (g.props as any).blocks as Block[];
+        for (const child of children) {
+          child.x += g.x;
+          child.y += g.y;
+          layer.blocks.push(child);
+          newSel.push(child.id);
         }
       }
     });
+    if (newSel.length) {
+      get().select({ blockId: newSel[newSel.length - 1], blockIds: newSel.slice(0, -1) });
+    }
   },
 
   updateBlock: (blockId, fn, history = true) => {
     get().mutate((p) => {
       for (const slide of p.slides) {
         for (const layer of slide.layers) {
-          const block = layer.blocks.find((b) => b.id === blockId);
-          if (block) { fn(block); return; }
+          if (mutateBlockRecursive(layer.blocks, blockId, fn)) return;
         }
       }
     }, history);
@@ -427,7 +487,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 function reconcileSelection(sel: Selection, p: Project): Selection {
   const slide = p.slides.find((s) => s.id === sel.slideId) ?? p.slides[0];
   const layer = slide.layers.find((l) => l.id === sel.layerId) ?? slide.layers[0];
-  const blockExists = slide.layers.some((l) => l.blocks.some((b) => b.id === sel.blockId));
+  const blockExists = slide.layers.some((l) => walkBlocks(l.blocks).some((b) => b.id === sel.blockId));
   return { slideId: slide.id, layerId: layer.id, blockId: blockExists ? sel.blockId : null };
 }
 

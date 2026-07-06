@@ -36,6 +36,9 @@ import { MatchingProperties } from './matching/Properties';
 import { MatchingRuntime } from './matching/Runtime';
 import { CodeProperties } from './code/Properties';
 import { CodeRuntime } from './code/Runtime';
+import { GroupCanvas } from './group/Canvas';
+import { GroupProperties } from './group/Properties';
+import { GroupRuntime } from './group/Runtime';
 
 export const BLOCKS: Record<BlockType, BlockDefinition> = {
   text: {
@@ -77,7 +80,8 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
   audio: { type: 'audio', label: 'Audio', glyph: 'AUD', Canvas: AudioCanvas, Properties: AudioProperties, Runtime: AudioRuntime },
   textEntry: { type: 'textEntry', label: 'Text entry', glyph: 'TE', Canvas: TextEntryCanvas, Properties: TextEntryProperties, Runtime: TextEntryRuntime },
   code: { type: 'code', label: 'Code', glyph: '</>', Canvas: CodeCanvas, Properties: CodeProperties, Runtime: CodeRuntime },
-  matching: { type: 'matching', label: 'Matching', glyph: '\u2194', Canvas: MatchingCanvas, Properties: MatchingProperties, Runtime: MatchingRuntime }
+  matching: { type: 'matching', label: 'Matching', glyph: '\u2194', Canvas: MatchingCanvas, Properties: MatchingProperties, Runtime: MatchingRuntime },
+  group: { type: 'group', label: 'Group', glyph: 'GRP', Canvas: GroupCanvas, Properties: GroupProperties, Runtime: GroupRuntime }
 };
 
 export const BLOCK_TYPES = Object.keys(BLOCKS) as BlockType[];

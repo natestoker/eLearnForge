@@ -18,7 +18,8 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   video: { w: 480, h: 270 },
   audio: { w: 360, h: 56 },
   textEntry: { w: 360, h: 56 },
-  code: { w: 480, h: 320 }
+  code: { w: 480, h: 320 },
+  group: { w: 400, h: 400 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -64,6 +65,8 @@ export function defaultProps(type: BlockType): BlockProps {
         css: '.demo { font: 600 20px system-ui; color: #1fa871; }',
         js: "// forge and gsap are in scope.\n// forge.setVariable('name', value); forge.getVariable('name');\n// forge.complete(); forge.onVariableChange(function (name, value) {});\ngsap.from(root.querySelector('.demo'), { y: 24, opacity: 0, duration: 0.6, ease: 'power2.out' });"
       };
+    case 'group':
+      return { blocks: [] };
     case 'multipleChoice': {
       const a = uid('ch');
       const b = uid('ch');
