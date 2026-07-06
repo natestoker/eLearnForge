@@ -10,7 +10,7 @@ const INSERT_GROUPS: { title: string; types: BlockType[] }[] = [
   { title: 'Media', types: ['video', 'audio'] },
   { title: 'Interactive', types: ['multipleChoice', 'matching', 'textEntry', 'hotspot', 'statement', 'code'] }
 ];
-import { exportProjectJson, importProjectJson } from '../state/persistence';
+import { exportProjectJson, importProjectJson, importProjectJsonWithPicker, resetFileHandle } from '../state/persistence';
 import { createDemoProject, createProject } from '../schema/factory';
 import { useState } from 'react';
 import { PublishDialog } from './PublishDialog';
@@ -99,6 +99,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
           title="Start over with a blank project"
           onClick={() => {
             if (confirm('Replace the current project with a blank one?')) {
+              resetFileHandle();
               setProject(createProject());
             }
           }}
@@ -110,6 +111,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
           title="Load the demo project"
           onClick={() => {
             if (confirm('Replace the current project with the demo?')) {
+              resetFileHandle();
               setProject(createDemoProject());
             }
           }}
@@ -117,7 +119,25 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
           <Icon.sparkles /> Demo
         </button>
         <button className="btn btn-ghost btn-icon-label" onClick={() => exportProjectJson(project)} title="Save the project as a .json file"><Icon.save /> Save</button>
-        <button className="btn btn-ghost btn-icon-label" onClick={() => fileRef.current?.click()} title="Load a saved .json project"><Icon.load /> Load</button>
+        <button
+          className="btn btn-ghost btn-icon-label"
+          title="Load a saved .json project"
+          onClick={async () => {
+            try {
+              const loaded = await importProjectJsonWithPicker();
+              if (loaded) {
+                setProject(loaded);
+              } else {
+                fileRef.current?.click();
+              }
+            } catch (err: any) {
+              if (err && err.name === 'AbortError') return; // User cancelled
+              alert(err instanceof Error ? err.message : 'Could not read that file.');
+            }
+          }}
+        >
+          <Icon.load /> Load
+        </button>
         <button className="btn btn-ghost btn-icon-label" onClick={() => pptxRef.current?.click()} title="Import a PowerPoint as an editable starting point">
           <Icon.pptx /> Import PPTX
         </button>
@@ -141,6 +161,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
             const file = e.target.files?.[0];
             if (!file) return;
             try {
+              resetFileHandle();
               setProject(await importProjectJson(file));
             } catch (err) {
               alert(err instanceof Error ? err.message : 'Could not read that file.');

@@ -2,6 +2,19 @@
 // first used, a <link> is injected. The list is deliberately short and
 // covers display, serif, sans, and mono needs for course design.
 
+export const SYSTEM_FONTS: { family: string; category: string }[] = [
+  { family: 'Arial', category: 'system sans' },
+  { family: 'Helvetica', category: 'system sans' },
+  { family: 'Verdana', category: 'system sans' },
+  { family: 'Trebuchet MS', category: 'system sans' },
+  { family: 'Times New Roman', category: 'system serif' },
+  { family: 'Georgia', category: 'system serif' },
+  { family: 'Garamond', category: 'system serif' },
+  { family: 'Courier New', category: 'system mono' },
+  { family: 'Impact', category: 'system display' },
+  { family: 'Arial Black', category: 'system display' }
+];
+
 export const GOOGLE_FONTS: { family: string; category: string }[] = [
   { family: 'Inter', category: 'sans' },
   { family: 'Roboto', category: 'sans' },

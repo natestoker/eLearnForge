@@ -1,3 +1,5 @@
+import { sortedVoices } from '../shared/voices';
+
 // Speaker-notes narration via the Web Speech API, hardened with the
 // patterns proven in the PPTX Narrator work:
 // - epoch guard: every async callback checks its epoch so a stale
@@ -54,21 +56,41 @@ export class TtsEngine {
     const offset = this.offsetForTime(t);
     const remainder = this.text.slice(offset);
     if (!remainder.trim()) return;
-    // Deferred: Chrome silently drops speak() issued right after cancel().
-    window.setTimeout(() => {
+
+    const speak = () => {
       if (myEpoch !== this.epoch) return;
       const utter = new SpeechSynthesisUtterance(remainder);
       utter.rate = this.opts.rate;
+      
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) {
+        // Voices not loaded yet (common cold start). Speak once loaded.
+        const onVoicesChanged = () => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+          if (myEpoch === this.epoch) {
+            this.playFrom(t);
+          }
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+        return;
+      }
+
       if (this.opts.voiceName) {
-        const v = window.speechSynthesis.getVoices().find((vc) => vc.name === this.opts.voiceName);
+        const v = voices.find((vc) => vc.name === this.opts.voiceName);
         if (v) utter.voice = v;
+      } else {
+        const bestVoice = sortedVoices()[0];
+        if (bestVoice) utter.voice = bestVoice;
       }
       utter.onend = () => {
         if (myEpoch !== this.epoch) return;
         this.opts.onEnd();
       };
       window.speechSynthesis.speak(utter);
-    }, 50);
+    };
+
+    // Deferred: Chrome silently drops speak() issued right after cancel().
+    window.setTimeout(speak, 50);
   }
 
   stop(): void {

@@ -7,17 +7,7 @@ import { BakeNarration } from './BakeNarration';
 import { defaultPlayerSettings } from '../schema/factory';
 import { useEffect, useState } from 'react';
 
-function useVoices(): SpeechSynthesisVoice[] {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices());
-    load();
-    window.speechSynthesis.addEventListener('voiceschanged', load);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
-  }, []);
-  return voices;
-}
+// useVoices removed
 
 // Panel design note (open question #2 from the brief): hand-built panels per
 // block type for v1's four blocks, sharing field primitives. A schema-driven
@@ -130,17 +120,7 @@ export function PropertyPanel() {
                 })
               }
             />
-            <CheckboxInput
-              label="Narrate speaker notes (browser text-to-speech)"
-              checked={Boolean(slide.timeline.tts)}
-              onChange={(v) =>
-                mutate((p) => {
-                  const s = p.slides.find((sl) => sl.id === slide.id);
-                  if (s?.timeline) s.timeline.tts = v ? { rate: 1 } : undefined;
-                })
-              }
-            />
-            {slide.timeline.tts && <TtsControls slideId={slide.id} />}
+            {/* Narrate speaker notes (browser text-to-speech) removed */}
             <CheckboxInput
               label="Auto-advance to the next slide at the end"
               checked={slide.timeline.autoAdvance}
@@ -328,53 +308,7 @@ export function PropertyPanel() {
 }
 
 
-function TtsControls({ slideId }: { slideId: string }) {
-  const mutate = useProjectStore((s) => s.mutate);
-  const slide = useProjectStore((s) => s.project.slides.find((sl) => sl.id === slideId))!;
-  const voices = useVoices();
-  const tts = slide.timeline?.tts;
-  if (!tts) return null;
-  return (
-    <>
-      <Field label="Voice">
-        <select
-          className="input"
-          value={tts.voiceName ?? ''}
-          onChange={(e) =>
-            mutate((p) => {
-              const s = p.slides.find((sl) => sl.id === slideId);
-              if (s?.timeline?.tts) s.timeline.tts.voiceName = e.target.value || undefined;
-            })
-          }
-        >
-          <option value="">System default</option>
-          {voices.map((v) => (
-            <option key={v.name} value={v.name}>
-              {v.name} ({v.lang})
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Rate">
-        <NumberInput
-          value={tts.rate}
-          step={0.1}
-          onChange={(v) =>
-            mutate((p) => {
-              const s = p.slides.find((sl) => sl.id === slideId);
-              if (s?.timeline?.tts) s.timeline.tts.rate = Math.min(2, Math.max(0.5, v));
-            })
-          }
-        />
-      </Field>
-      <p className="hint">
-        The timeline duration becomes an estimate from the notes length and
-        rate. Seeking restarts the voice from that point (browser speech
-        cannot seek mid-utterance). Voices vary per browser and device.
-      </p>
-    </>
-  );
-}
+// TtsControls removed
 
 
 function PlayerSettingsSection() {
@@ -446,11 +380,7 @@ function PlayerSettingsSection() {
           onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.buttonStyle = v as 'solid'; })}
         />
       </Field>
-      <CheckboxInput
-        label="Learner voice controls on TTS slides"
-        checked={player.voiceControls}
-        onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.voiceControls = v; })}
-      />
+      {/* Learner voice controls on TTS slides removed */}
       <p className="hint">Triggers can also enable/disable Next, Back, and Submit per slide (Enable/disable player button action).</p>
     </>
   );

@@ -1,0 +1,64 @@
+{
+  "name": "edge-tts-ts",
+  "version": "1.0.0",
+  "description": "Use Microsoft Edge's online text-to-speech service from JavaScript (Node.js/Browser) WITHOUT needing Microsoft Edge or Windows or an API key.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "edge-tts": "./dist/cli/edge-tts.js",
+    "edge-playback": "./dist/cli/edge-playback.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "dev": "tsup --watch",
+    "samples": "tsx samples/generate.ts",
+    "prepare": "pnpm run build",
+    "example:browser": "pnpm --filter edge-tts-browser-example dev",
+    "example:browser:build": "pnpm --filter edge-tts-browser-example build",
+    "example:browser:preview": "pnpm --filter edge-tts-browser-example preview"
+  },
+  "keywords": [
+    "tts",
+    "edge",
+    "microsoft",
+    "speech"
+  ],
+  "author": {
+    "name": "Deep Chakraborty",
+    "email": "chakraborty.deep013@gmail.com",
+    "url": "https://github.com/DK013"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DK013/edge-tts-ts"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.1",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "isomorphic-ws": "^5.0.0",
+    "sound-play": "^1.1.0",
+    "uuid": "^13.0.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}

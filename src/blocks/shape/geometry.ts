@@ -2,7 +2,7 @@ import type { ShapeKind } from '../../schema/types';
 
 // Preset geometry in a 100x100 viewBox, stretched non-uniformly to the
 // block bounds (preserveAspectRatio none) - the PowerPoint model. Points
-// are polygons; rectangle/rounded/ellipse render as native SVG elements.
+// are polygons; rectangle/rounded/ellipse/paths render as native SVG elements.
 
 export const SHAPE_POINTS: Partial<Record<ShapeKind, string>> = {
   triangle: '50,0 100,100 0,100',
@@ -17,7 +17,36 @@ export const SHAPE_POINTS: Partial<Record<ShapeKind, string>> = {
   arrowDown: '30,0 30,60 10,60 50,100 90,60 70,60 70,0',
   chevron: '0,0 75,0 100,50 75,100 0,100 25,50',
   parallelogram: '25,0 100,0 75,100 0,100',
-  trapezoid: '20,0 80,0 100,100 0,100'
+  trapezoid: '20,0 80,0 100,100 0,100',
+  
+  // New Polygon Shapes
+  octagon: '29,0 71,0 100,29 100,71 71,100 29,100 0,71 0,29',
+  plus: '35,0 65,0 65,35 100,35 100,65 65,65 65,100 35,100 35,65 0,65 0,35 35,35',
+  lightningBolt: '60,0 10,60 45,60 30,100 90,40 55,40',
+  heptagon: '50,0 89,18 100,60 72,97 28,97 0,60 11,18',
+  decagon: '50,0 79,9 98,34 98,66 79,91 50,100 21,91 2,66 2,34 21,9',
+  dodecagon: '50,0 75,7 93,25 100,50 93,75 75,93 50,100 25,93 7,75 0,50 7,25 25,7',
+  explosion: '50,0 55,20 70,10 65,30 85,25 75,45 100,50 75,55 85,75 65,70 70,90 55,80 50,100 45,80 30,90 35,70 15,75 25,55 0,50 25,45 15,25 35,30 30,10 45,20',
+  sun: '50,10 55,30 70,20 62,38 85,35 68,48 90,50 68,52 85,65 62,62 70,80 55,70 50,90 45,70 30,80 38,62 15,65 32,48 10,50 32,52 15,35 38,38 30,20 45,30'
+};
+
+export const SHAPE_PATHS: Partial<Record<ShapeKind, string>> = {
+  heart: 'M 50,20 C 50,20 38,0 20,0 C 8,0 0,10 0,25 C 0,45 25,75 50,100 C 75,75 100,45 100,25 C 100,10 92,0 80,0 C 62,0 50,20 50,20 Z',
+  smileyFace: 'M 50,0 A 50,50 0 1,0 50,100 A 50,50 0 1,0 50,0 Z M 35,35 A 5,5 0 1,1 35,45 A 5,5 0 1,1 35,35 Z M 65,35 A 5,5 0 1,1 65,45 A 5,5 0 1,1 65,35 Z M 25,60 C 25,60 35,80 50,80 C 65,80 75,60 75,60 C 75,60 65,72 50,72 C 35,72 25,60 25,60 Z',
+  cloud: 'M 25,80 C 15,80 5,70 5,55 C 5,42 15,32 28,32 C 33,18 48,10 62,15 C 75,20 82,32 82,45 C 92,45 100,53 100,65 C 100,75 92,80 82,80 Z',
+  moon: 'M 80,10 A 45,45 0 1,0 80,90 A 35,35 0 1,1 80,10 Z',
+  database: 'M 10,15 C 10,5 90,5 90,15 L 90,85 C 90,95 10,95 10,85 Z M 10,15 C 10,25 90,25 90,15 M 10,48 C 10,58 90,58 90,48 M 10,75 C 10,85 90,85 90,75',
+  flowchartDocument: 'M 0,0 L 100,0 L 100,80 C 75,70 50,90 0,80 Z',
+  flowchartTerminator: 'M 25,0 L 75,0 C 90,0 100,20 100,50 C 100,80 90,100 75,100 L 25,100 C 10,100 0,80 0,50 C 0,20 10,0 25,0 Z',
+  scrollHorizontal: 'M 10,20 C 5,20 0,30 0,40 L 0,80 C 0,90 5,100 10,100 L 90,100 C 95,100 100,90 100,80 L 100,40 C 100,30 95,20 90,20 Z M 10,20 L 90,20',
+  calloutRectangle: 'M 0,0 L 100,0 L 100,70 L 45,70 L 30,100 L 35,70 L 0,70 Z',
+  calloutRoundRect: 'M 15,0 L 85,0 C 93,0 100,7 100,15 L 100,55 C 100,63 93,70 85,70 L 45,70 L 30,100 L 35,70 L 15,70 C 7,70 0,63 0,55 L 0,15 C 0,7 7,0 15,0 Z',
+  calloutEllipse: 'M 50,0 C 78,0 100,16 100,35 C 100,54 78,70 50,70 C 45,70 35,73 25,85 C 27,77 30,73 30,70 C 12,70 0,54 0,35 C 0,16 12,0 50,0 Z',
+  leftRightArrow: 'M 0,50 L 25,20 L 25,35 L 75,35 L 75,20 L 100,50 L 75,80 L 75,65 L 25,65 L 25,80 Z',
+  upDownArrow: 'M 50,0 L 80,25 L 65,25 L 65,75 L 80,75 L 50,100 L 20,75 L 35,75 L 35,25 L 20,25 Z',
+  quadArrow: 'M 50,0 L 65,15 L 58,15 L 58,42 L 85,42 L 85,35 L 100,50 L 85,65 L 85,58 L 58,58 L 58,85 L 65,85 L 50,100 L 35,85 L 42,85 L 42,58 L 15,58 L 15,65 L 0,50 L 15,35 L 15,42 L 42,42 L 42,15 L 35,15 Z',
+  stripedRightArrow: 'M 0,30 L 10,30 L 10,70 L 0,70 Z M 20,30 L 30,30 L 30,70 L 20,70 Z M 40,30 L 60,30 L 60,15 L 100,50 L 60,85 L 60,70 L 40,70 Z',
+  notchedRightArrow: 'M 15,30 L 60,30 L 60,15 L 100,50 L 60,85 L 60,70 L 15,70 L 30,50 Z'
 };
 
 export const SHAPE_LABELS: Record<ShapeKind, string> = {
@@ -29,14 +58,40 @@ export const SHAPE_LABELS: Record<ShapeKind, string> = {
   diamond: 'Diamond',
   pentagon: 'Pentagon',
   hexagon: 'Hexagon',
-  star: 'Star',
+  star: 'Star 5-point',
   arrowRight: 'Arrow right',
   arrowLeft: 'Arrow left',
   arrowUp: 'Arrow up',
   arrowDown: 'Arrow down',
   chevron: 'Chevron',
   parallelogram: 'Parallelogram',
-  trapezoid: 'Trapezoid'
+  trapezoid: 'Trapezoid',
+  
+  // New Shapes
+  octagon: 'Octagon',
+  plus: 'Plus / Cross',
+  heart: 'Heart',
+  lightningBolt: 'Lightning bolt',
+  smileyFace: 'Smiley face',
+  cloud: 'Cloud',
+  sun: 'Sun',
+  moon: 'Moon',
+  heptagon: 'Heptagon',
+  decagon: 'Decagon',
+  dodecagon: 'Dodecagon',
+  database: 'Flowchart Database',
+  flowchartDocument: 'Flowchart Document',
+  flowchartTerminator: 'Flowchart Terminator',
+  explosion: 'Explosion / Star 24-point',
+  scrollHorizontal: 'Scroll horizontal',
+  calloutRectangle: 'Callout rectangle',
+  calloutRoundRect: 'Callout rounded rectangle',
+  calloutEllipse: 'Callout oval',
+  leftRightArrow: 'Left-right arrow',
+  upDownArrow: 'Up-down arrow',
+  quadArrow: 'Quad arrow',
+  stripedRightArrow: 'Striped right arrow',
+  notchedRightArrow: 'Notched right arrow'
 };
 
 // PowerPoint prstGeom names -> our kinds (import mapping).
@@ -56,7 +111,35 @@ export const PRSTGEOM_TO_KIND: Record<string, ShapeKind> = {
   downArrow: 'arrowDown',
   chevron: 'chevron',
   parallelogram: 'parallelogram',
-  trapezoid: 'trapezoid'
+  trapezoid: 'trapezoid',
+  
+  // New PPTX Mappings
+  octagon: 'octagon',
+  plus: 'plus',
+  mathPlus: 'plus',
+  heart: 'heart',
+  lightning: 'lightningBolt',
+  smiley: 'smileyFace',
+  cloud: 'cloud',
+  sun: 'sun',
+  moon: 'moon',
+  heptagon: 'heptagon',
+  decagon: 'decagon',
+  dodecagon: 'dodecagon',
+  flowchartDatabase: 'database',
+  flowchartDocument: 'flowchartDocument',
+  flowchartTerminator: 'flowchartTerminator',
+  irregSeal1: 'explosion',
+  star24: 'explosion',
+  horizontalScroll: 'scrollHorizontal',
+  wedgeRectCallout: 'calloutRectangle',
+  wedgeRoundRectCallout: 'calloutRoundRect',
+  wedgeEllipseCallout: 'calloutEllipse',
+  leftRightArrow: 'leftRightArrow',
+  upDownArrow: 'upDownArrow',
+  quadArrow: 'quadArrow',
+  stripedRightArrow: 'stripedRightArrow',
+  notchedRightArrow: 'notchedRightArrow'
 };
 
 // A CSS clip-path polygon (percentages) for a preset shape kind. Used to clip
@@ -65,6 +148,7 @@ export const PRSTGEOM_TO_KIND: Record<string, ShapeKind> = {
 export function clipPathForKind(kind: ShapeKind): string | null {
   if (kind === 'ellipse') return 'ellipse(50% 50% at 50% 50%)';
   if (kind === 'rectangle' || kind === 'roundedRectangle') return null;
+  if (SHAPE_PATHS[kind]) return null; // Path-based clip paths don't scale nicely in CSS without SVG clipPath tags
   const pts = SHAPE_POINTS[kind];
   if (!pts) return null;
   return pointsToClipPath(pts);

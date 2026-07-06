@@ -155,8 +155,39 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 export async function synthesize(text: string, voiceId: string, onProgress?: (pct: number) => void):
   Promise<{ data: Float32Array; sampleRate: number }> {
   const tts = await loadTts(onProgress);
-  const out = await tts.generate(text, { voice: voiceId as never });
-  return { data: out.audio as Float32Array, sampleRate: out.sampling_rate as number };
+  
+  // Split into sentences, keeping punctuation
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  if (sentences.length === 0) {
+    return { data: new Float32Array(0), sampleRate: 24000 };
+  }
+
+  const chunks: Float32Array[] = [];
+  let sampleRate = 24000;
+
+  for (let i = 0; i < sentences.length; i++) {
+    const s = sentences[i];
+    const out = await tts.generate(s, { voice: voiceId as never });
+    if (out.audio) {
+      chunks.push(out.audio as Float32Array);
+    }
+    if (out.sampling_rate) {
+      sampleRate = out.sampling_rate as number;
+    }
+    if (onProgress) {
+      onProgress(Math.round(((i + 1) / sentences.length) * 100));
+    }
+  }
+
+  const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.length;
+  }
+
+  return { data: merged, sampleRate };
 }
 
 export async function bufferToResultF32(data: Float32Array, sampleRate: number, format: BakeFormat): Promise<BakeResult> {

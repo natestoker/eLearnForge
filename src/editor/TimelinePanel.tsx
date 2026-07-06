@@ -1,16 +1,16 @@
 import React, { Fragment, useRef, useState } from 'react';
-import { useCurrentSlide, useProjectStore } from '../state/projectStore';
+import { useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { timelineDuration } from '../engine/timeline';
 import { blockDisplayName } from '../shared/blockName';
 import type { Block } from '../schema/types';
 import { useWaveform } from '../shared/useWaveform';
 
-// Storyline-style timeline strip. Rows are ordered by stacking (top of the
-// z-order at the top of the list), and each bar shows draggable
-// animation-in / animation-out ramps at its ends. Same gesture discipline
-// as the canvas: record() once on pointer-down, silent mutations while
-// dragging, so a whole drag is one undo step. Snap is toggleable.
+// Storyline-style timeline strip.
+// Uses a clean, aligned two-column layout:
+// - Left: Locked headers column (Z-ordering, visibility, block name, and expand/collapse).
+// - Right: Scrollable lane grid (timing bars, ramps, waveform).
+// Both sides render recursively to stay perfectly synchronized.
 
 const ROW_H = 34;
 const SNAP = 0.1;
@@ -27,7 +27,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [timelineZoom, setTimelineZoom] = useState(1);
-  const toggleGroup = (e: React.PointerEvent, id: string) => {
+
+  const toggleGroup = (e: React.PointerEvent | React.MouseEvent, id: string) => {
     e.stopPropagation();
     setExpandedGroups((prev: Set<string>) => {
       const next = new Set(prev);
@@ -36,6 +37,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       return next;
     });
   };
+
   const mutate = useProjectStore((s) => s.mutate);
   const snap = useUiStore((s) => s.timelineSnap);
   const setSnap = useUiStore((s) => s.setTimelineSnap);
@@ -68,9 +70,10 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     );
   }
 
-  const blocks = slide.layers.flatMap((l) => l.blocks);
+  // Find all blocks recursively (including grouped blocks)
+  const blocks = walkBlocks(slide.layers.flatMap((l) => l.blocks));
   const duration = timelineDuration(slide.timeline, blocks);
-  const driven = Boolean(slide.timeline.narrationSrc || slide.timeline.tts);
+  const driven = Boolean(slide.timeline.narrationSrc);
 
   const pxPerSec = () => ((trackRef.current?.clientWidth ?? 600) * timelineZoom) / duration;
   const q = (v: number) => (snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 100) / 100);
@@ -110,7 +113,6 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           const base = g.origEnd ?? duration;
           blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(base + dSec), duration));
         } else if (g.mode === 'trimStart') {
-          // Move the start edge only; the end stays put (mirror of 'trim').
           const endFixed = g.origEnd ?? duration;
           blk.timing.start = Math.max(0, Math.min(q(g.origStart + dSec), endFixed - 0.2));
           if (g.origEnd !== undefined) blk.timing.end = endFixed;
@@ -142,7 +144,48 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
 
   const pct = (sec: number) => `${(sec / duration) * 100}%`;
 
-  const renderBar = (b: Block, layerBlocks: Block[], depth = 0): React.ReactNode => {
+  // Render the left-hand column track info recursively
+  const renderHeaderRow = (b: Block, layerBlocks: Block[], depth = 0): React.ReactNode => {
+    const idx = layerBlocks.indexOf(b);
+    const selected = selection.blockId === b.id;
+    return (
+      <Fragment key={b.id}>
+        <div className={`timeline-header-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H, paddingLeft: depth * 16 + 8 }}>
+          {b.type === 'group' ? (
+            <button
+              className="tl-expand-btn"
+              onPointerDown={(e) => toggleGroup(e, b.id)}
+              title={expandedGroups.has(b.id) ? 'Collapse group' : 'Expand group'}
+            >
+              {expandedGroups.has(b.id) ? '\u25BC' : '\u25B6'}
+            </button>
+          ) : (
+            <span className="tl-expand-spacer" />
+          )}
+          
+          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={() => select({ blockId: b.id, blockIds: [] })}>
+            {blockDisplayName(b)}
+          </span>
+          
+          <div className="tl-row-actions">
+            <button className="tl-row-action-btn" style={{ opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false); }}>
+              {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
+            </button>
+            <button className="tl-row-action-btn" title="Bring forward" disabled={idx >= layerBlocks.length - 1} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'forward'); }}>{'\u25B2'}</button>
+            <button className="tl-row-action-btn" title="Send backward" disabled={idx <= 0} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'backward'); }}>{'\u25BC'}</button>
+          </div>
+        </div>
+        {b.type === 'group' && expandedGroups.has(b.id) && (
+          <Fragment key={b.id + '_children_headers'}>
+            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderHeaderRow(child, arr, depth + 1))}
+          </Fragment>
+        )}
+      </Fragment>
+    );
+  };
+
+  // Render the right-hand column lanes recursively
+  const renderLaneRow = (b: Block, _layerBlocks: Block[], depth = 0): React.ReactNode => {
     const start = b.timing?.start ?? 0;
     const end = b.timing?.end ?? duration;
     const selected = selection.blockId === b.id;
@@ -150,18 +193,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     const span = Math.max(0.2, end - start);
     const animIn = b.timing?.animIn?.duration ?? 0;
     const animOut = b.timing?.animOut?.duration ?? 0;
-    const idx = layerBlocks.indexOf(b);
     return (
       <Fragment key={b.id}>
-        <div className="timeline-row" style={{ height: ROW_H }}>
-          <div className="timeline-row-controls">
-            <button className="tl-z" title="Bring forward" disabled={idx >= layerBlocks.length - 1} onClick={() => moveBlockZ(b.id, 'forward')}>{'\u25B2'}</button>
-            <button className="tl-z" title="Send backward" disabled={idx <= 0} onClick={() => moveBlockZ(b.id, 'backward')}>{'\u25BC'}</button>
-            <button className="tl-z" style={{ marginLeft: 4, opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onClick={() => updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false)}>
-              {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
-            </button>
-          </div>
-          <div className="timeline-lane">
+        <div className={`timeline-lane-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H }} onPointerDown={() => select({ blockId: b.id, blockIds: [] })}>
           <div
             className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''}`}
             style={{ left: pct(start), width: pct(span) }}
@@ -171,18 +205,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             {!untimed && animIn > 0 && <div className="tl-ramp tl-ramp-in" style={{ width: `${(animIn / span) * 100}%` }} />}
             {!untimed && animOut > 0 && <div className="tl-ramp tl-ramp-out" style={{ width: `${(animOut / span) * 100}%` }} />}
             {b.type === 'audio' && <BarWaveform src={(b.props as { src?: string }).src} />}
-            <span className="timeline-bar-label" style={{ paddingLeft: depth * 12 + 4 }}>
-              {depth > 0 && <span style={{ opacity: 0.5 }}>{'\u2514 '}</span>}
-              {b.type === 'group' && (
-                <span onPointerDown={(e) => toggleGroup(e, b.id)} style={{ cursor: 'pointer', marginRight: 4, display: 'inline-block', width: 12 }}>
-                  {expandedGroups.has(b.id) ? '\u25BC' : '\u25B6'}
-                </span>
-              )}
-              {blockDisplayName(b)}
-            </span>
-            {/* Anim handles live on a thin strip along the TOP edge only, as
-                small diamonds, so the whole bar body stays grabbable for
-                move/trim even when a ramp is zero-width at the start. */}
+            
+            {/* Anim handles */}
             {!untimed && (
               <div className="tl-ramp-strip" onPointerDown={(e) => e.stopPropagation()}>
                 <span className="tl-ramp-handle in" style={{ left: `${(animIn / span) * 100}%` }} onPointerDown={(e) => onDown(e, b.id, 'animIn')} title="Drag to set animate-in length" />
@@ -193,10 +217,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <span className="timeline-bar-handle" onPointerDown={(e) => onDown(e, b.id, 'trim')} title="Drag to trim the end" />
           </div>
         </div>
-        </div>
         {b.type === 'group' && expandedGroups.has(b.id) && (
-          <Fragment key={b.id + '_children'}>
-            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderBar(child, arr, depth + 1))}
+          <Fragment key={b.id + '_children_lanes'}>
+            {((b.props as any).blocks as Block[]).map((child, _i, arr) => renderLaneRow(child, arr, depth + 1))}
           </Fragment>
         )}
       </Fragment>
@@ -238,34 +261,57 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out.'}
         </span>
       </div>
-      <div className="timeline-track" ref={trackRef} onPointerDown={() => select({ blockId: null, blockIds: [] })} style={{ overflowX: 'auto', paddingBottom: 16 }}>
-        <div style={{ width: `${timelineZoom * 100}%`, position: 'relative', minHeight: '100%' }}>
-        {/* When content extends past the set length, the timeline auto-grows
-            to fit it. Mark the author-set length and shade the region beyond
-            it so it's clear the slide runs longer than the number they set. */}
-        {duration > slide.timeline.duration + 0.01 && (
-          <>
-            <div className="timeline-overflow" style={{ left: pct(slide.timeline.duration) }} />
-            <div className="timeline-setmark" style={{ left: pct(slide.timeline.duration) }} title={`Set length: ${slide.timeline.duration}s (content runs to ${duration.toFixed(1)}s)`}>
-              <span className="timeline-setmark-label">set {slide.timeline.duration}s</span>
-            </div>
-          </>
-        )}
-        <div className="timeline-ruler">
-          {ticks.map((s) => (
-            <span key={s} className="timeline-tick" style={{ left: pct(s) }}>{s}s</span>
-          ))}
+
+      <div className="timeline-container">
+        {/* Left locked headers column */}
+        <div className="timeline-headers-col">
+          <div className="timeline-header-cell ruler-header">
+            <span>Blocks</span>
+          </div>
+          {slide.layers.map((layer, li) => {
+            const ordered = [...layer.blocks].reverse();
+            return (
+              <div key={layer.id}>
+                <div className="timeline-layer-header-name">
+                  {layer.name}{li === 0 ? ' (base)' : ''}
+                </div>
+                {ordered.map((b) => renderHeaderRow(b, ordered, 0))}
+              </div>
+            );
+          })}
         </div>
-        {slide.layers.map((layer, li) => {
-          const ordered = [...layer.blocks].reverse();
-          return (
-            <div key={layer.id} className="timeline-layer-group">
-              <div className="timeline-layer-name" onPointerDown={(e) => e.stopPropagation()}>{layer.name}{li === 0 ? ' (base)' : ''}</div>
-              {ordered.map((b) => renderBar(b, ordered, 0))}
-              {layer.blocks.length === 0 && <p className="empty-note">empty layer</p>}
+
+        {/* Right scrollable grid column */}
+        <div className="timeline-grid-col" ref={trackRef} onPointerDown={() => select({ blockId: null, blockIds: [] })}>
+          <div className="timeline-grid-scroll-content" style={{ width: `${timelineZoom * 100}%` }}>
+            {/* Ruler */}
+            <div className="timeline-ruler" style={{ position: 'relative', height: 20, top: 'auto', left: 'auto', right: 'auto' }}>
+              {ticks.map((s) => (
+                <span key={s} className="timeline-tick" style={{ left: pct(s) }}>{s}s</span>
+              ))}
             </div>
-          );
-        })}
+
+            {/* Overflow Shading & Setmark */}
+            {duration > slide.timeline.duration + 0.01 && (
+              <>
+                <div className="timeline-overflow" style={{ left: pct(slide.timeline.duration) }} />
+                <div className="timeline-setmark" style={{ left: pct(slide.timeline.duration) }} title={`Set length: ${slide.timeline.duration}s (content runs to ${duration.toFixed(1)}s)`}>
+                  <span className="timeline-setmark-label">set {slide.timeline.duration}s</span>
+                </div>
+              </>
+            )}
+
+            {/* Lanes */}
+            {slide.layers.map((layer) => {
+              const ordered = [...layer.blocks].reverse();
+              return (
+                <div key={layer.id}>
+                  <div className="timeline-layer-lane-spacer" />
+                  {ordered.map((b) => renderLaneRow(b, ordered, 0))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

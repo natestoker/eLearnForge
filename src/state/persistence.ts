@@ -45,7 +45,77 @@ export async function loadProject(): Promise<Project | null> {
   return result;
 }
 
-export function exportProjectJson(project: Project): void {
+let currentFileHandle: any | null = null;
+
+export function resetFileHandle(): void {
+  currentFileHandle = null;
+}
+
+export async function importProjectJsonWithPicker(): Promise<Project | null> {
+  if (typeof window !== 'undefined' && 'showOpenFilePicker' in window) {
+    try {
+      const [handle] = await (window as any).showOpenFilePicker({
+        types: [{
+          description: 'eLearnForge Project',
+          accept: { 'application/json': ['.json', '.elearnforge.json'] }
+        }],
+        multiple: false
+      });
+      currentFileHandle = handle;
+      const file = await handle.getFile();
+      return importProjectJson(file);
+    } catch (e: any) {
+      if (e && e.name === 'AbortError') {
+        throw e; // Rethrow so the caller knows it was cancelled
+      }
+      console.warn('File System Access API failed, falling back to classic file input:', e);
+    }
+  }
+  return null;
+}
+
+export async function exportProjectJson(project: Project): Promise<void> {
+  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+    try {
+      if (currentFileHandle) {
+        const opts = { mode: 'readwrite' };
+        if ((await currentFileHandle.queryPermission(opts)) !== 'granted') {
+          if ((await currentFileHandle.requestPermission(opts)) !== 'granted') {
+            currentFileHandle = null;
+          }
+        }
+      }
+      
+      if (!currentFileHandle) {
+        currentFileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: `${project.title.replace(/[^\w\- ]+/g, '').trim() || 'project'}.elearnforge.json`,
+          types: [{
+            description: 'eLearnForge Project',
+            accept: { 'application/json': ['.json', '.elearnforge.json'] }
+          }]
+        });
+      }
+      
+      const writable = await currentFileHandle.createWritable();
+      await writable.write(JSON.stringify(project, null, 2));
+      await writable.close();
+      return;
+    } catch (e: any) {
+      if (e && e.name === 'AbortError') {
+        return; // User cancelled
+      }
+      console.warn('File System Access API failed, falling back to download:', e);
+      currentFileHandle = null;
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    alert(
+      "Note: Direct file saving (overwriting) is disabled by your browser when running from a local file URL (file:///).\n\n" +
+      "To enable direct saving back to your project file, please use http://localhost:5173/ in your browser."
+    );
+  }
+
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

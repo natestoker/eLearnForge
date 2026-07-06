@@ -47,6 +47,7 @@ export function BakeNarration({ slideId }: { slideId: string }) {
   const preview = async () => {
     setPreviewing(true);
     setPreviewUrl(null);
+    setProgress(0);
     setMessage(isModelLoaded() ? 'Synthesizing preview...' : 'Loading the voice model (first time only, ~86MB)...');
     try {
       const url = await previewVoice(voice, (p) => setProgress(Math.round(p)));
@@ -143,10 +144,14 @@ export function BakeNarration({ slideId }: { slideId: string }) {
       {previewUrl && (
         <audio src={previewUrl} controls autoPlay style={{ width: '100%', marginTop: 6 }} />
       )}
-      {(busy || previewing) && progress > 0 && progress < 100 && (
+      {(busy || previewing) && (
         <div className="dl-progress" title={`${progress}%`}>
           <div className="dl-progress-fill" style={{ width: `${progress}%` }} />
-          <span className="dl-progress-label">Downloading voice model {progress}%</span>
+          <span className="dl-progress-label">
+            {modelReady 
+              ? (previewing ? `Synthesizing preview... ${progress}%` : `Synthesizing narration... ${progress}%`)
+              : `Downloading voice model... ${progress}%`}
+          </span>
         </div>
       )}
       <button className="btn btn-accent" onClick={bake} disabled={!canBake || busy} style={{ marginTop: 6 }}>

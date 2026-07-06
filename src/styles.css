@@ -1463,7 +1463,7 @@ select.input { appearance: auto; }
 .panel-rail.bottom .rail-label { writing-mode: horizontal-tb; transform: none; }
 .panel-collapse-btn {
   position: absolute; top: 6px; right: 6px; z-index: 5;
-  width: 20px; height: 20px; border: 1px solid var(--border); background: var(--panel2);
+  width: 20px; height: 20px; border: 1px solid var(--border); background: var(--panel-2);
   color: var(--muted); border-radius: 4px; cursor: pointer; font-size: 13px; line-height: 1;
 }
 .panel-collapse-btn.right { position: static; margin-left: auto; }
@@ -1535,3 +1535,161 @@ select.input { appearance: auto; }
 .pen-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .pen-count { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .pen-spacer { flex: 1; }
+
+/* ---- timeline v3 layout ---- */
+.timeline-container {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  position: relative;
+}
+
+.timeline-headers-col {
+  flex: none;
+  width: 220px;
+  border-right: 1px solid var(--border-soft);
+  background: var(--panel);
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
+
+.timeline-grid-col {
+  flex: 1;
+  overflow-x: auto;
+  position: relative;
+  background: var(--panel-2);
+}
+
+.timeline-grid-scroll-content {
+  position: relative;
+  min-height: 100%;
+}
+
+.timeline-header-cell {
+  height: 20px;
+  border-bottom: 1px solid var(--border-soft);
+  padding: 2px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-layer-header-name {
+  height: 24px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 4px 8px;
+  font-weight: bold;
+  color: var(--muted);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.timeline-header-row.selected {
+  background: var(--accent-dim);
+}
+
+.timeline-layer-lane-spacer {
+  height: 24px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.timeline-lane-row {
+  position: relative;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+}
+.timeline-lane-row.selected {
+  background: rgba(61, 220, 151, 0.05);
+}
+
+/* Expansion Button and Header Row elements */
+.tl-expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  flex: none;
+}
+.tl-expand-btn:hover {
+  color: var(--accent);
+}
+.tl-expand-spacer {
+  width: 14px;
+  flex: none;
+}
+
+.tl-block-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.tl-block-name:hover {
+  color: var(--accent);
+}
+
+.tl-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.tl-row-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.tl-row-action-btn:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--border-soft);
+}
+.tl-row-action-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* Slides panel header fix to prevent collapse overlap */
+.sidebar-left .panel-header {
+  padding-right: 36px;
+}
+

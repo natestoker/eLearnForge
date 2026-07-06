@@ -145,9 +145,6 @@ export function Player({ project, adapter, startSlideId }: {
       duration: configuredDuration,
       onDuration: setAudioDuration,
       narrationSrc: slide.timeline?.narrationSrc,
-      ttsText: slide.timeline?.tts ? (slide.notes ?? '') : undefined,
-      ttsVoiceName: slide.timeline?.tts?.voiceName,
-      ttsRate: slide.timeline?.tts?.rate,
       onTick: (tt) => {
         const prev = prevTRef.current;
         prevTRef.current = tt;
@@ -334,8 +331,6 @@ export function Player({ project, adapter, startSlideId }: {
           project={project}
           slideIndex={slideIndex}
           settings={project.player ?? defaultPlayerSettings()}
-          clock={clockRef}
-          usingTts={Boolean(hasTimeline && slide.timeline?.tts && !slide.timeline?.narrationSrc)}
         />
       </div>
     </div>

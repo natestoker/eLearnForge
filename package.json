@@ -22,8 +22,10 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "cross-env": "^10.1.0",
+    "edge-tts-ts": "^1.0.0",
     "typescript": "^5.5.3",
     "vite": "^5.4.0",
-    "vite-plugin-singlefile": "^2.3.3"
+    "vite-plugin-singlefile": "^2.3.3",
+    "ws": "^8.21.0"
   }
 }

@@ -48,63 +48,164 @@ function readXfrm(sp: Element): Xfrm | null {
   };
 }
 
-function textOf(sp: Element, theme: ThemeColors, layoutSp?: Element): { text: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null } {
-  const paras = local(sp, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
-  const lines: string[] = [];
+function parseParagraphHtml(p: Element, theme: ThemeColors): string {
+  const htmlParts: string[] = [];
+  for (const child of Array.from(p.children)) {
+    const name = child.localName;
+    if (name === 'r' || name === 'fld') {
+      const t = local(child, 't')[0]?.textContent ?? '';
+      if (!t) continue;
+      
+      const escapedText = t
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      
+      const rPr = local(child, 'rPr')[0];
+      let style = '';
+      let isBold: boolean | null = null;
+      let isItalic = false;
+      let isUnderline = false;
+      
+      if (rPr) {
+        if (rPr.getAttribute('b') === '1') isBold = true;
+        else if (rPr.getAttribute('b') === '0') isBold = false;
+        
+        if (rPr.getAttribute('i') === '1') isItalic = true;
+        if (rPr.getAttribute('u') === 'sng') isUnderline = true;
+        
+        const sf = local(rPr, 'solidFill')[0];
+        if (sf) {
+          const runColor = resolveColorEl(sf, theme);
+          if (runColor) style += `color: ${runColor};`;
+        }
+        
+        const sz = Number(rPr.getAttribute('sz'));
+        if (sz) {
+          style += `font-size: ${Math.round(sz / 100)}px;`;
+        }
+        
+        const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
+        if (latin && !latin.startsWith('+')) {
+          style += `font-family: ${latin};`;
+        }
+      }
+      
+      if (isBold === false) {
+        style += 'font-weight: normal;';
+      }
+      
+      let part = escapedText;
+      if (style) part = `<span style="${style}">${part}</span>`;
+      if (isBold === true) part = `<strong>${part}</strong>`;
+      if (isItalic) part = `<em>${part}</em>`;
+      if (isUnderline) part = `<u>${part}</u>`;
+      
+      htmlParts.push(part);
+    } else if (name === 'br') {
+      htmlParts.push('<br/>');
+    }
+  }
+  return htmlParts.join('');
+}
+
+function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element): { html: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null } {
+  const txBody = local(sp, 'txBody')[0];
+  const target = txBody ?? sp;
+  const paras = local(target, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
+  const htmlParas: string[] = [];
+  
   let size: number | null = null;
   let bold = false;
   let font: string | null = null;
   let color: string | null = null;
   let align: string | null = null;
-  for (const p of paras) {
-    const runs = local(p, 't').map((t) => t.textContent ?? '');
-    lines.push(runs.join(''));
-    
-    const pPr = local(p, 'pPr')[0];
-    if (pPr && !align) {
-      const algn = pPr.getAttribute('algn');
-      if (algn === 'ctr') align = 'center';
-      else if (algn === 'r') align = 'right';
-      else if (algn === 'just' || algn === 'dist') align = 'justify';
-      else if (algn === 'l') align = 'left';
+  
+  // Scan all defRPr elements under the target (list styles, body defaults) for block-level fallbacks
+  for (const defRPr of local(target, 'defRPr')) {
+    if (defRPr.getAttribute('b') === '1') bold = true;
+    if (!font) {
+      const defLatin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
+      if (defLatin && !defLatin.startsWith('+')) font = defLatin;
     }
-    for (const rPr of local(p, 'rPr')) {
-      const sz = Number(rPr.getAttribute('sz'));
-      if (sz && !size) size = sz / 100;
-      if (rPr.getAttribute('b') === '1') bold = true;
-      if (!font) {
-        const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
-        if (latin && !latin.startsWith('+')) font = latin;
-      }
-      if (!color) {
-        const sf = local(rPr, 'solidFill')[0];
-        if (sf) color = resolveColorEl(sf, theme);
-      }
+    if (!color) {
+      const defSf = local(defRPr, 'solidFill')[0];
+      if (defSf) color = resolveColorEl(defSf, theme);
     }
-    const defRPr = local(p, 'defRPr')[0];
-    if (defRPr) {
-      if (!font) {
-        const defLatin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
-        if (defLatin && !defLatin.startsWith('+')) font = defLatin;
-      }
-      if (!color) {
-        const defSf = local(defRPr, 'solidFill')[0];
-        if (defSf) color = resolveColorEl(defSf, theme);
-      }
-      if (!size) {
-        const defSz = Number(defRPr.getAttribute('sz'));
-        if (defSz) size = defSz / 100;
-      }
+    if (!size) {
+      const defSz = Number(defRPr.getAttribute('sz'));
+      if (defSz) size = defSz / 100;
     }
   }
+
+  for (const p of paras) {
+    const pPr = local(p, 'pPr')[0];
+    let pAlign: string | null = null;
+    if (pPr) {
+      const algn = pPr.getAttribute('algn');
+      if (algn === 'ctr') pAlign = 'center';
+      else if (algn === 'r') pAlign = 'right';
+      else if (algn === 'just' || algn === 'dist') pAlign = 'justify';
+      else if (algn === 'l') pAlign = 'left';
+    }
+    if (pAlign && !align) align = pAlign;
+
+    const pHtml = parseParagraphHtml(p, theme);
+    if (pHtml) {
+      let pStyle = '';
+      if (pAlign) pStyle += `text-align: ${pAlign};`;
+      
+      const defRPr = pPr ? local(pPr, 'defRPr')[0] : null;
+      if (defRPr) {
+        if (defRPr.getAttribute('b') === '1') pStyle += `font-weight: bold;`;
+        
+        const sz = Number(defRPr.getAttribute('sz'));
+        if (sz) pStyle += `font-size: ${Math.round(sz / 100)}px;`;
+        
+        const sf = local(defRPr, 'solidFill')[0];
+        if (sf) {
+          const pColor = resolveColorEl(sf, theme);
+          if (pColor) pStyle += `color: ${pColor};`;
+        }
+        
+        const latin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
+        if (latin && !latin.startsWith('+')) {
+          pStyle += `font-family: ${latin};`;
+        }
+      }
+      
+      const styleAttr = pStyle ? ` style="${pStyle}"` : '';
+      htmlParas.push(`<div${styleAttr}>${pHtml}</div>`);
+    } else {
+      htmlParas.push('<div><br/></div>');
+    }
+  }
+  
+  for (const rPr of local(target, 'rPr')) {
+    const sz = Number(rPr.getAttribute('sz'));
+    if (sz && !size) size = sz / 100;
+    if (rPr.getAttribute('b') === '1') bold = true;
+  }
+  
   if (layoutSp) {
-    const l = textOf(layoutSp, theme);
+    const l = parseTextBodyHtml(layoutSp, theme);
     if (!size) size = l.fontSize;
+    if (!bold) bold = l.bold;
     if (!font) font = l.font;
     if (!color) color = l.color;
     if (!align) align = l.align;
   }
-  return { text: lines.join('\n').trim(), fontSize: size, bold, font, color, align };
+  
+  return {
+    html: htmlParas.join(''),
+    fontSize: size,
+    bold,
+    font,
+    color,
+    align
+  };
 }
 
 // Placeholder inheritance. Shapes whose geometry lives on the layout
@@ -328,6 +429,13 @@ async function imageDataUrl(zip: JSZip, slidePath: string, rId: string): Promise
   return `data:${mime};base64,${b64}`;
 }
 
+function hasShadow(node: Element): boolean {
+  const spPr = local(node, 'spPr')[0];
+  if (!spPr) return false;
+  const outerShdw = local(spPr, 'outerShdw')[0];
+  return !!outerShdw;
+}
+
 async function importShape(
   zip: JSZip, slidePath: string, node: Element,
   groupOffset: { dx: number; dy: number },
@@ -362,40 +470,98 @@ async function importShape(
     return;
   }
 
-  if (name === 'sp') {
-    const { text, fontSize, bold, font, color: runColor, align } = textOf(node, theme, layoutSp);
+  if (name === 'sp' || name === 'cxnSp') {
+    const { html, fontSize, bold, font, color: runColor, align } = parseTextBodyHtml(node, theme, layoutSp);
     const prst = prstGeomOf(node);
-    const kind = prst ? PRSTGEOM_TO_KIND[prst] : undefined;
+    const isConnector = name === 'cxnSp' || prst === 'line' || prst === 'straightConnector1' || prst === 'bentConnector3' || prst === 'curvedConnector3';
+    
     const f = xfrm ?? { x: 80, y: 80, w: 500, h: 80 };
     const x = Math.round(f.x + groupOffset.dx);
     const y = Math.round(f.y + groupOffset.dy);
-    const w = Math.max(24, Math.round(f.w));
-    const h = Math.max(24, Math.round(f.h));
+    const w = Math.max(8, Math.round(f.w));
+    const h = Math.max(8, Math.round(f.h));
     const finalFontSize = fontSize || 18;
 
     const { fill, border, borderWidth } = fillOf(node, theme, layoutSp);
+    const shadow = hasShadow(node);
+
+    if (isConnector) {
+      const xfrmEl = local(node, 'xfrm')[0];
+      const flipH = xfrmEl?.getAttribute('flipH') === '1';
+      const flipV = xfrmEl?.getAttribute('flipV') === '1';
+      
+      const originalW = xfrm ? xfrm.w : 500;
+      const originalH = xfrm ? xfrm.h : 80;
+      
+      let x1 = flipH ? 100 : 0;
+      let x2 = flipH ? 0 : 100;
+      let y1 = flipV ? 100 : 0;
+      let y2 = flipV ? 0 : 100;
+      
+      if (originalH < 2) {
+        y1 = 50;
+        y2 = 50;
+      }
+      if (originalW < 2) {
+        x1 = 50;
+        x2 = 50;
+      }
+      
+      const points = `${x1},${y1} ${x2},${y2}`;
+      
+      const ln = local(node, 'spPr')[0]?.getElementsByTagNameNS('*', 'ln')[0];
+      let arrow: 'none' | 'start' | 'end' | 'both' = 'none';
+      if (ln) {
+        const headEnd = local(ln, 'headEnd')[0];
+        const tailEnd = local(ln, 'tailEnd')[0];
+        const hasHead = headEnd && headEnd.getAttribute('type') && headEnd.getAttribute('type') !== 'none';
+        const hasTail = tailEnd && tailEnd.getAttribute('type') && tailEnd.getAttribute('type') !== 'none';
+        if (hasHead && hasTail) arrow = 'both';
+        else if (hasHead) arrow = 'start';
+        else if (hasTail) arrow = 'end';
+      }
+
+      out.push({
+        id: uid('blk'), type: 'shape', x, y, w, h,
+        props: {
+          kind: 'rectangle',
+          fill: 'transparent',
+          borderColor: border || '#1c222b',
+          borderWidth: borderWidth || 2,
+          cornerRadius: 0,
+          points,
+          isLine: true,
+          arrow,
+          ...(shadow ? { shadow } : {})
+        }
+      } as Block);
+      return;
+    }
+
+    const kind = prst ? PRSTGEOM_TO_KIND[prst] : undefined;
     const isTextBox = !prst || (prst === 'rect' && fill === 'transparent' && border === 'transparent');
     
     if (kind && !isTextBox) {
       out.push({
         id: uid('blk'), type: 'shape', x, y, w, h,
-        props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12 }
+        props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12, ...(shadow ? { shadow } : {}) }
       } as Block);
     }
 
-    if (text) {
+    if (html) {
       const color = runColor ?? firstTextColor(node, theme);
       if (font) usedFonts.add(font);
       out.push({
         id: uid('blk'), type: 'text',
         x: kind && !isTextBox ? x + 8 : x,
-        y: kind && !isTextBox ? y + Math.max(0, Math.round(h / 2 - finalFontSize)) : y,
+        y: kind && !isTextBox ? y : y,
         w: Math.max(60, kind && !isTextBox ? w - 16 : w),
-        h: Math.max(32, kind && !isTextBox ? Math.round(finalFontSize * 2.2) : h),
+        h: Math.max(32, kind && !isTextBox ? h : h),
         props: {
-          html: text,
+          html,
           fontSize: Math.round(finalFontSize),
           align: align ?? (kind && !isTextBox ? 'center' : 'left'),
+          valign: kind && !isTextBox ? 'center' : 'top',
           ...(color ? { color } : {}),
           ...(font ? { fontFamily: font } : {}),
           ...(bold ? { bold } : {})
@@ -474,7 +640,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
           const dx = gx && chOff ? gx.x - Number(chOff.getAttribute('x')) / EMU : 0;
           const dy = gx && chOff ? gx.y - Number(chOff.getAttribute('y')) / EMU : 0;
           await walk(child, { dx: offset.dx + dx, dy: offset.dy + dy });
-        } else if (child.localName === 'sp' || child.localName === 'pic') {
+        } else if (child.localName === 'sp' || child.localName === 'pic' || child.localName === 'cxnSp') {
           await importShape(zip, path, child, offset, layout, theme, blocks, usedFonts);
         } else if (child.localName === 'graphicFrame') {
           warnings.push(`Slide ${slides.length + 1}: a table/chart/SmartArt frame was skipped.`);
@@ -503,11 +669,10 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
       layers: [layer],
       triggers: [],
       notes: notes || undefined,
-      // Narrator behavior: slides with speaker notes narrate them with
-      // browser TTS and advance when the voice finishes. Authors can swap
-      // in recorded audio or turn this off per slide.
+      // Narrator behavior: slides with speaker notes get a pre-estimated timeline
+      // duration but do not auto-run browser-side TTS.
       timeline: notes
-        ? { duration: Math.max(3, Math.round(ttsEstimate(notes, 1))), autoAdvance: true, tts: { rate: 1 } }
+        ? { duration: Math.max(3, Math.round(ttsEstimate(notes, 1))), autoAdvance: true }
         : undefined
     });
     if (blocks.length === 0) warnings.push(`Slide ${n}: nothing importable (shapes may rely on layout placeholders).`);

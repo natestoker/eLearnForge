@@ -78,7 +78,12 @@ export interface HotspotProps {
 export type ShapeKind =
   | 'rectangle' | 'roundedRectangle' | 'ellipse' | 'triangle' | 'rightTriangle'
   | 'diamond' | 'pentagon' | 'hexagon' | 'star' | 'arrowRight' | 'arrowLeft'
-  | 'arrowUp' | 'arrowDown' | 'chevron' | 'parallelogram' | 'trapezoid';
+  | 'arrowUp' | 'arrowDown' | 'chevron' | 'parallelogram' | 'trapezoid'
+  | 'octagon' | 'plus' | 'heart' | 'lightningBolt' | 'smileyFace' | 'cloud'
+  | 'sun' | 'moon' | 'heptagon' | 'decagon' | 'dodecagon' | 'database'
+  | 'flowchartDocument' | 'flowchartTerminator' | 'explosion' | 'scrollHorizontal'
+  | 'calloutRectangle' | 'calloutRoundRect' | 'calloutEllipse' | 'leftRightArrow'
+  | 'upDownArrow' | 'quadArrow' | 'stripedRightArrow' | 'notchedRightArrow';
 
 export interface ShapeProps {
   // Custom polygon points ("x,y x,y ...", 0..100 space). When set, the shape
@@ -90,6 +95,9 @@ export interface ShapeProps {
   borderColor: string;
   borderWidth: number;
   cornerRadius: number;
+  shadow?: boolean;
+  isLine?: boolean;
+  arrow?: 'none' | 'start' | 'end' | 'both';
 }
 
 export interface VideoProps {
