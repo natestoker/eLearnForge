@@ -288,7 +288,7 @@ export function Player({ project, adapter, startSlideId }: {
                         : undefined
                     }
                     onPointerEnter={() => { setHoverId(block.id); runtime.hoverBlock(block.id); }}
-                    onPointerLeave={() => { setHoverId((h) => (h === block.id ? null : h)); setDownId((d) => (d === block.id ? null : d)); }}
+                    onPointerLeave={() => { setHoverId((h) => (h === block.id ? null : h)); setDownId((d) => (d === block.id ? null : d)); runtime.leaveBlock(block.id); }}
                     onPointerDown={() => clickable && setDownId(block.id)}
                     onPointerUp={() => setDownId((d) => (d === block.id ? null : d))}
                     onClick={clickable ? () => runtime.clickBlock(block.id) : undefined}

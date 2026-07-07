@@ -298,6 +298,7 @@ export type TriggerEvent =
   | 'onAnimationComplete'  // the block's animate-in finishes
   | 'onStateAll'           // every watched block reached the watched state
   | 'onHover'              // pointer enters the source block
+  | 'onMouseLeave'         // pointer leaves the source block
   | 'onDoubleClick'        // source block double-clicked
   | 'onSubmit';            // the player Submit button
 
@@ -314,7 +315,9 @@ export interface StateStyle {
   opacity?: number;
 }
 
-export type ConditionOperator = 'eq' | 'ne' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
+export type ConditionOperator =
+  | 'eq' | 'ne' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains'
+  | 'notContains' | 'startsWith' | 'endsWith' | 'between' | 'isEmpty' | 'notEmpty';
 
 export interface Condition {
   variableId: string;
@@ -322,6 +325,7 @@ export interface Condition {
   // operator as 'eq' with `value` falling back to `equals` for migration.
   operator?: ConditionOperator;
   value?: VariableValue;
+  value2?: VariableValue; // upper bound for 'between'
   equals?: VariableValue;
 }
 
@@ -357,6 +361,9 @@ export interface Trigger {
   watchBlockIds?: string[]; // onStateAll
   watchState?: BlockState;  // onStateAll
   conditions: Condition[];
+  // How the conditions combine. 'and' (default) requires all; 'or' requires
+  // any one. Absent = 'and' for older projects.
+  conditionLogic?: 'and' | 'or';
   actions: Action[];
 }
 

@@ -15,7 +15,13 @@ const OPERATORS: { value: ConditionOperator; label: string; types: string[] }[] 
   { value: 'lt', label: '<', types: ['number'] },
   { value: 'gte', label: '>=', types: ['number'] },
   { value: 'lte', label: '<=', types: ['number'] },
-  { value: 'contains', label: 'contains', types: ['string'] }
+  { value: 'between', label: 'between', types: ['number'] },
+  { value: 'contains', label: 'contains', types: ['string'] },
+  { value: 'notContains', label: "doesn't contain", types: ['string'] },
+  { value: 'startsWith', label: 'starts with', types: ['string'] },
+  { value: 'endsWith', label: 'ends with', types: ['string'] },
+  { value: 'isEmpty', label: 'is empty', types: ['boolean', 'number', 'string'] },
+  { value: 'notEmpty', label: 'is not empty', types: ['boolean', 'number', 'string'] }
 ];
 
 // Trigger authoring, v1-thin to match the engine: one event, AND-ed equality
@@ -171,7 +177,8 @@ export function TriggersPanel() {
               value={trigger.event}
               options={[
                 { value: 'onClick', label: 'When block is clicked' },
-                { value: 'onHover', label: 'When block is hovered' },
+                { value: 'onHover', label: 'When block is hovered (mouse enter)' },
+                { value: 'onMouseLeave', label: 'When block is un-hovered (mouse leave)' },
                 { value: 'onDoubleClick', label: 'When block is double-clicked' },
                 { value: 'onSlideLoad', label: 'When slide loads' },
                 { value: 'onVariableChange', label: 'When variable changes' },
@@ -184,7 +191,7 @@ export function TriggersPanel() {
               onChange={(v) =>
                 edit(trigger.id, (t) => {
                   t.event = v as Trigger['event'];
-                  const needsSource = t.event === 'onClick' || t.event === 'onHover' || t.event === 'onDoubleClick';
+                  const needsSource = t.event === 'onClick' || t.event === 'onHover' || t.event === 'onMouseLeave' || t.event === 'onDoubleClick';
                   if (needsSource && !t.sourceBlockId) t.sourceBlockId = blocks[0]?.block.id;
                   if (!needsSource) t.sourceBlockId = undefined;
                   if (t.event !== 'onVariableChange') t.watchVariableId = undefined;
@@ -270,7 +277,14 @@ export function TriggersPanel() {
 
           <div className="trigger-section">
             <div className="trigger-section-head">
-              <span>If (all must be true)</span>
+              <span>If</span>
+              {trigger.conditions.length > 1 && (
+                <SelectInput
+                  value={trigger.conditionLogic ?? 'and'}
+                  options={[{ value: 'and', label: 'all are true (AND)' }, { value: 'or', label: 'any is true (OR)' }]}
+                  onChange={(v) => edit(trigger.id, (t) => { t.conditionLogic = v === 'or' ? 'or' : undefined; })}
+                />
+              )}
               <button
                 className="btn btn-ghost"
                 disabled={variables.length === 0}
@@ -311,11 +325,24 @@ export function TriggersPanel() {
                       })
                     }
                   />
-                  <ValueInput
-                    variable={variable}
-                    value={(cond.value !== undefined ? cond.value : cond.equals) ?? ''}
-                    onChange={(v) => edit(trigger.id, (t) => { t.conditions[ci].value = v; delete t.conditions[ci].equals; })}
-                  />
+                  {/* isEmpty/notEmpty need no value; between needs two. */}
+                  {cond.operator !== 'isEmpty' && cond.operator !== 'notEmpty' && (
+                    <ValueInput
+                      variable={variable}
+                      value={(cond.value !== undefined ? cond.value : cond.equals) ?? ''}
+                      onChange={(v) => edit(trigger.id, (t) => { t.conditions[ci].value = v; delete t.conditions[ci].equals; })}
+                    />
+                  )}
+                  {cond.operator === 'between' && (
+                    <>
+                      <span className="trigger-label">and</span>
+                      <ValueInput
+                        variable={variable}
+                        value={cond.value2 ?? ''}
+                        onChange={(v) => edit(trigger.id, (t) => { t.conditions[ci].value2 = v; })}
+                      />
+                    </>
+                  )}
                   <button
                     className="btn btn-ghost btn-icon btn-danger"
                     onClick={() => edit(trigger.id, (t) => { t.conditions.splice(ci, 1); })}
