@@ -539,6 +539,32 @@ function PlayerSettingsSection() {
           />
         </Field>
       </Row>
+      <Row>
+        <Field label="Button hover effect">
+          <SelectInput
+            value={player.buttonHover ?? 'none'}
+            options={[
+              { value: 'none', label: 'None' },
+              { value: 'lift', label: 'Lift' },
+              { value: 'glow', label: 'Glow' },
+              { value: 'scale', label: 'Scale' },
+              { value: 'brightness', label: 'Brighten' }
+            ]}
+            onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.buttonHover = v === 'none' ? undefined : (v as 'lift'); })}
+          />
+        </Field>
+        <Field label="Next/Submit emphasis">
+          <SelectInput
+            value={player.buttonEmphasis ?? 'none'}
+            options={[
+              { value: 'none', label: 'None' },
+              { value: 'pulse', label: 'Pulse' },
+              { value: 'glow', label: 'Glow' }
+            ]}
+            onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.buttonEmphasis = v === 'none' ? undefined : (v as 'pulse'); })}
+          />
+        </Field>
+      </Row>
       <Field label="Nav buttons (Back/Next/Submit) position">
         <SelectInput
           value={player.navPosition ?? 'right'}

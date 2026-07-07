@@ -84,6 +84,15 @@ export function VariablesPanel() {
         Triggers compare against these by equality. Deleting a variable that a
         trigger references leaves that condition permanently false.
       </p>
+      <div className="divider" />
+      <h4 className="panel-subtitle">Built-in references</h4>
+      <p className="hint">
+        Text blocks substitute <strong>%Name%</strong> at runtime - your
+        variables by name, plus built-ins: %SlideNumber%, %TotalSlides%,
+        %SlideName%, %ProjectName%, %ProgressPercent%, %ViewedSlides%,
+        %ScorePercent%, %Date%, %Time%, %RandomNumber%. Example:
+        "Slide %SlideNumber% of %TotalSlides%".
+      </p>
     </div>
   );
 }

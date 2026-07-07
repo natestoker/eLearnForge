@@ -1637,6 +1637,17 @@ select.input { appearance: auto; }
 }
 .player-sidenav-list { flex: 1; overflow-y: auto; min-height: 0; }
 .player-navbar-buttons { display: flex; gap: 8px; align-items: center; }
+
+/* Nav button hover + emphasis effects (player options). */
+.btnfx-hover-lift .player-chrome-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.35); }
+.btnfx-hover-glow .player-chrome-btn:not(:disabled):hover { box-shadow: 0 0 12px var(--player-accent); }
+.btnfx-hover-scale .player-chrome-btn:not(:disabled):hover { transform: scale(1.07); }
+.btnfx-hover-brightness .player-chrome-btn:not(:disabled):hover { filter: brightness(1.25); }
+.player-chrome-btn { transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease; }
+@keyframes efx-btn-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes efx-btn-glow { 0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: 0 0 14px var(--player-accent); } }
+.btnfx-emph-pulse .player-chrome-btn.accent:not(:disabled) { animation: efx-btn-pulse 1.6s ease-in-out infinite; }
+.btnfx-emph-glow .player-chrome-btn.accent:not(:disabled) { animation: efx-btn-glow 1.8s ease-in-out infinite; }
 .player-main {
   flex: 1;
   min-width: 0;
