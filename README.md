@@ -962,3 +962,19 @@ spans flow inline again.
 ## Triggers (from the prior batch)
 AND/OR condition logic; operators between / doesn't-contain / starts-with
 / ends-with / is-empty / is-not-empty; onMouseLeave event.
+
+
+# v6.9
+
+## Three new blocks
+- **Fill in the blank** (Insert > Interactive): a prompt with ___ for the
+  blank and a typed answer, scored against a comma-separated list of
+  accepted answers (case-insensitive by default) with correct/incorrect
+  feedback. Sets a boolean `fb_{blockId}_correct` variable on Check, so
+  slide triggers can react - same contract as multiple choice.
+- **Progress bar** (Insert > Widgets): a bar or ring driven by course
+  progress (viewed slides) or a 0-100 number variable, with an optional
+  percentage label and custom color.
+- **Timer** (Insert > Widgets): counts up, or down from a set number of
+  seconds. A countdown sets `timer_{blockId}_done = true` at zero for
+  triggers, and has a start/pause control.

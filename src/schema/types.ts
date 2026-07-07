@@ -5,7 +5,8 @@
 export type BlockType =
   | 'text' | 'image' | 'statement' | 'multipleChoice'
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
-  | 'code' | 'matching' | 'group';
+  | 'code' | 'matching' | 'group'
+  | 'fillBlank' | 'progress' | 'timer';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -175,11 +176,44 @@ export interface GroupProps {
   blocks: Block[];
 }
 
+// Fill-in-the-blank: a prompt (use ___ to show the blank) and an input the
+// learner types into; scored against acceptable answers on Check. Sets
+// fb_{blockId}_correct like MC's variable.
+export interface FillBlankProps {
+  question: string;
+  correctAnswers: string[]; // any match passes
+  caseSensitive?: boolean;
+  fontSize: number;
+  feedbackCorrect: string;
+  feedbackIncorrect: string;
+}
+
+// Progress widget: a bar or ring driven by course progress (viewed slides)
+// or a 0..100 number variable.
+export interface ProgressProps {
+  source: 'course' | 'variable';
+  variableId?: string;
+  color?: string;      // absent = player accent
+  showLabel: boolean;
+  shape: 'bar' | 'ring';
+}
+
+// Timer widget: counts up, or down from `seconds`. A countdown sets
+// timer_{blockId}_done = true at zero so triggers can react.
+export interface TimerProps {
+  mode: 'countup' | 'countdown';
+  seconds: number;
+  fontSize: number;
+  autoStart: boolean;
+  color?: string;
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
-  | TextEntryProps | CodeProps | GroupProps;
+  | TextEntryProps | CodeProps | GroupProps
+  | FillBlankProps | ProgressProps | TimerProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -
