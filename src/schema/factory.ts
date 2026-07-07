@@ -23,7 +23,8 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   fillBlank: { w: 480, h: 200 },
   progress: { w: 360, h: 48 },
   timer: { w: 200, h: 80 },
-  dragDrop: { w: 600, h: 380 }
+  dragDrop: { w: 600, h: 380 },
+  tabs: { w: 520, h: 300 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -124,6 +125,16 @@ export function defaultProps(type: BlockType): BlockProps {
         feedbackIncorrect: 'Some items are in the wrong group - try again.'
       };
     }
+    case 'tabs':
+      return {
+        layout: 'tabs',
+        fontSize: 16,
+        panels: [
+          { id: uid('tab'), label: 'Overview', html: '<p>First panel content. Double-click to edit in the panel.</p>' },
+          { id: uid('tab'), label: 'Details', html: '<p>Second panel content.</p>' },
+          { id: uid('tab'), label: 'Summary', html: '<p>Third panel content.</p>' }
+        ]
+      };
   }
 }
 

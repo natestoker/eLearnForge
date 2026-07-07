@@ -988,3 +988,13 @@ targets) and items, each item tagged with its correct group. Learners drag
 items from the bank into groups; Check scores every placement, shows
 per-item right/wrong outline plus feedback, and sets a boolean
 `dd_{blockId}_correct` variable for triggers. Reset re-banks the items.
+
+
+# v6.11
+
+## Tabs / accordion
+A new **Tabs / accordion** block (Insert > Interactive): author any number
+of labeled panels of HTML content. A "Tabs" layout shows a tab strip with
+one panel visible at a time; an "Accordion" layout stacks expandable
+sections (multiple can be open). Accent color and font size are
+configurable. Same rendering in the editor, Preview, and published courses.
