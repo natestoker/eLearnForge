@@ -926,3 +926,39 @@ in a title bar ABOVE the stage, or be hidden.
 - New condition operators: between, doesn't contain, starts with,
   ends with, is empty, is not empty.
 - New trigger event: on mouse leave.
+
+
+# v6.8
+
+## Timeline: cue marks + multi-select + sticky ruler
+- **Cue marks**: add named markers on the ruler (◇ button at the playhead).
+  They render on the ruler with guide lines, click to seek, right-click to
+  delete, and a new trigger event "When the timeline reaches a cue" fires
+  when the playhead crosses one.
+- **Multi-select rows**: Shift/Cmd/Ctrl-click timeline rows to select
+  several - the same multi-selection the canvas and property panels use
+  (so multi-move, multi-property and reorder all apply).
+- The ruler (and the "Blocks" header) is now **sticky** at the top of the
+  timeline while you scroll long slides.
+
+## Text animation regression fixed
+Typewriter / Words rise / Letters rise no longer put every word on its own
+line. The text box's vertical-align flex column was turning each animated
+word span into a flex item; content now renders in an inner element so the
+spans flow inline again.
+
+## Animation preview + multi exit
+- A "▶ Preview animation" button in the Animate panel plays the selected
+  block's entrance on the canvas, so Direction / Distance / easing changes
+  are visible without opening full Preview.
+- Multi-select Animate gained an Exit dropdown (alongside Entrance and
+  Emphasis), applied to the whole selection.
+
+## Player
+- The seekbar stretches across the chrome bar (no longer capped short).
+- More slide transitions: fade, subtle slide, slide from left/right,
+  slide up, zoom in/out, and flip.
+
+## Triggers (from the prior batch)
+AND/OR condition logic; operators between / doesn't-contain / starts-with
+/ ends-with / is-empty / is-not-empty; onMouseLeave event.

@@ -170,7 +170,8 @@ export function Player({ project, adapter, startSlideId }: {
               if (prev < done && tt >= done) animDone.push(bl.id);
             }
           }
-          runtime.timelineCrossings(entered, animDone);
+          const cues = (slide.timeline?.cues ?? []).filter((c) => prev < c.time && tt >= c.time).map((c) => c.id);
+          runtime.timelineCrossings(entered, animDone, cues);
         }
       },
       onPlayState: (pl) => {
@@ -198,7 +199,12 @@ export function Player({ project, adapter, startSlideId }: {
     if (!el || kind === 'none') return;
     if (kind === 'fade') gsap.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4, ease: 'power2.out' });
     else if (kind === 'slide') gsap.fromTo(el, { xPercent: 4, autoAlpha: 0 }, { xPercent: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out' });
+    else if (kind === 'slideLeft') gsap.fromTo(el, { xPercent: 8, autoAlpha: 0 }, { xPercent: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
+    else if (kind === 'slideRight') gsap.fromTo(el, { xPercent: -8, autoAlpha: 0 }, { xPercent: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
+    else if (kind === 'slideUp') gsap.fromTo(el, { yPercent: 8, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
     else if (kind === 'zoom') gsap.fromTo(el, { scale: 0.96, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
+    else if (kind === 'zoomOut') gsap.fromTo(el, { scale: 1.06, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
+    else if (kind === 'flip') gsap.fromTo(el, { rotationY: 90, autoAlpha: 0 }, { rotationY: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out', transformOrigin: 'center', transformPerspective: 900 });
   }, [slide.id, project.slideTransition]);
 
   const settings = project.player ?? defaultPlayerSettings();

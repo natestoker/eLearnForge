@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { TextProps } from '../../schema/types';
-import { textStyle } from './Canvas';
+import { textStyle, textContentStyle } from './Canvas';
 import { buildUnits, applyTextAnim, type TextUnit } from './textAnim';
 
 export function TextRuntime({ block, runtime, t }: RuntimeRendererProps) {
@@ -40,5 +40,11 @@ export function TextRuntime({ block, runtime, t }: RuntimeRendererProps) {
     applyTextAnim(ref.current, anim, p, unitsRef.current);
   }, [t, anim, animated, block.timing?.start]);
 
-  return <div ref={ref} className="text-block" style={textStyle(props)} />;
+  // ref points at the inner content element (normal block flow), so animated
+  // word/letter spans flow inline; the outer .text-block handles valign.
+  return (
+    <div className="text-block" style={textStyle(props)}>
+      <div ref={ref} className="text-content" style={textContentStyle(props)} />
+    </div>
+  );
 }

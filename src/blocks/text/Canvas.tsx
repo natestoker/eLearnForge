@@ -10,9 +10,27 @@ import { ensureFont } from '../../shared/fonts';
 // and keeps the block a lightweight island of HTML). Blur commits as one
 // undo step.
 
+// The outer box handles sizing, overflow, and VERTICAL alignment (a flex
+// column). The text content itself lives in a separate inner element
+// (textContentStyle) so that inline word/letter spans injected for text
+// animations flow horizontally - if they were direct children of the flex
+// column, each word became a flex item on its own line.
 export function textStyle(props: TextProps): CSSProperties {
   if (props.fontFamily) ensureFont(props.fontFamily);
   const valign = props.valign ?? 'top';
+  return {
+    width: '100%',
+    height: '100%',
+    overflowY: props.scroll ? 'auto' : 'visible',
+    overflowX: props.scroll ? 'hidden' : 'visible',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center'
+  };
+}
+
+export function textContentStyle(props: TextProps): CSSProperties {
+  if (props.fontFamily) ensureFont(props.fontFamily);
   return {
     fontSize: props.fontSize,
     color: props.color || undefined,
@@ -20,18 +38,8 @@ export function textStyle(props: TextProps): CSSProperties {
     fontFamily: props.fontFamily ? `'${props.fontFamily}', var(--mono)` : undefined,
     textAlign: props.align,
     width: '100%',
-    height: '100%',
-    // PowerPoint model: text boxes do NOT clip - text taller than the box
-    // simply paints past it. Hidden overflow was cutting imported decks off
-    // mid-line. The author can still opt into a scrollbox via "Scroll
-    // overflow".
-    overflowY: props.scroll ? 'auto' : 'visible',
-    overflowX: props.scroll ? 'hidden' : 'visible',
     lineHeight: props.lineHeight ?? 1.35,
-    letterSpacing: props.letterSpacing ? `${props.letterSpacing}px` : undefined,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center'
+    letterSpacing: props.letterSpacing ? `${props.letterSpacing}px` : undefined
   };
 }
 
@@ -87,7 +95,9 @@ export function TextCanvas({ block, onUpdateProps }: CanvasRendererProps) {
         <div
           ref={ref}
           className="text-block editing"
-          style={textStyle(props)}
+          // Editing is a single element: merge outer + content styling, and
+          // override justify to top so the caret starts sensibly.
+          style={{ ...textStyle(props), ...textContentStyle(props), justifyContent: 'flex-start' }}
           contentEditable
           suppressContentEditableWarning
           onPointerDown={(e) => e.stopPropagation()}
@@ -103,7 +113,8 @@ export function TextCanvas({ block, onUpdateProps }: CanvasRendererProps) {
       className="text-block"
       style={textStyle(props)}
       onDoubleClick={() => setEditing(true)}
-      dangerouslySetInnerHTML={{ __html: props.html }}
-    />
+    >
+      <div className="text-content" style={textContentStyle(props)} dangerouslySetInnerHTML={{ __html: props.html }} />
+    </div>
   );
 }
