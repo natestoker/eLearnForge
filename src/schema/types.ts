@@ -6,7 +6,7 @@ export type BlockType =
   | 'text' | 'image' | 'statement' | 'multipleChoice'
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
   | 'code' | 'matching' | 'group'
-  | 'fillBlank' | 'progress' | 'timer' | 'dragDrop';
+  | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -220,12 +220,22 @@ export interface DragDropProps {
   feedbackIncorrect: string;
 }
 
+// Tabs / accordion: a set of labeled panels of HTML content. 'tabs' shows a
+// tab strip with one panel visible; 'accordion' stacks expandable sections.
+export interface TabPanel { id: string; label: string; html: string }
+export interface TabsProps {
+  layout: 'tabs' | 'accordion';
+  panels: TabPanel[];
+  accent?: string;
+  fontSize: number;
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps
-  | FillBlankProps | ProgressProps | TimerProps | DragDropProps;
+  | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -
