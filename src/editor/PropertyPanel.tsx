@@ -163,8 +163,13 @@ export function PropertyPanel() {
             options={[
               { value: 'none', label: 'None' },
               { value: 'fade', label: 'Fade' },
-              { value: 'slide', label: 'Slide' },
-              { value: 'zoom', label: 'Zoom' }
+              { value: 'slide', label: 'Slide (subtle)' },
+              { value: 'slideLeft', label: 'Slide from right' },
+              { value: 'slideRight', label: 'Slide from left' },
+              { value: 'slideUp', label: 'Slide up' },
+              { value: 'zoom', label: 'Zoom in' },
+              { value: 'zoomOut', label: 'Zoom out' },
+              { value: 'flip', label: 'Flip' }
             ]}
             onChange={(v) => mutate((p) => { p.slideTransition = v === 'none' ? undefined : (v as 'fade'); })}
           />

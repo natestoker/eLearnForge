@@ -186,6 +186,7 @@ export function TriggersPanel() {
                 { value: 'onBlockEnters', label: 'When an object enters the frame' },
                 { value: 'onAnimationComplete', label: 'When an animation completes' },
                 { value: 'onStateAll', label: 'When the state of all of...' },
+                { value: 'onCuePoint', label: 'When the timeline reaches a cue' },
                 { value: 'onSubmit', label: 'When Submit is pressed' }
               ]}
               onChange={(v) =>
@@ -272,6 +273,21 @@ export function TriggersPanel() {
                 ]}
                 onChange={(v) => edit(trigger.id, (t) => { t.watchVariableId = v || undefined; })}
               />
+            </div>
+          )}
+
+          {trigger.event === 'onCuePoint' && (
+            <div className="trigger-row">
+              <span className="trigger-label">Cue</span>
+              {(slide.timeline?.cues ?? []).length === 0 ? (
+                <span className="hint">Add a cue on the timeline ruler first (right-click the ruler).</span>
+              ) : (
+                <SelectInput
+                  value={trigger.cueId ?? slide.timeline!.cues![0].id}
+                  options={(slide.timeline?.cues ?? []).map((c) => ({ value: c.id, label: `${c.name} (${c.time.toFixed(1)}s)` }))}
+                  onChange={(v) => edit(trigger.id, (t) => { t.cueId = v; })}
+                />
+              )}
             </div>
           )}
 

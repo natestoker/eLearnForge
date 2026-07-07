@@ -329,13 +329,14 @@ export class Runtime {
   }
 
   // The player's clock reports timeline threshold crossings each tick.
-  timelineCrossings(entered: string[], animDone: string[]): void {
-    if (!entered.length && !animDone.length) return;
+  timelineCrossings(entered: string[], animDone: string[], cues: string[] = []): void {
+    if (!entered.length && !animDone.length && !cues.length) return;
     const slide = this.currentSlide();
     const fired = slide.triggers.filter(
       (t) =>
         (t.event === 'onBlockEnters' && t.sourceBlockId && entered.includes(t.sourceBlockId)) ||
-        (t.event === 'onAnimationComplete' && t.sourceBlockId && animDone.includes(t.sourceBlockId))
+        (t.event === 'onAnimationComplete' && t.sourceBlockId && animDone.includes(t.sourceBlockId)) ||
+        (t.event === 'onCuePoint' && t.cueId && cues.includes(t.cueId))
     );
     if (fired.length) {
       this.runTriggers(fired, 0);

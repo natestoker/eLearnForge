@@ -817,8 +817,10 @@ select.input { appearance: auto; }
   gap: 10px;
   flex: 1;
   min-width: 0;
-  max-width: 560px;
+  /* Let the seekbar stretch across the bar; the HUD/nav take what they need. */
+  max-width: none;
 }
+.player-seek { min-width: 200px; }
 
 .player-play {
   width: 34px;
@@ -1780,6 +1782,14 @@ select.input { appearance: auto; }
   display: flex;
   align-items: center;
 }
+/* The "Blocks" header cell stays pinned to the top-left while the timeline
+   scrolls vertically (matches the sticky ruler across the lanes). */
+.timeline-header-cell.ruler-header {
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  background: var(--panel);
+}
 
 .timeline-layer-header-name {
   height: 24px;
@@ -1797,6 +1807,19 @@ select.input { appearance: auto; }
 
 .tl-play { font-size: 12px; }
 .tl-play.on { color: var(--accent); }
+
+/* Cue markers on the timeline ruler + guide lines down the lanes. */
+.timeline-cue-flag {
+  position: absolute; top: 0; transform: translateX(-1px);
+  font-size: 9px; line-height: 20px; white-space: nowrap;
+  color: #f0b429; cursor: pointer; padding: 0 3px;
+  z-index: 6; user-select: none;
+}
+.timeline-cue-flag:hover { color: #ffd666; }
+.timeline-cue-line {
+  position: absolute; top: 20px; bottom: 0; width: 1px;
+  background: rgba(240, 180, 41, 0.4); pointer-events: none; z-index: 3;
+}
 
 /* Row drag grip + authoring locks */
 .tl-grip {

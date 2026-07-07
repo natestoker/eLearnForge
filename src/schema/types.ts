@@ -301,6 +301,7 @@ export type TriggerEvent =
   | 'onHover'              // pointer enters the source block
   | 'onMouseLeave'         // pointer leaves the source block
   | 'onDoubleClick'        // source block double-clicked
+  | 'onCuePoint'           // the timeline playhead crosses a named cue
   | 'onSubmit';            // the player Submit button
 
 // Persistent block states an author or trigger can set. hover/down are
@@ -361,6 +362,7 @@ export interface Trigger {
   watchVariableId?: string; // for onVariableChange; undefined = any variable
   watchBlockIds?: string[]; // onStateAll
   watchState?: BlockState;  // onStateAll
+  cueId?: string;           // onCuePoint
   conditions: Condition[];
   // How the conditions combine. 'and' (default) requires all; 'or' requires
   // any one. Absent = 'and' for older projects.
@@ -379,10 +381,19 @@ export interface Slide {
   notes?: string;           // speaker notes (PPTX import lands here)
 }
 
+export interface CuePoint {
+  id: string;
+  name: string;
+  time: number; // seconds into the slide timeline
+}
+
 export interface SlideTimeline {
   duration: number;       // seconds; ignored when narration drives the clock
   narrationSrc?: string;  // slide audio; its length becomes the duration
   autoAdvance: boolean;   // go to the next slide when the timeline ends
+  // Named markers on the timeline for planning; an onCuePoint trigger fires
+  // when the playhead crosses one (forward only), Storyline-style.
+  cues?: CuePoint[];
 }
 
 export interface PlayerButton {
@@ -433,5 +444,6 @@ export interface Project {
   // font file, emitted as @font-face so the deck's own typeface renders even
   // if it isn't a Google font.
   embeddedFonts?: { family: string; dataUrl: string; weight?: number; italic?: boolean }[];
-  slideTransition?: 'none' | 'fade' | 'slide' | 'zoom'; // GSAP between slides
+  // GSAP transition when entering a slide.
+  slideTransition?: 'none' | 'fade' | 'slide' | 'slideLeft' | 'slideRight' | 'slideUp' | 'zoom' | 'zoomOut' | 'flip';
 }

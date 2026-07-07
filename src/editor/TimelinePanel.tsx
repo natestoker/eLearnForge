@@ -6,6 +6,7 @@ import { blockDisplayName } from '../shared/blockName';
 import type { Block, Layer } from '../schema/types';
 import { useWaveform } from '../shared/useWaveform';
 import { ScrubAudio } from './scrubAudio';
+import { uid } from '../schema/factory';
 
 // Storyline-style timeline strip.
 // Uses a clean, aligned two-column layout:
@@ -103,6 +104,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const blocks = walkBlocks(slide.layers.flatMap((l) => l.blocks));
   const duration = timelineDuration(slide.timeline, blocks);
   const driven = Boolean(slide.timeline.narrationSrc);
+  const selectedRowIds = new Set(selectedIds(selection));
+  const cues = slide.timeline.cues ?? [];
 
   const pxPerSec = () => ((trackRef.current?.clientWidth ?? 600) * timelineZoom) / duration;
   const q = (v: number) => (snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 100) / 100);
@@ -222,11 +225,46 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     window.addEventListener('pointerup', onUp);
   };
 
+  const addCue = () => {
+    const at = scrubT !== null ? scrubT : 0;
+    const name = window.prompt('Cue name', `Cue ${cues.length + 1}`);
+    if (name === null) return;
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (s?.timeline) {
+        s.timeline.cues = [...(s.timeline.cues ?? []), { id: uid('cue'), name: name || `Cue ${cues.length + 1}`, time: Math.round(at * 100) / 100 }]
+          .sort((a, b) => a.time - b.time);
+      }
+    });
+  };
+  const removeCue = (id: string) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (s?.timeline?.cues) s.timeline.cues = s.timeline.cues.filter((c) => c.id !== id);
+    });
+
+  // Shift/Cmd/Ctrl-click a row to add it to (or remove it from) the timeline
+  // selection - the same multi-selection the canvas and property panels use.
+  // Returns true if it handled a multi-select (so the caller skips the drag).
+  const multiSelectRow = (e: React.PointerEvent | React.MouseEvent, blockId: string): boolean => {
+    if (!(e.shiftKey || e.metaKey || e.ctrlKey)) return false;
+    e.stopPropagation();
+    const sel = useProjectStore.getState().selection;
+    const cur = new Set(selectedIds(sel));
+    if (cur.has(blockId)) cur.delete(blockId);
+    else cur.add(blockId);
+    const ids = [...cur];
+    if (ids.length === 0) select({ blockId: null, blockIds: [] });
+    else select({ blockId: ids[ids.length - 1], blockIds: ids.slice(0, -1) });
+    return true;
+  };
+
   // Row drag-reorder: dragging a header row (its grip or name) restacks the
   // block within its sibling list live - z-order updates as you drag, like
   // AE/Premiere. Multi-selected siblings travel together as a chunk.
   const startRowDrag = (e: React.PointerEvent, b: Block, parent: { layerId?: string; groupId?: string }, dispIdx: number, count: number) => {
     if (e.button !== 0) return;
+    if (multiSelectRow(e, b.id)) return; // shift/cmd-click = select, not drag
     e.stopPropagation();
     const sel = useProjectStore.getState().selection;
     const ids = selectedIds(sel).includes(b.id) ? selectedIds(sel) : [b.id];
@@ -270,7 +308,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   // Render the left-hand column track info recursively
   const renderHeaderRow = (b: Block, layerBlocks: Block[], depth: number, parent: { layerId?: string; groupId?: string }): React.ReactNode => {
     const idx = layerBlocks.indexOf(b);
-    const selected = selection.blockId === b.id;
+    const selected = selectedRowIds.has(b.id);
     const locked = rowLocked(b);
     return (
       <Fragment key={b.id}>
@@ -297,7 +335,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <span className="tl-expand-spacer" />
           )}
 
-          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={(e) => { select({ blockId: b.id, blockIds: [] }); startRowDrag(e, b, parent, idx, layerBlocks.length); }}>
+          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={(e) => { if (!multiSelectRow(e, b.id)) { select({ blockId: b.id, blockIds: [] }); startRowDrag(e, b, parent, idx, layerBlocks.length); } }}>
             {blockDisplayName(b)}
           </span>
 
@@ -332,7 +370,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const renderLaneRow = (b: Block, _layerBlocks: Block[], depth = 0): React.ReactNode => {
     const start = b.timing?.start ?? 0;
     const end = b.timing?.end ?? duration;
-    const selected = selection.blockId === b.id;
+    const selected = selectedRowIds.has(b.id);
     const untimed = !b.timing;
     const locked = rowLocked(b);
     const span = Math.max(0.2, end - start);
@@ -340,7 +378,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     const animOut = b.timing?.animOut?.duration ?? 0;
     return (
       <Fragment key={b.id}>
-        <div className={`timeline-lane-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H }} onPointerDown={() => select({ blockId: b.id, blockIds: [] })}>
+        <div className={`timeline-lane-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H }} onPointerDown={(e) => { if (!multiSelectRow(e, b.id)) select({ blockId: b.id, blockIds: [] }); }}>
           <div
             className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''} ${locked ? 'locked' : ''}`}
             style={{ left: pct(start), width: pct(span) }}
@@ -382,6 +420,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           onClick={() => (playing ? stopPlay(scrubT ?? undefined) : startPlay())}
         >
           {playing ? '\u23f8' : '\u25b6'}
+        </button>
+        <button
+          className="btn btn-ghost btn-icon"
+          title="Add a cue marker at the playhead (usable in triggers)"
+          onClick={addCue}
+        >
+          {'\u25c7'}
         </button>
         <label className="timeline-length" title="How many seconds this slide's timeline runs">
           Length (s)
@@ -475,14 +520,31 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             {/* Ruler: click or drag to place the playhead */}
             <div
               className="timeline-ruler scrubbable"
-              style={{ position: 'relative', height: 20, top: 'auto', left: 'auto', right: 'auto' }}
+              style={{ position: 'sticky', top: 0, height: 20, left: 'auto', right: 'auto', zIndex: 8, background: 'var(--panel-2)' }}
               title="Click or drag to seek - the canvas previews this moment"
               onPointerDown={onRulerDown}
             >
               {ticks.map((s) => (
                 <span key={s} className="timeline-tick" style={{ left: pct(s) }}>{s}s</span>
               ))}
+              {cues.map((c) => (
+                <span
+                  key={c.id}
+                  className="timeline-cue-flag"
+                  style={{ left: pct(Math.min(c.time, duration)) }}
+                  title={`${c.name} @ ${c.time.toFixed(1)}s — click to seek, right-click to delete`}
+                  onPointerDown={(e) => { e.stopPropagation(); setScrubT(c.time); }}
+                  onContextMenu={(e) => { e.preventDefault(); if (confirm(`Delete cue "${c.name}"?`)) removeCue(c.id); }}
+                >
+                  ◇ {c.name}
+                </span>
+              ))}
             </div>
+
+            {/* Cue guide lines down the lane grid */}
+            {cues.map((c) => (
+              <div key={c.id} className="timeline-cue-line" style={{ left: pct(Math.min(c.time, duration)) }} />
+            ))}
 
             {scrubT !== null && (
               <div className="timeline-playhead" style={{ left: pct(Math.min(scrubT, duration)) }}>
