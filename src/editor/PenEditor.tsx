@@ -1,32 +1,77 @@
 import { useState, useRef, useEffect } from 'react';
 import { useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
-import type { ImageProps, ShapeProps } from '../schema/types';
-import { SHAPE_POINTS, smoothPathFromPoints } from '../blocks/shape/geometry';
+import type { ImageProps, PathNode, ShapeProps } from '../schema/types';
+import {
+  SHAPE_POINTS, SHAPE_PATHS, nodesFromPoints, nodesFromPresetPath, pathFromNodes
+} from '../blocks/shape/geometry';
 
-// A pen / node editor for custom shapes and image clip masks. Click on the
-// canvas to drop points; drag a node to move it; double-click a node to
-// remove it. Points live in a 0..100 space (stretched to the block, the same
-// model as our preset geometry), so the drawn path scales with the block.
-// For image clips the current image shows underneath so you can trace it.
-// Editing a preset shape starts from that preset's points (right-click a
-// shape on the canvas to get here directly). "Smooth" renders the nodes as
-// a closed curve instead of straight segments. On apply, the drawing is
-// trimmed to its content: the points are normalized to their bounding box
-// and the block is resized to match, so no dead margin is kept.
+// The vector editor behind BOTH custom shapes and custom image clips - one
+// engine, two targets (ShapeProps.nodes / ImageProps.clipNodes). It edits
+// true Bezier paths, Illustrator-style:
+//   - click empty space to append an anchor; click the outline to insert
+//     one mid-segment (curves split exactly, de Casteljau)
+//   - drag anchors to move them (handles follow)
+//   - select an anchor to see its handles; drag a handle to bend the
+//     adjacent segments; smooth anchors keep their handles mirrored
+//   - Smooth / Corner / Straight convert the selected anchor
+//   - double-click an anchor to delete it
+// Points live in a 0..100 space (stretched to the block, the same model as
+// preset geometry). Presets seed their real geometry - polygon presets as
+// corner anchors, path presets (hearts, clouds) with their actual curves -
+// so "edit this shape" starts from what's on the canvas. On apply, shape
+// drawings are trimmed to their content: everything normalizes to the
+// bounding box and the block resizes to match.
 
 const SIZE = 480; // editor canvas is square; maps 0..100 -> 0..SIZE
 
-function parsePoints(str: string | undefined): [number, number][] {
-  if (!str) return [];
-  return str.trim().split(/\s+/).map((p) => {
-    const [x, y] = p.split(',').map(Number);
-    return [x, y] as [number, number];
-  });
+const toSvg = (v: number) => (v / 100) * SIZE;
+
+function seedNodes(mode: 'shape' | 'imageClip', props: ShapeProps | ImageProps): PathNode[] {
+  if (mode === 'imageClip') {
+    const ip = props as ImageProps;
+    if (ip.clipNodes?.length) return structuredClone(ip.clipNodes);
+    if (ip.clipPoints) return nodesFromPoints(ip.clipPoints);
+    if (ip.clipKind && SHAPE_POINTS[ip.clipKind]) return nodesFromPoints(SHAPE_POINTS[ip.clipKind]!);
+    if (ip.clipKind && SHAPE_PATHS[ip.clipKind]) return nodesFromPresetPath(SHAPE_PATHS[ip.clipKind]!) ?? [];
+    return [];
+  }
+  const sp = props as ShapeProps;
+  if (sp.nodes?.length) return structuredClone(sp.nodes);
+  if (sp.points) return nodesFromPoints(sp.points, sp.smooth);
+  if (sp.kind === 'rectangle' || sp.kind === 'roundedRectangle') {
+    return [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+  }
+  if (SHAPE_POINTS[sp.kind]) return nodesFromPoints(SHAPE_POINTS[sp.kind]!);
+  if (SHAPE_PATHS[sp.kind]) return nodesFromPresetPath(SHAPE_PATHS[sp.kind]!) ?? [];
+  return [];
 }
-function serialize(points: [number, number][]): string {
-  return points.map(([x, y]) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(' ');
+
+// Give a corner anchor smooth handles: Catmull-Rom tangent from its
+// neighbors, the same curve the old "Smooth curves" toggle drew.
+function smoothNode(nodes: PathNode[], i: number): PathNode {
+  const n = nodes.length;
+  const p0 = nodes[(i - 1 + n) % n];
+  const p1 = nodes[i];
+  const p2 = nodes[(i + 1) % n];
+  const tx = (p2.x - p0.x) / 6, ty = (p2.y - p0.y) / 6;
+  return { ...p1, h1: { x: p1.x - tx, y: p1.y - ty }, h2: { x: p1.x + tx, y: p1.y + ty }, smooth: true };
 }
+
+const lerp = (a: { x: number; y: number }, b: { x: number; y: number }, t: number) =>
+  ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+
+// Point on segment i -> i+1 at parameter t (line or cubic).
+function segmentPoint(a: PathNode, b: PathNode, t: number): { x: number; y: number } {
+  if (!a.h2 && !b.h1) return lerp(a, b, t);
+  const c1 = a.h2 ?? { x: a.x, y: a.y };
+  const c2 = b.h1 ?? { x: b.x, y: b.y };
+  const p01 = lerp(a, c1, t), p12 = lerp(c1, c2, t), p23 = lerp(c2, b, t);
+  const p012 = lerp(p01, p12, t), p123 = lerp(p12, p23, t);
+  return lerp(p012, p123, t);
+}
+
+type DragTarget = { kind: 'anchor' | 'h1' | 'h2'; index: number } | null;
 
 export function PenEditor() {
   const penEditor = useUiStore((s) => s.penEditor);
@@ -38,110 +83,155 @@ export function PenEditor() {
       : undefined
   );
 
-  const initial = (): [number, number][] => {
-    if (!penEditor || !block) return [];
-    if (penEditor.mode === 'imageClip') return parsePoints((block.props as ImageProps).clipPoints);
-    const sp = block.props as ShapeProps;
-    if (sp.points) return parsePoints(sp.points);
-    // Editing a preset: seed with its geometry so "update the shape" starts
-    // from what's on the canvas. Rect kinds seed as a square; path-based
-    // presets (hearts, clouds...) have no polygon to seed and start blank.
-    if (sp.kind === 'rectangle' || sp.kind === 'roundedRectangle') {
-      return [[0, 0], [100, 0], [100, 100], [0, 100]];
-    }
-    return parsePoints(SHAPE_POINTS[sp.kind]);
-  };
-
-  const [points, setPoints] = useState<[number, number][]>(initial);
-  const [smooth, setSmooth] = useState(false);
-  const [drag, setDrag] = useState<number | null>(null);
+  const [nodes, setNodes] = useState<PathNode[]>([]);
+  const [sel, setSel] = useState<number | null>(null);
+  const dragRef = useRef<DragTarget>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Reset when the target changes.
+  // Seed when the target changes.
   useEffect(() => {
-    setPoints(initial());
-    setSmooth(penEditor?.mode === 'shape' ? Boolean((block?.props as ShapeProps | undefined)?.smooth) : false);
-    // eslint-disable-next-line
-  }, [penEditor?.blockId]);
+    if (penEditor && block) setNodes(seedNodes(penEditor.mode, block.props as ShapeProps | ImageProps));
+    setSel(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [penEditor?.blockId, penEditor?.mode]);
 
   if (!penEditor || !block) return null;
 
-  const toLocal = (e: { clientX: number; clientY: number }): [number, number] => {
+  const toLocal = (e: { clientX: number; clientY: number }): { x: number; y: number } => {
     const r = svgRef.current!.getBoundingClientRect();
     const x = ((e.clientX - r.left) / r.width) * 100;
     const y = ((e.clientY - r.top) / r.height) * 100;
-    return [Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y))];
+    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
   };
 
-  const addPoint = (e: React.MouseEvent) => {
-    if (drag !== null) return;
-    if ((e.target as Element).classList.contains('pen-node')) return;
-    setPoints((p) => [...p, toLocal(e)]);
+  // Click on the outline inserts an anchor mid-segment; click on empty
+  // space appends one at the end of the path.
+  const onCanvasClick = (e: React.MouseEvent) => {
+    const cls = (e.target as Element).classList;
+    if (cls.contains('pen-node') || cls.contains('pen-handle')) return;
+    const p = toLocal(e);
+    if (nodes.length >= 2) {
+      const hit = nearestOnPath(nodes, p, 3.5);
+      if (hit) {
+        setNodes((ns) => insertOnSegment(ns, hit.seg, hit.t));
+        setSel(hit.seg + 1);
+        return;
+      }
+    }
+    setNodes((ns) => [...ns, p]);
+    setSel(nodes.length);
   };
 
-  const onNodeDown = (i: number, e: React.PointerEvent) => {
+  const startDrag = (t: NonNullable<DragTarget>, e: React.PointerEvent) => {
     e.stopPropagation();
-    (e.target as Element).setPointerCapture(e.pointerId);
-    setDrag(i);
+    try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* stale pointer */ }
+    dragRef.current = t;
+    setSel(t.index);
   };
+
   const onMove = (e: React.PointerEvent) => {
-    if (drag === null) return;
-    const pt = toLocal(e);
-    setPoints((p) => p.map((old, i) => (i === drag ? pt : old)));
+    const d = dragRef.current;
+    if (!d) return;
+    const p = toLocal(e);
+    setNodes((ns) =>
+      ns.map((node, i) => {
+        if (i !== d.index) return node;
+        if (d.kind === 'anchor') {
+          const dx = p.x - node.x, dy = p.y - node.y;
+          return {
+            ...node,
+            x: p.x, y: p.y,
+            h1: node.h1 ? { x: node.h1.x + dx, y: node.h1.y + dy } : undefined,
+            h2: node.h2 ? { x: node.h2.x + dx, y: node.h2.y + dy } : undefined
+          };
+        }
+        const next = { ...node, [d.kind]: p } as PathNode;
+        if (node.smooth) {
+          // Mirror the opposite handle through the anchor.
+          const other = d.kind === 'h1' ? 'h2' : 'h1';
+          next[other] = { x: 2 * node.x - p.x, y: 2 * node.y - p.y };
+        }
+        return next;
+      })
+    );
   };
-  const onUp = () => setDrag(null);
+  const onUp = () => { dragRef.current = null; };
 
   const removeNode = (i: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setPoints((p) => p.filter((_, idx) => idx !== i));
+    setNodes((ns) => ns.filter((_, idx) => idx !== i));
+    setSel(null);
+  };
+
+  const convertSel = (to: 'smooth' | 'corner' | 'straight') => {
+    if (sel === null) return;
+    setNodes((ns) =>
+      ns.map((node, i) => {
+        if (i !== sel) return node;
+        if (to === 'smooth') return node.h1 || node.h2 ? { ...node, smooth: true } : smoothNode(ns, i);
+        if (to === 'corner') return { ...node, smooth: undefined };
+        return { x: node.x, y: node.y }; // straight: drop the handles
+      })
+    );
   };
 
   const apply = () => {
     updateBlock(penEditor.blockId, (b) => {
       if (penEditor.mode === 'imageClip') {
         const ip = b.props as ImageProps;
-        ip.clipPoints = points.length >= 3 ? serialize(points) : undefined;
-        if (ip.clipPoints) ip.clipKind = undefined;
+        ip.clipNodes = nodes.length >= 3 ? nodes : undefined;
+        ip.clipPoints = undefined;
+        if (ip.clipNodes) ip.clipKind = undefined;
         return;
       }
       const sp = b.props as ShapeProps;
-      if (points.length < 3) {
-        sp.points = undefined;
-        sp.smooth = undefined;
+      sp.points = undefined;
+      sp.smooth = undefined;
+      if (nodes.length < 3) {
+        sp.nodes = undefined;
         return;
       }
-      // Trim to content: normalize the drawing to its bounding box and
-      // resize the block by the same fraction, so the shape stays exactly
-      // where it was drawn but the block carries no unused margin.
-      const xs = points.map((p) => p[0]);
-      const ys = points.map((p) => p[1]);
+      // Trim to content: normalize the drawing (handles included) to its
+      // bounding box and resize the block by the same fraction, so the
+      // shape stays exactly where it was drawn with no dead margin.
+      const xs = nodes.flatMap((n) => [n.x, n.h1?.x, n.h2?.x]).filter((v): v is number => v !== undefined);
+      const ys = nodes.flatMap((n) => [n.y, n.h1?.y, n.h2?.y]).filter((v): v is number => v !== undefined);
       const minX = Math.min(...xs), maxX = Math.max(...xs);
       const minY = Math.min(...ys), maxY = Math.max(...ys);
       const bw = maxX - minX, bh = maxY - minY;
-      if (bw > 1 && bh > 1) {
-        sp.points = serialize(points.map(([x, y]) => [((x - minX) / bw) * 100, ((y - minY) / bh) * 100]));
+      if (bw > 1 && bh > 1 && (minX > 0.5 || minY > 0.5 || maxX < 99.5 || maxY < 99.5)) {
+        const nx = (v: number) => ((v - minX) / bw) * 100;
+        const ny = (v: number) => ((v - minY) / bh) * 100;
+        sp.nodes = nodes.map((n) => ({
+          ...n,
+          x: nx(n.x), y: ny(n.y),
+          h1: n.h1 ? { x: nx(n.h1.x), y: ny(n.h1.y) } : undefined,
+          h2: n.h2 ? { x: nx(n.h2.x), y: ny(n.h2.y) } : undefined
+        }));
         b.x = Math.round(b.x + (minX / 100) * b.w);
         b.y = Math.round(b.y + (minY / 100) * b.h);
         b.w = Math.max(20, Math.round((bw / 100) * b.w));
         b.h = Math.max(20, Math.round((bh / 100) * b.h));
       } else {
-        sp.points = serialize(points);
+        sp.nodes = nodes;
       }
-      sp.smooth = smooth || undefined;
     });
     close();
   };
 
   const imgSrc = penEditor.mode === 'imageClip' ? (block.props as ImageProps).src : null;
-  const polyPoints = points.map(([x, y]) => `${(x / 100) * SIZE},${(y / 100) * SIZE}`).join(' ');
-  const showSmooth = penEditor.mode === 'shape';
+  const selNode = sel !== null ? nodes[sel] : null;
+  const d = nodes.length >= 2 ? pathFromNodes(nodes, nodes.length >= 3) : '';
 
   return (
     <div className="pen-overlay" onClick={close}>
       <div className="pen-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="pen-head">
           <span>Pen tool - {penEditor.mode === 'imageClip' ? 'custom image clip' : 'custom shape'}</span>
-          <span className="pen-hint">Click to add points, drag nodes to move, double-click a node to remove.</span>
+          <span className="pen-hint">
+            Click to add points (on the outline inserts mid-segment). Drag points and handles.
+            Double-click a point to remove it.
+          </span>
         </div>
         <svg
           ref={svgRef}
@@ -149,55 +239,122 @@ export function PenEditor() {
           width={SIZE}
           height={SIZE}
           viewBox={`0 0 ${SIZE} ${SIZE}`}
-          onClick={addPoint}
+          onClick={onCanvasClick}
           onPointerMove={onMove}
           onPointerUp={onUp}
         >
           {imgSrc && <image href={imgSrc} x="0" y="0" width={SIZE} height={SIZE} preserveAspectRatio="none" opacity="0.55" />}
           <rect x="0" y="0" width={SIZE} height={SIZE} fill="none" stroke="#2c3648" />
-          {points.length >= 2 && (
-            smooth && points.length >= 3 ? (
-              <g transform={`scale(${SIZE / 100})`}>
-                <path
-                  d={smoothPathFromPoints(serialize(points))}
-                  fill="rgba(61,220,151,0.25)"
-                  stroke="#3ddc97"
-                  strokeWidth={1.5}
-                  vectorEffect="non-scaling-stroke"
+          {d && (
+            <g transform={`scale(${SIZE / 100})`}>
+              <path
+                d={d}
+                fill={nodes.length >= 3 ? 'rgba(61,220,151,0.25)' : 'none'}
+                stroke="#3ddc97"
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          )}
+          {/* Handles of the selected anchor */}
+          {selNode && (['h1', 'h2'] as const).map((hk) => {
+            const hpos = selNode[hk];
+            if (!hpos) return null;
+            return (
+              <g key={hk}>
+                <line
+                  x1={toSvg(selNode.x)} y1={toSvg(selNode.y)}
+                  x2={toSvg(hpos.x)} y2={toSvg(hpos.y)}
+                  stroke="#7aa2ff" strokeWidth={1}
+                />
+                <rect
+                  className="pen-handle"
+                  x={toSvg(hpos.x) - 5} y={toSvg(hpos.y) - 5}
+                  width={10} height={10}
+                  onPointerDown={(e) => startDrag({ kind: hk, index: sel! }, e)}
                 />
               </g>
-            ) : (
-              <polygon points={polyPoints} fill="rgba(61,220,151,0.25)" stroke="#3ddc97" strokeWidth={1.5} />
-            )
-          )}
-          {points.map(([x, y], i) => (
+            );
+          })}
+          {nodes.map((n, i) => (
             <circle
               key={i}
-              className="pen-node"
-              cx={(x / 100) * SIZE}
-              cy={(y / 100) * SIZE}
+              className={`pen-node ${i === sel ? 'active' : ''} ${n.smooth ? 'smooth' : ''}`}
+              cx={toSvg(n.x)}
+              cy={toSvg(n.y)}
               r={7}
-              onPointerDown={(e) => onNodeDown(i, e)}
+              onPointerDown={(e) => startDrag({ kind: 'anchor', index: i }, e)}
               onDoubleClick={(e) => removeNode(i, e)}
             />
           ))}
         </svg>
         <div className="pen-actions">
-          <button className="btn btn-ghost" onClick={() => setPoints([])}>Clear</button>
-          {showSmooth && (
-            <label className="checkbox" title="Draw a smooth closed curve through the nodes">
-              <input type="checkbox" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} />
-              <span>Smooth curves</span>
-            </label>
-          )}
-          <span className="pen-count">{points.length} points</span>
+          <button className="btn btn-ghost" onClick={() => { setNodes([]); setSel(null); }}>Clear</button>
+          <button
+            className="btn btn-ghost"
+            title="Give every point smooth curve handles"
+            disabled={nodes.length < 3}
+            onClick={() => setNodes((ns) => ns.map((_, i) => smoothNode(ns, i)))}
+          >
+            Smooth all
+          </button>
+          <span className="pen-count">{nodes.length} points</span>
           <div className="pen-spacer" />
+          {selNode && (
+            <span className="pen-node-tools">
+              <button className="btn btn-ghost" title="Smooth point (mirrored handles)" onClick={() => convertSel('smooth')}>Smooth</button>
+              <button className="btn btn-ghost" title="Corner point (independent handles)" onClick={() => convertSel('corner')} disabled={!selNode.h1 && !selNode.h2}>Corner</button>
+              <button className="btn btn-ghost" title="Remove this point's handles" onClick={() => convertSel('straight')} disabled={!selNode.h1 && !selNode.h2}>Straight</button>
+              <button className="btn btn-ghost btn-danger" title="Delete this point" onClick={(e) => removeNode(sel!, e)}>Delete</button>
+            </span>
+          )}
           <button className="btn" onClick={close}>Cancel</button>
-          <button className="btn btn-accent" onClick={apply} disabled={points.length > 0 && points.length < 3}>
-            {points.length === 0 ? 'Remove custom shape' : 'Apply'}
+          <button className="btn btn-accent" onClick={apply} disabled={nodes.length > 0 && nodes.length < 3}>
+            {nodes.length === 0 ? (penEditor.mode === 'imageClip' ? 'Remove custom clip' : 'Remove custom shape') : 'Apply'}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+// Closest point on the path outline within `threshold` (0..100 units).
+function nearestOnPath(nodes: PathNode[], p: { x: number; y: number }, threshold: number):
+  { seg: number; t: number } | null {
+  const n = nodes.length;
+  const segs = n >= 3 ? n : n - 1; // closed once it's a real polygon
+  let best: { seg: number; t: number; d: number } | null = null;
+  for (let s = 0; s < segs; s++) {
+    const a = nodes[s], b = nodes[(s + 1) % n];
+    for (let k = 1; k < 24; k++) {
+      const t = k / 24;
+      const q = segmentPoint(a, b, t);
+      const dist = Math.hypot(q.x - p.x, q.y - p.y);
+      if (dist < threshold && (!best || dist < best.d)) best = { seg: s, t, d: dist };
+    }
+  }
+  return best && { seg: best.seg, t: best.t };
+}
+
+// Split segment `seg` at parameter t, preserving the curve exactly
+// (de Casteljau for cubics, plain interpolation for lines).
+function insertOnSegment(nodes: PathNode[], seg: number, t: number): PathNode[] {
+  const n = nodes.length;
+  const a = nodes[seg], b = nodes[(seg + 1) % n];
+  const out = nodes.map((x) => ({ ...x }));
+  let mid: PathNode;
+  if (!a.h2 && !b.h1) {
+    mid = lerp(a, b, t);
+  } else {
+    const c1 = a.h2 ?? { x: a.x, y: a.y };
+    const c2 = b.h1 ?? { x: b.x, y: b.y };
+    const p01 = lerp(a, c1, t), p12 = lerp(c1, c2, t), p23 = lerp(c2, b, t);
+    const p012 = lerp(p01, p12, t), p123 = lerp(p12, p23, t);
+    const f = lerp(p012, p123, t);
+    out[seg].h2 = p01;
+    out[(seg + 1) % n].h1 = p23;
+    mid = { ...f, h1: p012, h2: p123, smooth: true };
+  }
+  out.splice(seg + 1, 0, mid);
+  return out;
 }

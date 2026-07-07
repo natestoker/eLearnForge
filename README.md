@@ -690,3 +690,70 @@ Synthesis yields to the event loop between sentences so the progress bar
 actually repaints (Kokoro's WASM blocks the main thread per sentence -
 the bar used to look frozen), and the fill has a shimmer while a long
 sentence synthesizes.
+
+
+# v6.3
+
+## Callouts are one seamless path
+A callout is now ONE closed path: the body boundary with the tail spliced
+in (the convex boundary is walked around the tail's angular gap, then two
+straight edges run to the tip). No more body + overlay triangle, so the
+corners join seamlessly, the border runs unbroken around the whole
+outline, and clip effects (wipe) treat callouts exactly like standard
+shapes. Rounded-rect corners intersect the tail correctly via ray/circle
+math.
+
+## One animation per effect; direction is an option
+Slide/Wipe/Flip (and Rise) are single library entries with a Direction
+option (Up/Down/Left/Right) instead of per-direction entries. Legacy
+values (slideUp, wipeUp, flipX...) migrate on read via normalizeAnimSpec.
+Wipe clips from any side; the non-wiped sides get a negative clip inset so
+overflowing geometry (callout tails, arrowheads) wipes with the shape
+instead of being chopped at the block edge.
+
+## Rise animation, actually rising
+New Rise entrance: long decelerating travel (default 160px, configurable
+Distance), fade completing early so the motion reads - PowerPoint's Rise
+Up, not a 40px nudge. Slide also takes a Distance.
+
+## True vector editing (shapes AND clips, one engine)
+The pen editor is a Bezier editor now: anchors with real handles
+(ShapeProps.nodes / ImageProps.clipNodes, 0..100 space).
+- Click empty space to append an anchor; click the outline to insert one
+  mid-segment (curves split exactly via de Casteljau).
+- Select an anchor to edit its handles; smooth anchors keep them
+  mirrored. Smooth / Corner / Straight convert the selected anchor;
+  Smooth all curves the whole outline.
+- Path presets (heart, cloud, terminator...) seed their real curves, so
+  right-click > edit starts from what's on the canvas.
+- Image clips use the same engine and editor; curved clips render through
+  an SVG clipPath in objectBoundingBox units (CSS polygon() can't curve).
+Legacy pen polygons still render and migrate to nodes on their next edit.
+
+## Hidden initial state removed
+The partially-working "Initial state: Hidden" block property is gone (UI,
+schema, runtime seeding). Show/hide triggers (setState hidden) still work
+- that path was always reliable.
+
+## PowerPoint-style shadows
+Block-level ShadowSpec: color, opacity, blur, distance, angle, inner or
+outer, plus a preset gallery. Outer shadows render as a drop-shadow
+filter on the block's content wrapper so they follow the real silhouette
+(SVG geometry, callout tails, clipped images); inner shadows render
+inside ShapeSvg as an SVG filter (inset box-shadow approximation on
+non-shape blocks). PPTX import reads outerShdw/innerShdw fully (blurRad/
+dist EMU, dir/60000, color alpha) instead of collapsing to a hardcoded
+soft shadow.
+
+## PPTX import: real font sizes and vertical anchors
+Font sizes are points and now convert at 4/3 px/pt (30pt -> 40px; they
+imported ~25% small before), and bodyPr anchor="ctr"/"b" maps to the text
+block's vertical alignment - the two things that made re-imported slides
+(the "slide 4" report) look smaller and mis-centered than the deck.
+
+## Stale builds removed
+editor.html / editor_updated.html at the repo root were year-old v5.x
+builds; opening them resurrected the old toolbar/preview and its export
+bugs ("only the last slide"). They're deleted - the editor is dist/
+index.html (or npm run dev). The current single-file web export embeds
+every slide and navigates them (verified end to end).

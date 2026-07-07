@@ -1,6 +1,7 @@
 import { GroupProps, StyledState } from '../../schema/types';
 import { RuntimeRendererProps } from '../blockApi';
 import { BLOCKS } from '../registry';
+import { shadowStyle } from '../../shared/shadow';
 
 export function GroupRuntime({ block, runtime }: RuntimeRendererProps) {
   const props = block.props as GroupProps;
@@ -10,9 +11,7 @@ export function GroupRuntime({ block, runtime }: RuntimeRendererProps) {
         const def = BLOCKS[child.type];
         if (!def) return null;
         
-        // Runtime state honors the authored initial state AND setState /
-        // show-hide triggers (checking child.initialState directly would
-        // make a hidden child unrevealable).
+        // Show/hide triggers (setState hidden) still apply to group children.
         const isVisible = runtime.isBlockVisible(child.id) && runtime.getBlockState(child.id) !== 'hidden';
 
         return (
@@ -27,7 +26,7 @@ export function GroupRuntime({ block, runtime }: RuntimeRendererProps) {
               height: child.h,
               opacity: isVisible ? 1 : 0,
               pointerEvents: isVisible ? 'auto' : 'none',
-              // Apply any state styles if the runtime handles it at this level, though usually Runtime renders it
+              ...shadowStyle(child)
             }}
           >
             <def.Runtime

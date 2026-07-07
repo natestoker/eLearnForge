@@ -5,6 +5,7 @@ import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
 import { CALLOUT_BODY, DEFAULT_TAIL } from '../blocks/shape/geometry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
+import { shadowStyle } from '../shared/shadow';
 
 const GRID = 8;
 const MIN_SIZE = 40;
@@ -48,7 +49,7 @@ export function BlockNode({
   const isSelected = selection.blockId === block.id;
   const isMultiSel = isSelected || (selection.blockIds ?? []).includes(block.id);
   const shapeProps = block.type === 'shape' ? (block.props as ShapeProps) : null;
-  const isCallout = Boolean(shapeProps && CALLOUT_BODY[shapeProps.kind] && !shapeProps.points);
+  const isCallout = Boolean(shapeProps && CALLOUT_BODY[shapeProps.kind] && !shapeProps.points && !shapeProps.nodes?.length);
   const tail = shapeProps?.tail ?? DEFAULT_TAIL;
   return (
     <div
@@ -86,13 +87,19 @@ export function BlockNode({
           : undefined
       }
     >
-      <def.Canvas
-        block={block}
-        selected={isSelected}
-        onUpdateProps={(fn, history = true) =>
-          updateBlock(block.id, (b) => fn(b.props), history)
-        }
-      />
+      {/* Shadow wrapper: outer shadows are a drop-shadow filter here so they
+          follow the real silhouette (SVG geometry, callout tails, clipped
+          images); inner shadows on non-shape blocks approximate with an
+          inset box-shadow. Shape blocks draw inner shadows themselves. */}
+      <div style={{ width: '100%', height: '100%', ...shadowStyle(block) }}>
+        <def.Canvas
+          block={block}
+          selected={isSelected}
+          onUpdateProps={(fn, history = true) =>
+            updateBlock(block.id, (b) => fn(b.props), history)
+          }
+        />
+      </div>
       {isSelected && (
         <>
           {HANDLES.map((h) => (

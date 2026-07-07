@@ -7,5 +7,12 @@ export function ShapeRuntime({ block, stateStyle }: RuntimeRendererProps) {
   const props = stateStyle
     ? { ...base, fill: stateStyle.fill ?? base.fill, borderColor: stateStyle.borderColor ?? base.borderColor }
     : base;
-  return <ShapeSvg props={props} w={block.w} h={block.h} />;
+  return (
+    <ShapeSvg
+      props={props}
+      w={block.w}
+      h={block.h}
+      innerShadow={block.shadow?.inner ? block.shadow : undefined}
+    />
+  );
 }

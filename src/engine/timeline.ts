@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import type { AnimSpec, Block, BlockTiming, SlideTimeline } from '../schema/types';
+import type { AnimDirection, AnimSpec, AnimType, Block, BlockTiming, SlideTimeline } from '../schema/types';
 
 // Stateless timeline math. The visual state of every block is a pure
 // function of the current time t - the same discipline as the proven
@@ -14,12 +14,38 @@ export interface BlockVisualState {
   translateY: number;
   scale: number;
   rotate: number;     // deg (spin/pop)
-  rotateX: number;    // deg (flipX)
-  rotateY: number;    // deg (flipY)
-  clipTop: number;    // 0..1 fraction hidden from the top (wipe)
+  rotateX: number;    // deg (flip up/down)
+  rotateY: number;    // deg (flip left/right)
+  // Wipe reveal: fraction hidden from each side (0..1). Rendered as a
+  // clip-path inset; non-wiped sides get a negative inset so overflowing
+  // geometry (callout tails, line arrowheads) is never chopped.
+  clip: { top: number; right: number; bottom: number; left: number } | null;
 }
 
-const OFFSET = 40; // px travel for slide-in/out presets
+const SLIDE_DISTANCE = 40;  // px default travel for slide
+const RISE_DISTANCE = 160;  // px default travel for rise (PowerPoint-scale)
+
+// One animation per effect; direction/distance are options. Projects saved
+// before the consolidation stored per-direction types (slideUp, wipeUp,
+// flipX...) - map them onto the consolidated form on read.
+export function normalizeAnimSpec(spec: AnimSpec): AnimSpec & { type: AnimType } {
+  switch (spec.type) {
+    case 'slideUp': return { ...spec, type: 'slide', direction: 'up' };
+    case 'slideDown': return { ...spec, type: 'slide', direction: 'down' };
+    case 'slideLeft': return { ...spec, type: 'slide', direction: 'left' };
+    case 'slideRight': return { ...spec, type: 'slide', direction: 'right' };
+    case 'wipeUp': return { ...spec, type: 'wipe', direction: 'up' };
+    case 'flipX': return { ...spec, type: 'flip', direction: 'up' };
+    case 'flipY': return { ...spec, type: 'flip', direction: 'left' };
+    default: return spec as AnimSpec & { type: AnimType };
+  }
+}
+
+// Default direction when the spec has none (slide/rise/wipe enter from
+// below, flip around the X axis - the PowerPoint defaults).
+export function defaultDirection(type: AnimType): AnimDirection {
+  return type === 'flip' ? 'up' : 'up';
+}
 
 const easeCache = new Map<string, (n: number) => number>();
 function easeFn(name: string): (n: number) => number {
@@ -31,29 +57,54 @@ function easeFn(name: string): (n: number) => number {
   return fn;
 }
 
-function animOffsets(spec: AnimSpec, p: number, entering: boolean): Partial<BlockVisualState> {
+const DIR_VEC: Record<AnimDirection, [number, number]> = {
+  up: [0, 1],    // enters moving up = offset starts below
+  down: [0, -1],
+  left: [1, 0],  // enters moving left = offset starts to the right
+  right: [-1, 0]
+};
+
+function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<BlockVisualState> {
   // p is eased progress 0..1 of the animation. Entering animations run
   // from offset -> rest; exit animations run rest -> offset.
+  const spec = normalizeAnimSpec(rawSpec);
   const k = entering ? 1 - p : p;
+  const dir = spec.direction ?? defaultDirection(spec.type);
+  const [vx, vy] = DIR_VEC[dir];
   switch (spec.type) {
     case 'fade': return { opacity: 1 - k };
-    case 'slideUp': return { opacity: 1 - k, translateY: OFFSET * k };
-    case 'slideDown': return { opacity: 1 - k, translateY: -OFFSET * k };
-    case 'slideLeft': return { opacity: 1 - k, translateX: OFFSET * k };
-    case 'slideRight': return { opacity: 1 - k, translateX: -OFFSET * k };
+    case 'slide': {
+      const d = spec.distance ?? SLIDE_DISTANCE;
+      return { opacity: 1 - k, translateX: vx * d * k, translateY: vy * d * k };
+    }
+    case 'rise': {
+      // PowerPoint's Rise Up: a long decelerating travel with the fade
+      // finishing early, so the move reads clearly.
+      const d = spec.distance ?? RISE_DISTANCE;
+      return { opacity: 1 - Math.min(1, k * 1.6), translateX: vx * d * k, translateY: vy * d * k };
+    }
     case 'zoom': return { opacity: 1 - k, scale: 1 - 0.35 * k };
     case 'zoomOut': return { opacity: 1 - k, scale: 1 + 0.4 * k };
     case 'spin': return { opacity: 1 - k, rotate: -180 * k, scale: 1 - 0.3 * k };
-    case 'flipX': return { opacity: 1 - k, rotateX: 90 * k };
-    case 'flipY': return { opacity: 1 - k, rotateY: 90 * k };
+    case 'flip':
+      return dir === 'left' || dir === 'right'
+        ? { opacity: 1 - k, rotateY: (dir === 'left' ? 90 : -90) * k }
+        : { opacity: 1 - k, rotateX: (dir === 'up' ? 90 : -90) * k };
     case 'bounceIn': return { opacity: 1 - Math.min(1, k * 2), scale: 1 - 0.6 * k, translateY: -30 * k };
-    case 'wipeUp': return { clipTop: k, translateY: 8 * k };
+    case 'wipe': {
+      const clip = { top: 0, right: 0, bottom: 0, left: 0 };
+      if (dir === 'up') clip.top = k;          // reveals upward from the bottom
+      else if (dir === 'down') clip.bottom = k;
+      else if (dir === 'left') clip.left = k;  // reveals leftward from the right
+      else clip.right = k;
+      return { clip: k > 0 ? clip : null };
+    }
     case 'popRotate': return { opacity: 1 - k, scale: 1 - 0.5 * k, rotate: 12 * k };
     default: return {};
   }
 }
 
-const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, rotate: 0, rotateX: 0, rotateY: 0, clipTop: 0 };
+const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
 
 export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number): BlockVisualState {
   if (!timing) return REST;
@@ -61,7 +112,7 @@ export function blockStateAt(t: number, timing: BlockTiming | undefined, timelin
   const end = timing.end ?? timelineEnd;
 
   if (t < start || t > end) {
-    return { present: false, opacity: 0, translateX: 0, translateY: 0, scale: 1, rotate: 0, rotateX: 0, rotateY: 0, clipTop: 0 };
+    return { ...REST, present: false, opacity: 0 };
   }
 
   let state = { ...REST };
@@ -96,6 +147,7 @@ export function timelineDuration(timeline: SlideTimeline | undefined, blocks: Bl
 }
 
 export function styleFor(state: BlockVisualState): React.CSSProperties {
+  const c = state.clip;
   return {
     opacity: state.opacity,
     transform:
@@ -105,8 +157,17 @@ export function styleFor(state: BlockVisualState): React.CSSProperties {
       (state.rotateX ? ` rotateX(${state.rotateX}deg)` : '') +
       (state.rotateY ? ` rotateY(${state.rotateY}deg)` : ''),
     perspective: 600,
-    clipPath: state.clipTop ? `inset(${state.clipTop * 100}% 0 0 0)` : undefined,
+    // Non-wiped sides inset by -100% so geometry that legitimately overflows
+    // the block (callout tails, arrowheads) stays visible during the wipe.
+    clipPath: c
+      ? `inset(${side(c.top)} ${side(c.right)} ${side(c.bottom)} ${side(c.left)})`
+      : undefined,
     pointerEvents: state.present ? undefined : 'none',
     visibility: state.present ? undefined : 'hidden'
   };
 }
+
+// The wiped side sweeps -25% -> 125%: a margin on both ends so geometry
+// hanging slightly outside the block wipes with it instead of popping,
+// while the visible crossing still spans essentially the whole duration.
+const side = (k: number) => (k > 0 ? `${(k * 150 - 25).toFixed(2)}%` : '-100%');

@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { Block, Project, Slide } from '../schema/types';
+import type { Block, Project, ShadowSpec, Slide } from '../schema/types';
 import { createLayer, uid } from '../schema/factory';
 import { PRSTGEOM_TO_KIND } from '../blocks/shape/geometry';
 
@@ -24,6 +24,11 @@ function narrationEstimate(text: string): number {
 // local xfrm come through correctly.
 
 const EMU = 9525;
+// PowerPoint font sizes are points (sz = hundredths of a point); the stage
+// is a 96dpi pixel canvas, so 1pt = 4/3 px. Importing pt as px rendered
+// every run ~25% small - the "slide no longer matches the deck" bug.
+const PT_TO_PX = 4 / 3;
+const runPx = (szHundredths: number) => (szHundredths / 100) * PT_TO_PX;
 
 function local(el: Element | Document, name: string): Element[] {
   return Array.from(el.getElementsByTagNameNS('*', name));
@@ -90,9 +95,9 @@ function parseParagraphHtml(p: Element, theme: ThemeColors): string {
         
         const sz = Number(rPr.getAttribute('sz'));
         if (sz) {
-          style += `font-size: ${Math.round(sz / 100)}px;`;
+          style += `font-size: ${Math.round(runPx(sz))}px;`;
         }
-        
+
         const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
         if (latin && !latin.startsWith('+')) {
           style += `font-family: ${latin};`;
@@ -117,18 +122,26 @@ function parseParagraphHtml(p: Element, theme: ThemeColors): string {
   return htmlParts.join('');
 }
 
-function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element): { html: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null } {
+function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element): { html: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null; valign: 'top' | 'center' | 'bottom' | null } {
   const txBody = local(sp, 'txBody')[0];
   const target = txBody ?? sp;
   const paras = local(target, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
   const htmlParas: string[] = [];
-  
+
   let size: number | null = null;
   let bold = false;
   let font: string | null = null;
   let color: string | null = null;
   let align: string | null = null;
-  
+
+  // Vertical anchor lives on bodyPr (anchor="ctr"/"b"); decks that center
+  // text in its box rely on it, so dropping it broke their alignment.
+  let valign: 'top' | 'center' | 'bottom' | null = null;
+  const anchor = txBody ? local(txBody, 'bodyPr')[0]?.getAttribute('anchor') : null;
+  if (anchor === 'ctr') valign = 'center';
+  else if (anchor === 'b') valign = 'bottom';
+  else if (anchor === 't') valign = 'top';
+
   // Scan all defRPr elements under the target (list styles, body defaults) for block-level fallbacks
   for (const defRPr of local(target, 'defRPr')) {
     if (defRPr.getAttribute('b') === '1') bold = true;
@@ -142,7 +155,7 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     }
     if (!size) {
       const defSz = Number(defRPr.getAttribute('sz'));
-      if (defSz) size = defSz / 100;
+      if (defSz) size = runPx(defSz);
     }
   }
 
@@ -166,9 +179,9 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
       const defRPr = pPr ? local(pPr, 'defRPr')[0] : null;
       if (defRPr) {
         if (defRPr.getAttribute('b') === '1') pStyle += `font-weight: bold;`;
-        
+
         const sz = Number(defRPr.getAttribute('sz'));
-        if (sz) pStyle += `font-size: ${Math.round(sz / 100)}px;`;
+        if (sz) pStyle += `font-size: ${Math.round(runPx(sz))}px;`;
         
         const sf = local(defRPr, 'solidFill')[0];
         if (sf) {
@@ -191,10 +204,10 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
   
   for (const rPr of local(target, 'rPr')) {
     const sz = Number(rPr.getAttribute('sz'));
-    if (sz && !size) size = sz / 100;
+    if (sz && !size) size = runPx(sz);
     if (rPr.getAttribute('b') === '1') bold = true;
   }
-  
+
   if (layoutSp) {
     const l = parseTextBodyHtml(layoutSp, theme);
     if (!size) size = l.fontSize;
@@ -202,15 +215,17 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     if (!font) font = l.font;
     if (!color) color = l.color;
     if (!align) align = l.align;
+    if (!valign) valign = l.valign;
   }
-  
+
   return {
     html: htmlParas.join(''),
     fontSize: size,
     bold,
     font,
     color,
-    align
+    align,
+    valign
   };
 }
 
@@ -435,11 +450,28 @@ async function imageDataUrl(zip: JSZip, slidePath: string, rId: string): Promise
   return `data:${mime};base64,${b64}`;
 }
 
-function hasShadow(node: Element): boolean {
+// Full DrawingML shadow: outerShdw/innerShdw carry blurRad/dist (EMU),
+// dir (60000ths of a degree) and a color child with an alpha. Imported to
+// the block-level ShadowSpec so decks keep their real shadow, not a
+// hardcoded soft one.
+function readShadow(node: Element, theme: ThemeColors): ShadowSpec | undefined {
   const spPr = local(node, 'spPr')[0];
-  if (!spPr) return false;
-  const outerShdw = local(spPr, 'outerShdw')[0];
-  return !!outerShdw;
+  if (!spPr) return undefined;
+  const outer = local(spPr, 'outerShdw')[0];
+  const innerEl = local(spPr, 'innerShdw')[0];
+  const sh = outer ?? innerEl;
+  if (!sh) return undefined;
+  const color = resolveColorEl(sh, theme) ?? '#000000';
+  const alpha = local(sh, 'alpha')[0]?.getAttribute('val');
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  return {
+    inner: sh === innerEl || undefined,
+    color,
+    opacity: alpha ? Number(alpha) / 100000 : 0.5,
+    blur: r1(Number(sh.getAttribute('blurRad') ?? 0) / EMU),
+    distance: r1(Number(sh.getAttribute('dist') ?? 0) / EMU),
+    angle: Math.round(Number(sh.getAttribute('dir') ?? 0) / 60000)
+  };
 }
 
 async function importShape(
@@ -467,17 +499,19 @@ async function importShape(
     const src = await imageDataUrl(zip, slidePath, rId);
     if (!src) return;
     const f = xfrm ?? { x: 80, y: 80, w: 360, h: 240 };
+    const picShadow = readShadow(node, theme);
     out.push({
       id: uid('blk'), type: 'image',
       x: Math.round(f.x + groupOffset.dx), y: Math.round(f.y + groupOffset.dy),
       w: Math.max(24, Math.round(f.w)), h: Math.max(24, Math.round(f.h)),
-      props: { src, fit: 'contain', alt: '' }
+      props: { src, fit: 'contain', alt: '' },
+      ...(picShadow ? { shadow: picShadow } : {})
     } as Block);
     return;
   }
 
   if (name === 'sp' || name === 'cxnSp') {
-    const { html, fontSize, bold, font, color: runColor, align } = parseTextBodyHtml(node, theme, layoutSp);
+    const { html, fontSize, bold, font, color: runColor, align, valign } = parseTextBodyHtml(node, theme, layoutSp);
     const prst = prstGeomOf(node);
     const isConnector = name === 'cxnSp' || prst === 'line' || prst === 'straightConnector1' || prst === 'bentConnector3' || prst === 'curvedConnector3';
     
@@ -489,7 +523,7 @@ async function importShape(
     const finalFontSize = fontSize || 18;
 
     const { fill, border, borderWidth } = fillOf(node, theme, layoutSp);
-    const shadow = hasShadow(node);
+    const shadow = readShadow(node, theme);
 
     if (isConnector) {
       const xfrmEl = local(node, 'xfrm')[0];
@@ -549,9 +583,9 @@ async function importShape(
           points,
           isLine: true,
           ...(lineStart ? { lineStart } : {}),
-          ...(lineEnd ? { lineEnd } : {}),
-          ...(shadow ? { shadow } : {})
-        }
+          ...(lineEnd ? { lineEnd } : {})
+        },
+        ...(shadow ? { shadow } : {})
       } as Block);
       return;
     }
@@ -562,7 +596,8 @@ async function importShape(
     if (kind && !isTextBox) {
       out.push({
         id: uid('blk'), type: 'shape', x, y, w, h,
-        props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12, ...(shadow ? { shadow } : {}) }
+        props: { kind, fill, borderColor: border, borderWidth, cornerRadius: 12 },
+        ...(shadow ? { shadow } : {})
       } as Block);
     }
 
@@ -579,7 +614,7 @@ async function importShape(
           html,
           fontSize: Math.round(finalFontSize),
           align: align ?? (kind && !isTextBox ? 'center' : 'left'),
-          valign: kind && !isTextBox ? 'center' : 'top',
+          valign: valign ?? (kind && !isTextBox ? 'center' : 'top'),
           ...(color ? { color } : {}),
           ...(font ? { fontFamily: font } : {}),
           ...(bold ? { bold } : {})

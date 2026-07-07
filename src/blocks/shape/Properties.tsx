@@ -75,14 +75,14 @@ export function ShapeProperties({ block, onUpdateProps }: PropertiesRendererProp
   }
   return (
     <>
-      <ButtonField label={`Shape: ${props.points ? 'Custom (pen)' : SHAPE_LABELS[props.kind]}`}>
+      <ButtonField label={`Shape: ${props.nodes?.length || props.points ? 'Custom (pen)' : SHAPE_LABELS[props.kind]}`}>
         <ShapePicker
-          value={props.points ? null : props.kind}
-          onPick={(kind) => onUpdateProps((p: ShapeProps) => { p.kind = kind; p.points = undefined; })}
+          value={props.nodes?.length || props.points ? null : props.kind}
+          onPick={(kind) => onUpdateProps((p: ShapeProps) => { p.kind = kind; p.points = undefined; p.nodes = undefined; p.smooth = undefined; })}
         />
       </ButtonField>
       <button className="btn" onClick={() => openPen(block.id, 'shape')} title="Draw or edit a custom shape with the pen tool">
-        {props.points ? 'Edit custom shape (pen)' : 'Draw custom shape (pen)'}
+        {props.nodes?.length || props.points ? 'Edit custom shape (pen)' : 'Draw custom shape (pen)'}
       </button>
       <Field label="Fill">
         <ColorInput value={props.fill} onChange={(v) => onUpdateProps((p: ShapeProps) => { p.fill = v; })} />

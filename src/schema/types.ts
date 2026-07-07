@@ -26,10 +26,24 @@ export interface ImageProps {
   fit: 'cover' | 'contain';
   alt: string;
   // Clip the image to a shape. 'clipKind' uses a preset (star, hexagon...);
-  // 'clipPoints' is a custom polygon from the pen tool as "x,y x,y ..." in a
-  // 0..100 coordinate space (stretched to the block, PowerPoint-style).
+  // 'clipNodes' is a custom vector path from the pen tool (same editing
+  // engine as custom shapes). 'clipPoints' is the legacy pen polygon
+  // ("x,y x,y ...", 0..100 space) kept for old projects.
   clipKind?: ShapeKind;
+  clipNodes?: PathNode[];
   clipPoints?: string;
+}
+
+// One anchor of an editable vector path (0..100 space, stretched to the
+// block like preset geometry). h1 is the incoming Bezier handle, h2 the
+// outgoing one; both absent = a straight corner point. smooth keeps the
+// handles mirrored while editing (Illustrator's smooth/corner distinction).
+export interface PathNode {
+  x: number;
+  y: number;
+  h1?: { x: number; y: number };
+  h2?: { x: number; y: number };
+  smooth?: boolean;
 }
 
 export interface StatementProps {
@@ -86,12 +100,13 @@ export type ShapeKind =
   | 'upDownArrow' | 'quadArrow' | 'stripedRightArrow' | 'notchedRightArrow';
 
 export interface ShapeProps {
-  // Custom polygon points ("x,y x,y ...", 0..100 space). When set, the shape
-  // renders this path instead of its preset kind - this is what the pen tool
-  // produces.
+  // Editable vector path from the pen tool (anchors + Bezier handles).
+  // When set, the shape renders this path instead of its preset kind.
+  nodes?: PathNode[];
+  // Legacy pen polygon ("x,y x,y ...", 0..100 space) from before the vector
+  // engine; renders as straight segments (or a Catmull-Rom curve when
+  // smooth). Superseded by nodes; migrated the first time it's re-edited.
   points?: string;
-  // Render the custom points as a smooth closed curve (Catmull-Rom through
-  // the nodes) instead of straight segments.
   smooth?: boolean;
   // Callout kinds only: where the tail points, in the same 0..100 space
   // (values outside 0..100 reach beyond the block, PowerPoint-style).
@@ -102,6 +117,7 @@ export interface ShapeProps {
   borderColor: string;
   borderWidth: number;
   cornerRadius: number;
+  // Legacy soft shadow flag (pre-v6.3). Migrated to Block.shadow on read.
   shadow?: boolean;
   isLine?: boolean;
   // Legacy line arrows (v6 and earlier): a fixed triangle at start/end.
@@ -161,17 +177,31 @@ export type BlockProps =
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps;
 
+// One entry per EFFECT; direction is an option, not a separate animation.
+// Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -
+// normalizeAnimSpec() in engine/timeline maps them onto these.
 export type AnimType =
   | 'none' | 'fade'
-  | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight'
+  | 'slide'   // directional slide + fade (direction, distance)
+  | 'rise'    // PowerPoint-style Rise: long decelerating travel (direction up/down, distance)
+  | 'wipe'    // directional reveal (direction)
+  | 'flip'    // 3D flip (direction picks the axis: up/down = X, left/right = Y)
   | 'zoom' | 'zoomOut'
-  | 'spin' | 'flipX' | 'flipY'
-  | 'bounceIn' | 'wipeUp' | 'popRotate';
+  | 'spin' | 'bounceIn' | 'popRotate';
+
+// Legacy stored values from projects saved before the consolidation.
+export type LegacyAnimType =
+  | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight'
+  | 'wipeUp' | 'flipX' | 'flipY';
+
+export type AnimDirection = 'up' | 'down' | 'left' | 'right';
 
 export interface AnimSpec {
-  type: AnimType;
+  type: AnimType | LegacyAnimType;
   duration: number; // seconds
   ease: string;     // GSAP ease name, e.g. 'power2.out'
+  direction?: AnimDirection; // slide/rise/wipe/flip; each type has a default
+  distance?: number;         // px travel for slide/rise (defaults per type)
 }
 
 export interface BlockTiming {
@@ -211,8 +241,21 @@ export interface Block {
   groupId?: string;
   // Timeline authoring visibility (eye icon toggle)
   editorHidden?: boolean;
-  // Starting state of the object (e.g. 'hidden')
-  initialState?: BlockState;
+  // PowerPoint-style shadow (outer or inner). Replaces the old boolean
+  // ShapeProps.shadow, which migrates to a default spec on read.
+  shadow?: ShadowSpec;
+}
+
+// PowerPoint shadow model: dir/dist polar offset, blur, color+alpha.
+// angle is degrees clockwise from +x (PowerPoint's dir / 60000).
+export interface ShadowSpec {
+  inner?: boolean;   // inner shadow instead of the default outer
+  color: string;     // hex
+  opacity: number;   // 0..1
+  blur: number;      // px
+  distance: number;  // px
+  angle: number;     // deg
+  spread?: number;   // px, used where box-shadow renders (rect bodies)
 }
 
 export interface Layer {

@@ -3,6 +3,7 @@ import { BLOCKS } from '../blocks/registry';
 import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, Row, SelectInput, TextInput } from './fields';
 import { VoiceRecorder } from './VoiceRecorder';
 import { StatesSection } from './StatesSection';
+import { ShadowSection } from './ShadowSection';
 import { BakeNarration } from './BakeNarration';
 import { BlockAudioSection } from './BlockAudioSection';
 import { defaultPlayerSettings } from '../schema/factory';
@@ -199,16 +200,6 @@ export function PropertyPanel() {
           onChange={(v) => updateBlock(block.id, (b) => { b.name = v || undefined; })}
         />
       </Field>
-      <Field label="Initial state">
-        <SelectInput
-          value={block.initialState ?? 'normal'}
-          options={[
-            { value: 'normal', label: 'Normal' },
-            { value: 'hidden', label: 'Hidden' }
-          ]}
-          onChange={(v) => updateBlock(block.id, (b) => { b.initialState = v === 'normal' ? undefined : (v as 'hidden'); })}
-        />
-      </Field>
       <Field label="Screen readers">
         <SelectInput
           value={block.aria ?? 'auto'}
@@ -255,6 +246,13 @@ export function PropertyPanel() {
           <div className="divider" />
           <h3 className="panel-title">Audio</h3>
           <BlockAudioSection block={block} />
+        </>
+      )}
+      {(block.type === 'shape' || block.type === 'button' || block.type === 'image' || block.type === 'text' || block.type === 'group') && (
+        <>
+          <div className="divider" />
+          <h3 className="panel-title">Shadow</h3>
+          <ShadowSection block={block} onUpdate={(fn) => updateBlock(block.id, (b) => fn(b))} />
         </>
       )}
       {(block.type === 'shape' || block.type === 'button' || block.type === 'image' || block.type === 'text' || block.type === 'hotspot') && (

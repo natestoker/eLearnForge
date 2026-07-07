@@ -13,6 +13,7 @@ import { gsap } from 'gsap';
 import type { StateStyle } from '../schema/types';
 import { defaultPlayerSettings } from '../schema/factory';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
+import { shadowStyle } from '../shared/shadow';
 
 // Standalone runtime module (per brief): takes Project JSON plus a variable
 // store, renders current slide/layer/block state, wires triggers, re-renders
@@ -271,7 +272,7 @@ export function Player({ project, adapter, startSlideId }: {
                         timeline transform on the wrapper never fights it. */}
                     <BlockFx emphasis={block.emphasis}>
                       <div
-                        style={{ width: '100%', height: '100%' }}
+                        style={{ width: '100%', height: '100%', ...shadowStyle(block) }}
                         ref={(el) => {
                           if (timedMedia) {
                             timedMediaRef.current.register(

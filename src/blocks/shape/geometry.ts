@@ -1,4 +1,4 @@
-import type { ShapeKind } from '../../schema/types';
+import type { PathNode, ShapeKind } from '../../schema/types';
 
 // Preset geometry in a 100x100 viewBox, stretched non-uniformly to the
 // block bounds (preserveAspectRatio none) - the PowerPoint model. Points
@@ -158,36 +158,155 @@ export const CALLOUT_BODY: Partial<Record<ShapeKind, 'rect' | 'roundRect' | 'ell
 
 export const DEFAULT_TAIL = { x: 30, y: 100 };
 
-// Tail triangle for a callout tip: the base sits on the body boundary along
-// the center->tip direction (inset a little so it overlaps the body and the
-// outline reads as one continuous shape). Returns null when the tip is
-// inside the body (no tail to draw).
-export function calloutTailTriangle(kind: ShapeKind, tip: { x: number; y: number }):
-  { base1: [number, number]; base2: [number, number]; tip: [number, number] } | null {
-  const cx = 50, cy = 35;
-  let dx = tip.x - cx, dy = tip.y - cy;
-  const len = Math.hypot(dx, dy);
-  if (len < 1) return null;
-  dx /= len; dy /= len;
-  // Distance from the body center to its boundary along (dx, dy).
-  let t: number;
-  if (CALLOUT_BODY[kind] === 'ellipse') {
-    t = 1 / Math.sqrt((dx / 50) ** 2 + (dy / 35) ** 2);
-  } else {
-    const tx = dx !== 0 ? 50 / Math.abs(dx) : Infinity;
-    const ty = dy !== 0 ? 35 / Math.abs(dy) : Infinity;
-    t = Math.min(tx, ty);
+const CALLOUT_CX = 50, CALLOUT_CY = 35; // body center in shape space
+const CALLOUT_R = 12;                   // roundRect corner radius
+
+// Distance from the body center to the boundary along unit direction
+// (dx, dy). All three bodies are convex and star-shaped around the center,
+// so every direction meets the boundary exactly once.
+function calloutBoundaryDist(kind: ShapeKind, dx: number, dy: number): number {
+  const body = CALLOUT_BODY[kind];
+  if (body === 'ellipse') {
+    return 1 / Math.sqrt((dx / 50) ** 2 + (dy / 35) ** 2);
   }
-  if (len <= t) return null; // tip is inside the body
-  const inset = 6;
-  const bx = cx + dx * Math.max(2, t - inset);
-  const by = cy + dy * Math.max(2, t - inset);
-  const half = 8; // half base width
-  return {
-    base1: [bx - dy * half, by + dx * half],
-    base2: [bx + dy * half, by - dx * half],
-    tip: [tip.x, tip.y]
+  const tx = dx !== 0 ? 50 / Math.abs(dx) : Infinity;
+  const ty = dy !== 0 ? 35 / Math.abs(dy) : Infinity;
+  let t = Math.min(tx, ty);
+  if (body === 'roundRect') {
+    // If the straight-edge hit lands inside a corner square, intersect the
+    // ray with that corner's circle instead.
+    const px = CALLOUT_CX + dx * t;
+    const py = CALLOUT_CY + dy * t;
+    const qx = Math.max(CALLOUT_R, Math.min(100 - CALLOUT_R, px));
+    const qy = Math.max(CALLOUT_R, Math.min(70 - CALLOUT_R, py));
+    if (qx !== px && qy !== py) {
+      // Corner circle center nearest the hit.
+      const ccx = px < 50 ? CALLOUT_R : 100 - CALLOUT_R;
+      const ccy = py < 35 ? CALLOUT_R : 70 - CALLOUT_R;
+      // Solve |center + t*d - cc|^2 = r^2 for the largest t.
+      const ox = CALLOUT_CX - ccx, oy = CALLOUT_CY - ccy;
+      const b = ox * dx + oy * dy;
+      const c = ox * ox + oy * oy - CALLOUT_R * CALLOUT_R;
+      const disc = b * b - c;
+      if (disc >= 0) t = -b + Math.sqrt(disc);
+    }
+  }
+  return t;
+}
+
+function calloutBoundaryPoint(kind: ShapeKind, angle: number): [number, number] {
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  const t = calloutBoundaryDist(kind, dx, dy);
+  return [CALLOUT_CX + dx * t, CALLOUT_CY + dy * t];
+}
+
+// The whole callout as ONE closed path: the body boundary with the segment
+// facing the tail replaced by two straight edges to the tip. A single
+// subpath means the fill is solid and the stroke runs unbroken around the
+// outline - no seams, no gaps at the joins, and clip-based effects (wipe)
+// treat it exactly like any other shape. Tip coordinates may exceed 0..100
+// to reach outside the block (the SVG has overflow visible).
+export function calloutPath(kind: ShapeKind, tip: { x: number; y: number }): string {
+  const dxr = tip.x - CALLOUT_CX, dyr = tip.y - CALLOUT_CY;
+  const len = Math.hypot(dxr, dyr);
+  const theta = Math.atan2(dyr, dxr);
+  const bDist = len >= 1 ? calloutBoundaryDist(kind, dxr / len, dyr / len) : Infinity;
+  const hasTail = len > bDist + 1; // tip must clear the boundary to draw a tail
+  // Angular half-width of the tail base (~8 units of arc at the boundary).
+  const delta = hasTail ? Math.asin(Math.min(0.6, 8 / bDist)) : 0;
+
+  const N = 96; // boundary samples; dense enough that curves read smooth
+  const pts: [number, number][] = [];
+  const from = theta + delta;
+  const span = 2 * Math.PI - 2 * delta;
+  for (let i = 0; i <= N; i++) {
+    pts.push(calloutBoundaryPoint(kind, from + (span * i) / N));
+  }
+  let d = `M ${r1(pts[0][0])},${r1(pts[0][1])}`;
+  for (let i = 1; i <= N; i++) d += ` L ${r1(pts[i][0])},${r1(pts[i][1])}`;
+  if (hasTail) d += ` L ${r1(tip.x)},${r1(tip.y)}`;
+  return d + ' Z';
+}
+
+// Editable vector paths -------------------------------------------------
+// One engine powers custom shapes AND custom image clips: PathNode anchors
+// with optional cubic Bezier handles, in the same 0..100 space as preset
+// geometry. A segment is a straight line unless either end contributes a
+// handle.
+
+export function pathFromNodes(nodes: PathNode[], closed = true): string {
+  if (nodes.length < 2) return '';
+  let d = `M ${r1(nodes[0].x)},${r1(nodes[0].y)}`;
+  const seg = (a: PathNode, b: PathNode) => {
+    if (a.h2 || b.h1) {
+      const c1 = a.h2 ?? { x: a.x, y: a.y };
+      const c2 = b.h1 ?? { x: b.x, y: b.y };
+      return ` C ${r1(c1.x)},${r1(c1.y)} ${r1(c2.x)},${r1(c2.y)} ${r1(b.x)},${r1(b.y)}`;
+    }
+    return ` L ${r1(b.x)},${r1(b.y)}`;
   };
+  for (let i = 1; i < nodes.length; i++) d += seg(nodes[i - 1], nodes[i]);
+  if (closed) {
+    d += seg(nodes[nodes.length - 1], nodes[0]);
+    d += ' Z';
+  }
+  return d;
+}
+
+// Migrate a legacy pen polygon to nodes. Smooth polygons get Catmull-Rom
+// handles (the same curve smoothPathFromPoints drew), so re-editing keeps
+// the shape the author saw.
+export function nodesFromPoints(points: string, smooth?: boolean): PathNode[] {
+  const pts = points.trim().split(/\s+/).map((p) => p.split(',').map(Number) as [number, number]);
+  const n = pts.length;
+  if (!smooth || n < 3) return pts.map(([x, y]) => ({ x, y }));
+  return pts.map(([x, y], i) => {
+    const p0 = pts[(i - 1 + n) % n];
+    const p2 = pts[(i + 1) % n];
+    const tx = (p2[0] - p0[0]) / 6, ty = (p2[1] - p0[1]) / 6;
+    return { x, y, h1: { x: x - tx, y: y - ty }, h2: { x: x + tx, y: y + ty }, smooth: true };
+  });
+}
+
+// Seed the pen editor from a preset's path (hearts, clouds, terminators...).
+// Parses a single closed M/L/C subpath; returns null for paths the editor
+// can't represent (arcs, multiple subpaths), which then seed blank.
+export function nodesFromPresetPath(d: string): PathNode[] | null {
+  if (/[AaQqTtSsHhVv]/.test(d)) return null;
+  if ((d.match(/M/gi) ?? []).length > 1) return null;
+  const tokens = d.match(/[MLCZmlcz]|-?\d*\.?\d+/g);
+  if (!tokens) return null;
+  const nodes: PathNode[] = [];
+  let i = 0;
+  const num = () => Number(tokens[i++]);
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    if (cmd === 'M' || cmd === 'L') {
+      nodes.push({ x: num(), y: num() });
+    } else if (cmd === 'C') {
+      const c1 = { x: num(), y: num() };
+      const c2 = { x: num(), y: num() };
+      const p = { x: num(), y: num() };
+      if (nodes.length === 0) return null;
+      nodes[nodes.length - 1].h2 = c1;
+      nodes.push({ x: p.x, y: p.y, h1: c2 });
+    } else if (cmd === 'Z' || cmd === 'z') {
+      break;
+    } else {
+      return null; // relative commands or junk
+    }
+  }
+  if (nodes.length >= 2) {
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    // A path that returns to its start via a curve stores the closing
+    // handles on the first node.
+    if (Math.hypot(first.x - last.x, first.y - last.y) < 0.5) {
+      if (last.h1) first.h1 = last.h1;
+      if (last.h2) first.h2 = last.h2;
+      nodes.pop();
+    }
+  }
+  return nodes.length >= 3 ? nodes : null;
 }
 
 // Custom-shape smoothing: a closed Catmull-Rom spline through the pen nodes,

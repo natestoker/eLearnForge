@@ -1623,7 +1623,12 @@ select.input { appearance: auto; }
 .pen-canvas { background: #0f1318; border-radius: 8px; cursor: crosshair; touch-action: none; }
 .pen-node { fill: var(--accent); stroke: #06150d; stroke-width: 2; cursor: grab; }
 .pen-node:hover { fill: #fff; }
-.pen-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.pen-node.active { stroke: #fff; }
+.pen-node.smooth { fill: #7aa2ff; }
+.pen-handle { fill: #7aa2ff; stroke: #0f1318; stroke-width: 1.5; cursor: grab; }
+.pen-handle:hover { fill: #fff; }
+.pen-node-tools { display: flex; gap: 4px; }
+.pen-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .pen-count { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .pen-spacer { flex: 1; }
 

@@ -1,13 +1,19 @@
 import type { CanvasRendererProps } from '../blockApi';
-import type { LineEnd, ShapeProps } from '../../schema/types';
+import type { LineEnd, ShadowSpec, ShapeProps } from '../../schema/types';
 import {
   SHAPE_POINTS, SHAPE_PATHS, CALLOUT_BODY, DEFAULT_TAIL,
-  calloutTailTriangle, smoothPathFromPoints
+  calloutPath, pathFromNodes, smoothPathFromPoints
 } from './geometry';
+import { shadowOffset } from '../../shared/shadow';
 
 // One SVG renderer shared by canvas and runtime. Non-uniform stretch of a
 // 100x100 viewBox matches how PowerPoint scales preset geometry.
-export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: number; h?: number }) {
+// Outer shadows are applied by the block wrappers (a CSS drop-shadow that
+// follows the silhouette); ShapeSvg only renders INNER shadows, which need
+// the geometry itself (an SVG filter).
+export function ShapeSvg({ props, w = 100, h = 100, innerShadow }: {
+  props: ShapeProps; w?: number; h?: number; innerShadow?: ShadowSpec;
+}) {
   if (props.isLine) {
     const stroke = props.borderColor || '#1c222b';
     const strokeWidth = props.borderWidth || 2;
@@ -36,11 +42,7 @@ export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: n
         width="100%"
         height="100%"
         viewBox={`0 0 ${w} ${h}`}
-        style={{
-          display: 'block',
-          overflow: 'visible',
-          filter: props.shadow ? 'drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.15))' : undefined
-        }}
+        style={{ display: 'block', overflow: 'visible' }}
       >
         <defs>
           {startMarker?.def}
@@ -61,7 +63,9 @@ export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: n
     );
   }
 
-  if (props.kind === 'rectangle' || props.kind === 'roundedRectangle') {
+  const hasCustom = Boolean(props.nodes && props.nodes.length >= 3) || Boolean(props.points);
+
+  if ((props.kind === 'rectangle' || props.kind === 'roundedRectangle') && !hasCustom) {
     return (
       <div style={{
         width: '100%',
@@ -70,7 +74,7 @@ export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: n
         border: props.borderWidth > 0 ? `${props.borderWidth}px solid ${props.borderColor}` : 'none',
         borderRadius: props.kind === 'roundedRectangle' ? props.cornerRadius : 0,
         boxSizing: 'border-box',
-        boxShadow: props.shadow ? '0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 8px rgba(0, 0, 0, 0.04)' : undefined
+        boxShadow: innerShadow ? innerBoxShadow(innerShadow) : undefined
       }} />
     );
   }
@@ -80,46 +84,44 @@ export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: n
     fill: props.fill,
     stroke,
     strokeWidth: props.borderWidth,
+    strokeLinejoin: 'round' as const,
     vectorEffect: 'non-scaling-stroke' as const
   };
 
-  // Callouts are parametric: a body (top 70% of the shape space) plus a
-  // tail triangle to a draggable tip. Draw order makes the outline read as
-  // one continuous shape: body with its border, then the tail fill (covers
-  // the border segment the tail crosses), then only the tail's two side
-  // edges stroked.
-  const calloutBody = CALLOUT_BODY[props.kind];
-  if (calloutBody && !props.points) {
-    const tip = props.tail ?? DEFAULT_TAIL;
-    const tail = calloutTailTriangle(props.kind, tip);
-    const body =
-      calloutBody === 'ellipse'
-        ? <ellipse cx="50" cy="35" rx="50" ry="35" {...common} />
-        : <rect x="0" y="0" width="100" height="70" rx={calloutBody === 'roundRect' ? 12 : 0} {...common} />;
+  const filterId = innerShadow ? `is-${Math.abs(hashSpec(innerShadow))}` : null;
+  const content = (() => {
+    // Custom vector path from the pen tool (nodes with Bezier handles) wins;
+    // then the legacy pen polygon; then the preset geometry.
+    if (props.nodes && props.nodes.length >= 3) {
+      return <path d={pathFromNodes(props.nodes)} {...common} />;
+    }
+    if (props.points) {
+      return props.smooth ? (
+        <path d={smoothPathFromPoints(props.points)} {...common} />
+      ) : (
+        <polygon points={props.points} {...common} />
+      );
+    }
+    // Callouts are one closed parametric path: the body boundary with the
+    // tail spliced in, so the outline is seamless and effects (wipe, inner
+    // shadow) treat it like any other shape.
+    if (CALLOUT_BODY[props.kind]) {
+      return <path d={calloutPath(props.kind, props.tail ?? DEFAULT_TAIL)} {...common} />;
+    }
     return (
-      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"
-        style={{ display: 'block', overflow: 'visible', filter: props.shadow ? 'drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.15))' : undefined }}>
-        {body}
-        {tail && (
-          <>
-            <polygon
-              points={`${tail.base1[0]},${tail.base1[1]} ${tail.base2[0]},${tail.base2[1]} ${tail.tip[0]},${tail.tip[1]}`}
-              fill={props.fill}
-            />
-            {stroke !== 'none' && (
-              <path
-                d={`M ${tail.base1[0]},${tail.base1[1]} L ${tail.tip[0]},${tail.tip[1]} L ${tail.base2[0]},${tail.base2[1]}`}
-                fill="none"
-                stroke={stroke}
-                strokeWidth={props.borderWidth}
-                vectorEffect="non-scaling-stroke"
-              />
-            )}
-          </>
+      <>
+        {props.kind === 'ellipse' && <ellipse cx="50" cy="50" rx="50" ry="50" {...common} />}
+        {SHAPE_POINTS[props.kind] && <polygon points={SHAPE_POINTS[props.kind]} {...common} />}
+        {SHAPE_PATHS[props.kind] && (
+          <path
+            d={SHAPE_PATHS[props.kind]}
+            fillRule={props.kind === 'smileyFace' ? 'evenodd' : undefined}
+            {...common}
+          />
         )}
-      </svg>
+      </>
     );
-  }
+  })();
 
   return (
     <svg
@@ -127,32 +129,54 @@ export function ShapeSvg({ props, w = 100, h = 100 }: { props: ShapeProps; w?: n
       height="100%"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
-      style={{
-        display: 'block',
-        overflow: 'visible',
-        filter: props.shadow ? 'drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.15))' : undefined
-      }}
+      style={{ display: 'block', overflow: 'visible' }}
     >
-      {props.points ? (
-        props.smooth ? (
-          <path d={smoothPathFromPoints(props.points)} {...common} />
-        ) : (
-          <polygon points={props.points} {...common} />
-        )
-      ) : (
-        <>
-          {props.kind === 'ellipse' && <ellipse cx="50" cy="50" rx="50" ry="50" {...common} />}
-          {SHAPE_POINTS[props.kind] && <polygon points={SHAPE_POINTS[props.kind]} {...common} />}
-          {SHAPE_PATHS[props.kind] && (
-            <path
-              d={SHAPE_PATHS[props.kind]}
-              fillRule={props.kind === 'smileyFace' ? 'evenodd' : undefined}
-              {...common}
-            />
-          )}
-        </>
-      )}
+      {innerShadow && filterId && <defs>{innerShadowFilter(filterId, innerShadow, w, h)}</defs>}
+      {filterId ? <g filter={`url(#${filterId})`}>{content}</g> : content}
     </svg>
+  );
+}
+
+function innerBoxShadow(s: ShadowSpec): string {
+  const { dx, dy } = shadowOffset(s);
+  return `inset ${dx.toFixed(1)}px ${dy.toFixed(1)}px ${s.blur}px ${s.spread ?? 0}px ${rgba(s)}`;
+}
+
+const rgba = (s: ShadowSpec) => {
+  const n = parseInt(s.color.replace('#', '') || '0', 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${s.opacity})`;
+};
+
+const hashSpec = (s: ShadowSpec) => {
+  const str = `${s.color}|${s.opacity}|${s.blur}|${s.distance}|${s.angle}`;
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return h;
+};
+
+// Classic inner shadow as an SVG filter: invert the alpha, blur, offset,
+// tint, then composite back inside the source. Blur/offset are given in px
+// but the viewBox is 100x100 stretched to the block, so both convert
+// through the block size per axis.
+function innerShadowFilter(id: string, s: ShadowSpec, w: number, h: number) {
+  const { dx, dy } = shadowOffset(s);
+  const sx = 100 / Math.max(1, w);
+  const sy = 100 / Math.max(1, h);
+  return (
+    <filter id={id} x="-50%" y="-50%" width="200%" height="200%">
+      <feComponentTransfer in="SourceAlpha">
+        <feFuncA type="table" tableValues="1 0" />
+      </feComponentTransfer>
+      <feGaussianBlur stdDeviation={`${(s.blur / 2) * sx} ${(s.blur / 2) * sy}`} />
+      <feOffset dx={dx * sx} dy={dy * sy} result="inv" />
+      <feFlood floodColor={s.color} floodOpacity={s.opacity} />
+      <feComposite in2="inv" operator="in" />
+      <feComposite in2="SourceAlpha" operator="in" result="shadow" />
+      <feMerge>
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode in="shadow" />
+      </feMerge>
+    </filter>
   );
 }
 
@@ -191,5 +215,13 @@ function lineEndMarker(end: LineEnd | undefined, stroke: string, at: 'start' | '
 }
 
 export function ShapeCanvas({ block }: CanvasRendererProps) {
-  return <ShapeSvg props={block.props as ShapeProps} w={block.w} h={block.h} />;
+  const shadow = block.shadow;
+  return (
+    <ShapeSvg
+      props={block.props as ShapeProps}
+      w={block.w}
+      h={block.h}
+      innerShadow={shadow?.inner ? shadow : undefined}
+    />
+  );
 }

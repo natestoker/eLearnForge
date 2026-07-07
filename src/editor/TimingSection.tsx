@@ -1,28 +1,37 @@
-import type { AnimSpec, AnimType, Block, BlockTiming } from '../schema/types';
+import type { AnimDirection, AnimSpec, AnimType, Block, BlockTiming } from '../schema/types';
 import type { UpdateProps } from '../blocks/blockApi';
+import { normalizeAnimSpec, defaultDirection } from '../engine/timeline';
 import { Field, NumberInput, Row, SelectInput } from './fields';
 
 // Shared timing editor shown for any selected block when the slide has a
 // timeline. Writes block.timing through the same update path as props.
 
+// One entry per effect; direction and distance are options below, not
+// separate list entries (Wipe + Direction, not Wipe Up / Wipe Down / ...).
 const ANIMS: { value: AnimType; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'fade', label: 'Fade' },
-  { value: 'slideUp', label: 'Slide up' },
-  { value: 'slideDown', label: 'Slide down' },
-  { value: 'slideLeft', label: 'Slide left' },
-  { value: 'slideRight', label: 'Slide right' },
+  { value: 'slide', label: 'Slide' },
+  { value: 'rise', label: 'Rise' },
+  { value: 'wipe', label: 'Wipe' },
   { value: 'zoom', label: 'Zoom in' },
   { value: 'zoomOut', label: 'Zoom out' },
   { value: 'spin', label: 'Spin in' },
-  { value: 'flipX', label: 'Flip (horizontal)' },
-  { value: 'flipY', label: 'Flip (vertical)' },
+  { value: 'flip', label: 'Flip' },
   { value: 'bounceIn', label: 'Bounce in' },
-  { value: 'wipeUp', label: 'Wipe up' },
   { value: 'popRotate', label: 'Pop + rotate' }
 ];
 
-const EASES = ['power2.out', 'power2.inOut', 'power4.out', 'back.out(1.7)', 'elastic.out(1, 0.5)', 'none'];
+const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip'];
+const DISTANCED: AnimType[] = ['slide', 'rise'];
+const DIRECTIONS: { value: AnimDirection; label: string }[] = [
+  { value: 'up', label: 'Up' },
+  { value: 'down', label: 'Down' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' }
+];
+
+const EASES = ['power2.out', 'power2.inOut', 'power3.out', 'power4.out', 'back.out(1.7)', 'elastic.out(1, 0.5)', 'none'];
 
 function defaultAnim(): AnimSpec {
   return { type: 'fade', duration: 0.5, ease: 'power2.out' };
@@ -33,17 +42,27 @@ function AnimEditor(props: {
   spec: AnimSpec | undefined;
   onChange: (spec: AnimSpec | undefined) => void;
 }) {
-  const spec = props.spec;
+  // Normalize so legacy per-direction values (slideUp...) display and edit
+  // as the consolidated effect + Direction.
+  const spec = props.spec ? normalizeAnimSpec(props.spec) : undefined;
+  const type = spec?.type ?? 'none';
   return (
     <>
       <Row>
         <Field label={props.label}>
           <SelectInput
-            value={spec?.type ?? 'none'}
+            value={type}
             options={ANIMS}
             onChange={(v) => {
               if (v === 'none') props.onChange(undefined);
-              else props.onChange({ ...(spec ?? defaultAnim()), type: v as AnimType });
+              else {
+                const next: AnimSpec = { ...(spec ?? defaultAnim()), type: v as AnimType };
+                // Rise reads best with its slower deceleration.
+                if (v === 'rise' && !props.spec) next.ease = 'power3.out';
+                if (!DIRECTIONAL.includes(v as AnimType)) next.direction = undefined;
+                if (!DISTANCED.includes(v as AnimType)) next.distance = undefined;
+                props.onChange(next);
+              }
             }}
           />
         </Field>
@@ -55,6 +74,28 @@ function AnimEditor(props: {
           />
         </Field>
       </Row>
+      {spec && (DIRECTIONAL.includes(type as AnimType) || DISTANCED.includes(type as AnimType)) && (
+        <Row>
+          {DIRECTIONAL.includes(type as AnimType) && (
+            <Field label="Direction">
+              <SelectInput
+                value={spec.direction ?? defaultDirection(type as AnimType)}
+                options={DIRECTIONS}
+                onChange={(v) => props.onChange({ ...spec, direction: v as AnimDirection })}
+              />
+            </Field>
+          )}
+          {DISTANCED.includes(type as AnimType) && (
+            <Field label="Distance (px)">
+              <NumberInput
+                value={spec.distance ?? (type === 'rise' ? 160 : 40)}
+                step={10}
+                onChange={(v) => props.onChange({ ...spec, distance: Math.max(0, v) })}
+              />
+            </Field>
+          )}
+        </Row>
+      )}
       {spec && (
         <Field label="Ease">
           <SelectInput

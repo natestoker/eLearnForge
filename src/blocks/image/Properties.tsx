@@ -7,7 +7,8 @@ import { useUiStore } from '../../state/uiStore';
 export function ImageProperties({ block, onUpdateProps }: PropertiesRendererProps) {
   const props = block.props as ImageProps;
   const openPen = useUiStore((s) => s.openPenEditor);
-  const clipValue = props.clipPoints ? '__custom' : (props.clipKind ?? '');
+  const hasCustomClip = Boolean(props.clipNodes?.length || props.clipPoints);
+  const clipValue = hasCustomClip ? '__custom' : (props.clipKind ?? '');
   return (
     <>
       <Field label="Image">
@@ -34,13 +35,14 @@ export function ImageProperties({ block, onUpdateProps }: PropertiesRendererProp
             ...(Object.keys(SHAPE_LABELS) as ShapeKind[])
               .filter((k) => k !== 'rectangle' && k !== 'roundedRectangle')
               .map((k) => ({ value: k, label: SHAPE_LABELS[k] })),
-            ...(props.clipPoints ? [{ value: '__custom', label: 'Custom (pen)' }] : [])
+            ...(hasCustomClip ? [{ value: '__custom', label: 'Custom (pen)' }] : [])
           ]}
           onChange={(v) =>
             onUpdateProps((p: ImageProps) => {
-              if (v === '__custom') return; // keep existing custom points
+              if (v === '__custom') return; // keep existing custom path
               p.clipKind = v ? (v as ShapeKind) : undefined;
               p.clipPoints = undefined;
+              p.clipNodes = undefined;
             })
           }
         />
@@ -48,12 +50,12 @@ export function ImageProperties({ block, onUpdateProps }: PropertiesRendererProp
       <button
         className="btn"
         onClick={() => openPen(block.id, 'imageClip')}
-        title="Draw a custom clip shape with the pen tool"
+        title="Draw or edit a custom clip shape with the pen tool (preset clips seed their geometry)"
       >
-        {props.clipPoints ? 'Edit custom clip (pen)' : 'Draw custom clip (pen)'}
+        {hasCustomClip ? 'Edit custom clip (pen)' : 'Draw custom clip (pen)'}
       </button>
-      {props.clipPoints && (
-        <button className="btn btn-ghost" onClick={() => onUpdateProps((p: ImageProps) => { p.clipPoints = undefined; })}>
+      {hasCustomClip && (
+        <button className="btn btn-ghost" onClick={() => onUpdateProps((p: ImageProps) => { p.clipPoints = undefined; p.clipNodes = undefined; })}>
           Clear custom clip
         </button>
       )}

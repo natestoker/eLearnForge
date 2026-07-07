@@ -165,14 +165,10 @@ export class Runtime {
     const layerVisible: Record<string, boolean> = {};
     for (const layer of slide.layers) layerVisible[layer.id] = layer.visibleByDefault;
     this.snapshot = { ...this.snapshot, slideId, layerVisible, blockVisible: {} };
-    // Seed block states from each block's authored initial state; states
-    // reset on every visit (like layer visibility and button gating), and
-    // triggers can then change them.
+    // Block states reset on every visit (like layer visibility and button
+    // gating); triggers then set them (setState / show / hide actions).
     for (const layer of slide.layers) {
-      for (const b of walk(layer.blocks)) {
-        if (b.initialState && b.initialState !== 'normal') this.blockStates[b.id] = b.initialState;
-        else delete this.blockStates[b.id];
-      }
+      for (const b of walk(layer.blocks)) delete this.blockStates[b.id];
     }
     this.viewedSlideIds.add(slideId);
     // Player button gating resets on each slide visit.
