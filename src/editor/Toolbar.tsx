@@ -27,7 +27,7 @@ const INSERT_CATEGORIES: { id: string; label: string; types?: BlockType[] }[] = 
   { id: 'shapes', label: 'Shapes' }, // rendered as the ShapePicker grid
   { id: 'text', label: 'Text', types: ['text', 'textEntry'] },
   { id: 'media', label: 'Media', types: ['image', 'video', 'audio'] },
-  { id: 'interactive', label: 'Interactive', types: ['button', 'hotspot', 'multipleChoice', 'matching', 'fillBlank', 'statement'] },
+  { id: 'interactive', label: 'Interactive', types: ['button', 'hotspot', 'multipleChoice', 'matching', 'fillBlank', 'dragDrop', 'statement'] },
   { id: 'widgets', label: 'Widgets', types: ['progress', 'timer', 'code'] }
 ];
 

@@ -6,7 +6,7 @@ export type BlockType =
   | 'text' | 'image' | 'statement' | 'multipleChoice'
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
   | 'code' | 'matching' | 'group'
-  | 'fillBlank' | 'progress' | 'timer';
+  | 'fillBlank' | 'progress' | 'timer' | 'dragDrop';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -208,12 +208,24 @@ export interface TimerProps {
   color?: string;
 }
 
+// Drag-and-drop: draggable items each belong to a target (drop zone).
+// Learners drag items into zones; scored on Check. Sets dd_{blockId}_correct.
+export interface DragDropItem { id: string; text: string; targetId: string }
+export interface DragDropTarget { id: string; label: string }
+export interface DragDropProps {
+  question: string;
+  items: DragDropItem[];
+  targets: DragDropTarget[];
+  feedbackCorrect: string;
+  feedbackIncorrect: string;
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps
-  | FillBlankProps | ProgressProps | TimerProps;
+  | FillBlankProps | ProgressProps | TimerProps | DragDropProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -

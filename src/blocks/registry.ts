@@ -48,6 +48,9 @@ import { ProgressRuntime } from './progress/Runtime';
 import { TimerCanvas } from './timer/Canvas';
 import { TimerProperties } from './timer/Properties';
 import { TimerRuntime } from './timer/Runtime';
+import { DragDropCanvas } from './dragDrop/Canvas';
+import { DragDropProperties } from './dragDrop/Properties';
+import { DragDropRuntime } from './dragDrop/Runtime';
 
 export const BLOCKS: Record<BlockType, BlockDefinition> = {
   text: {
@@ -93,7 +96,8 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
   group: { type: 'group', label: 'Group', glyph: 'GRP', Canvas: GroupCanvas, Properties: GroupProperties, Runtime: GroupRuntime },
   fillBlank: { type: 'fillBlank', label: 'Fill in the blank', glyph: 'FIB', Canvas: FillBlankCanvas, Properties: FillBlankProperties, Runtime: FillBlankRuntime },
   progress: { type: 'progress', label: 'Progress bar', glyph: '\u2593', Canvas: ProgressCanvas, Properties: ProgressProperties, Runtime: ProgressRuntime },
-  timer: { type: 'timer', label: 'Timer', glyph: '\u23f1', Canvas: TimerCanvas, Properties: TimerProperties, Runtime: TimerRuntime }
+  timer: { type: 'timer', label: 'Timer', glyph: '\u23f1', Canvas: TimerCanvas, Properties: TimerProperties, Runtime: TimerRuntime },
+  dragDrop: { type: 'dragDrop', label: 'Drag and drop', glyph: 'DND', Canvas: DragDropCanvas, Properties: DragDropProperties, Runtime: DragDropRuntime }
 };
 
 export const BLOCK_TYPES = Object.keys(BLOCKS) as BlockType[];

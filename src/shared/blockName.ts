@@ -4,7 +4,8 @@ const TYPE_LABEL: Record<BlockType, string> = {
   text: 'Text', image: 'Image', statement: 'Statement', multipleChoice: 'Multiple choice', matching: 'Matching',
   button: 'Button', hotspot: 'Hotspot', shape: 'Shape', video: 'Video', audio: 'Audio',
   textEntry: 'Text entry', code: 'Code', group: 'Group',
-  fillBlank: 'Fill in the blank', progress: 'Progress bar', timer: 'Timer'
+  fillBlank: 'Fill in the blank', progress: 'Progress bar', timer: 'Timer',
+  dragDrop: 'Drag and drop'
 };
 
 // A block's shown name: the author's label if set, else a humanized type.

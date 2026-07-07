@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Block, BlockType, Project } from '../schema/types';
 import {
-  createBlock, createDemoProject, createLayer, createSlide, fillBlankVariableName,
+  createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
   mcVariableName, textEntryVariableName, timerDoneVariableName, uid
 } from '../schema/factory';
 
@@ -364,6 +364,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
       if (type === 'timer') {
         p.variables.push({ id: uid('var'), name: timerDoneVariableName(block.id), type: 'boolean', defaultValue: false });
+      }
+      if (type === 'dragDrop') {
+        p.variables.push({ id: uid('var'), name: dragDropVariableName(block.id), type: 'boolean', defaultValue: false });
       }
       init?.(block);
     });

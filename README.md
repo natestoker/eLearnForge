@@ -978,3 +978,13 @@ AND/OR condition logic; operators between / doesn't-contain / starts-with
 - **Timer** (Insert > Widgets): counts up, or down from a set number of
   seconds. A countdown sets `timer_{blockId}_done = true` at zero for
   triggers, and has a start/pause control.
+
+
+# v6.10
+
+## Drag-and-drop interaction
+A new **Drag and drop** block (Insert > Interactive): author groups (drop
+targets) and items, each item tagged with its correct group. Learners drag
+items from the bank into groups; Check scores every placement, shows
+per-item right/wrong outline plus feedback, and sets a boolean
+`dd_{blockId}_correct` variable for triggers. Reset re-banks the items.
