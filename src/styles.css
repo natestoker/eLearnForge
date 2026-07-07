@@ -62,6 +62,23 @@ button { font-family: var(--mono); }
 /* Canvas above, timeline strip below - a column, not a row. */
 .center { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .center > .canvas-area { flex: 1; min-height: 0; }
+/* The wrap owns the pinned overlays (zoom, size/snap) so they never scroll
+   with the pasteboard; the inner .canvas-area is the scroller. */
+.center > .canvas-wrap { flex: 1; min-height: 0; }
+.canvas-wrap { position: relative; display: flex; }
+.canvas-wrap > .canvas-area { flex: 1; min-width: 0; }
+.canvas-zoom {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 4px;
+  background: #11151a;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #1c222b;
+  z-index: 10;
+}
 
 .sidebar-right {
   border-left: 1px solid var(--border);
@@ -1619,13 +1636,7 @@ select.input { appearance: auto; }
   box-sizing: border-box;
 }
 .player-sidenav-list { flex: 1; overflow-y: auto; min-height: 0; }
-.player-sidenav-buttons {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #2c3648;
-}
-.player-sidenav-buttons .player-chrome-btn { flex: 1; }
+.player-navbar-buttons { display: flex; gap: 8px; align-items: center; }
 .player-main {
   flex: 1;
   min-width: 0;
@@ -1760,6 +1771,9 @@ select.input { appearance: auto; }
   justify-content: space-between;
   gap: 6px;
 }
+
+.tl-play { font-size: 12px; }
+.tl-play.on { color: var(--accent); }
 
 /* Row drag grip + authoring locks */
 .tl-grip {

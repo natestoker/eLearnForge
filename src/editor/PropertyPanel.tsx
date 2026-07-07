@@ -539,6 +539,13 @@ function PlayerSettingsSection() {
           />
         </Field>
       </Row>
+      <Field label="Nav buttons (Back/Next/Submit) position">
+        <SelectInput
+          value={player.navPosition ?? 'right'}
+          options={[{ value: 'right', label: 'Bottom bar, right' }, { value: 'left', label: 'Bottom bar, left' }]}
+          onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.navPosition = v === 'right' ? undefined : 'left'; })}
+        />
+      </Field>
       <Field label="Button style">
         <SelectInput
           value={player.buttonStyle ?? 'solid'}

@@ -48,6 +48,32 @@ export class ScrubAudio {
     this.stopTimer = window.setTimeout(() => this.pauseAll(), 140);
   }
 
+  // Continuous playback for the timeline Play button: seek everything to t
+  // once, then keep sources starting/stopping as their windows open/close.
+  // Unlike scrub(), nothing auto-pauses - the caller owns the clock.
+  playFrom(t: number): void {
+    if (this.stopTimer) window.clearTimeout(this.stopTimer);
+    this.stopTimer = null;
+    this.syncPlaying(t, true);
+  }
+
+  syncPlaying(t: number, seek = false): void {
+    for (const { el, start, end } of this.els) {
+      const past = Number.isFinite(el.duration) && t - start > el.duration;
+      const inWindow = t >= start && t <= end && !past;
+      if (inWindow) {
+        if (el.paused) {
+          try { el.currentTime = Math.max(0, t - start); } catch { /* not ready */ }
+          el.play().catch(() => { /* needs gesture; Play click is one */ });
+        } else if (seek) {
+          try { el.currentTime = Math.max(0, t - start); } catch { /* not ready */ }
+        }
+      } else if (!el.paused) {
+        el.pause();
+      }
+    }
+  }
+
   pauseAll(): void {
     this.els.forEach(({ el }) => el.pause());
   }

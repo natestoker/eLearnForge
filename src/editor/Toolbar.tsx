@@ -6,7 +6,10 @@ import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
 import type { Block, BlockType, ShapeProps } from '../schema/types';
 import { ShapePicker } from '../blocks/shape/ShapePicker';
-import { exportProjectJson, exportProjectJsonAs, importProjectJson, importProjectJsonWithPicker, resetFileHandle } from '../state/persistence';
+import {
+  chooseProjectFolder, exportProjectJson, exportProjectJsonAs, folderModeAvailable,
+  importProjectJson, importProjectJsonWithPicker, resetFileHandle
+} from '../state/persistence';
 import { createDemoProject, createProject } from '../schema/factory';
 import { PublishDialog } from './PublishDialog';
 import { importPptx } from '../publish/pptxImport';
@@ -258,6 +261,18 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
               >
                 <Icon.save /> Save as...
               </button>
+              {folderModeAvailable() && (
+                <button
+                  className="menu-item"
+                  title="Pick a folder once; Save then writes <title>.elearnforge.json there with no prompts at all"
+                  onClick={async () => {
+                    close();
+                    if (await chooseProjectFolder()) void exportProjectJson(project);
+                  }}
+                >
+                  <Icon.load /> Set project folder...
+                </button>
+              )}
               <button className="menu-item" onClick={() => { close(); void loadFromPicker(); }}>
                 <Icon.load /> Load .json
               </button>

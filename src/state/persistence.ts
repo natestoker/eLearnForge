@@ -82,19 +82,64 @@ function rememberHandle(handle: unknown | null): void {
   idbPut(HANDLE_KEY, handle).catch(() => { /* remembering is best-effort */ });
 }
 
-// Called once at app start: restore the last session's file handle so the
-// first Save overwrites the same project file.
+// Project-folder mode: pick a folder ONCE and every Save writes
+// <title>.elearnforge.json into it silently - no picker at all. The
+// directory handle persists in IndexedDB like the file handle.
+const DIR_KEY = 'dirHandle';
+let currentDirHandle: any | null = null;
+
+export function folderModeAvailable(): boolean {
+  return typeof window !== 'undefined'
+    && 'showDirectoryPicker' in window
+    && window.location.protocol !== 'file:';
+}
+
+export function hasProjectFolder(): boolean {
+  return currentDirHandle !== null;
+}
+
+export async function chooseProjectFolder(): Promise<boolean> {
+  if (!folderModeAvailable()) return false;
+  try {
+    const dir = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    currentDirHandle = dir;
+    idbPut(DIR_KEY, dir).catch(() => { /* best effort */ });
+    // The folder becomes the save target; any previous single-file target
+    // is superseded.
+    rememberHandle(null);
+    return true;
+  } catch {
+    return false; // cancelled or blocked
+  }
+}
+
+// Called once at app start: restore the last session's file/folder handles
+// so the first Save overwrites the same project file.
 export async function restoreFileHandle(): Promise<void> {
   try {
     const h = await idbGet<unknown>(HANDLE_KEY);
     if (h && typeof (h as { createWritable?: unknown }).createWritable === 'function') {
       currentFileHandle = h;
     }
-  } catch { /* no stored handle */ }
+    const d = await idbGet<unknown>(DIR_KEY);
+    if (d && typeof (d as { getFileHandle?: unknown }).getFileHandle === 'function') {
+      currentDirHandle = d;
+    }
+  } catch { /* no stored handles */ }
 }
 
 export function resetFileHandle(): void {
   rememberHandle(null);
+}
+
+async function ensurePermission(handle: any): Promise<boolean> {
+  const opts = { mode: 'readwrite' };
+  if ((await handle.queryPermission(opts)) === 'granted') return true;
+  return (await handle.requestPermission(opts)) === 'granted';
+}
+
+function projectFileName(project: Project): string {
+  return `${project.title.replace(/[^\w\- ]+/g, '').trim() || 'project'}.elearnforge.json`;
 }
 
 export async function importProjectJsonWithPicker(): Promise<Project | null> {
@@ -126,7 +171,7 @@ export async function importProjectJsonWithPicker(): Promise<Project | null> {
 export async function exportProjectJsonAs(project: Project): Promise<void> {
   const prev = currentFileHandle;
   currentFileHandle = null;
-  await exportProjectJson(project);
+  await exportProjectJson(project, true); // always ask for the new name
   // Cancelled the picker: keep saving to the previous file.
   if (!currentFileHandle) currentFileHandle = prev;
 }
@@ -136,28 +181,34 @@ export function hasFileHandle(): boolean {
   return currentFileHandle !== null;
 }
 
-export async function exportProjectJson(project: Project): Promise<void> {
-  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+export async function exportProjectJson(project: Project, forcePicker = false): Promise<void> {
+  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window && window.location.protocol !== 'file:') {
     try {
-      if (currentFileHandle) {
-        const opts = { mode: 'readwrite' };
-        if ((await currentFileHandle.queryPermission(opts)) !== 'granted') {
-          if ((await currentFileHandle.requestPermission(opts)) !== 'granted') {
-            currentFileHandle = null;
-          }
+      if (currentFileHandle && !(await ensurePermission(currentFileHandle))) {
+        currentFileHandle = null;
+      }
+
+      // Folder mode: no file target yet, but a project folder is set -
+      // write <title>.elearnforge.json into it, no picker. (Save As skips
+      // this: it always asks for the name.)
+      if (!currentFileHandle && currentDirHandle && !forcePicker) {
+        if (await ensurePermission(currentDirHandle)) {
+          rememberHandle(await currentDirHandle.getFileHandle(projectFileName(project), { create: true }));
+        } else {
+          currentDirHandle = null;
         }
       }
-      
+
       if (!currentFileHandle) {
         rememberHandle(await (window as any).showSaveFilePicker({
-          suggestedName: `${project.title.replace(/[^\w\- ]+/g, '').trim() || 'project'}.elearnforge.json`,
+          suggestedName: projectFileName(project),
           types: [{
             description: 'eLearnForge Project',
             accept: { 'application/json': ['.json', '.elearnforge.json'] }
           }]
         }));
       }
-      
+
       const writable = await currentFileHandle.createWritable();
       await writable.write(JSON.stringify(project, null, 2));
       await writable.close();
@@ -173,8 +224,8 @@ export async function exportProjectJson(project: Project): Promise<void> {
 
   if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
     alert(
-      "Note: Direct file saving (overwriting) is disabled by your browser when running from a local file URL (file:///).\n\n" +
-      "To enable direct saving back to your project file, please use http://localhost:5173/ in your browser."
+      "Your browser can't overwrite files when the editor runs from a file:// URL, so each Save becomes a new download.\n\n" +
+      "To get real Save-in-place (and the 'Set project folder' option), open the editor over http - e.g. run 'npm run dev' and use http://localhost:5173/."
     );
   }
 

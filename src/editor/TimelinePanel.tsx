@@ -55,6 +55,22 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const scrubAudioRef = useRef<ScrubAudio | null>(null);
   if (!scrubAudioRef.current) scrubAudioRef.current = new ScrubAudio();
   useEffect(() => () => scrubAudioRef.current?.dispose(), []);
+
+  // Timeline playback: previews animations AND audio right on the canvas
+  // (via the scrub playhead), no full Preview needed. rAF drives the clock;
+  // ScrubAudio keeps every source in sync.
+  const [playing, setPlaying] = useState(false);
+  const playRef = useRef<number | null>(null);
+  const stopPlay = (at?: number) => {
+    if (playRef.current !== null) cancelAnimationFrame(playRef.current);
+    playRef.current = null;
+    scrubAudioRef.current?.pauseAll();
+    setPlaying(false);
+    if (at !== undefined) setScrubT(at);
+  };
+  useEffect(() => { stopPlay(); /* slide switch kills playback */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide.id]);
   const gesture = useRef<{
     blockId: string; mode: GestureMode;
     startX: number; origStart: number; origEnd: number | undefined;
@@ -173,8 +189,25 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     setScrubT(snapped);
     scrubAudioRef.current?.scrub(snapped);
   };
+  const startPlay = () => {
+    const from = scrubT !== null && scrubT < duration - 0.05 ? scrubT : 0;
+    scrubAudioRef.current?.load(slide, duration);
+    scrubAudioRef.current?.playFrom(from);
+    setPlaying(true);
+    const wall = performance.now();
+    const tick = () => {
+      const t = from + (performance.now() - wall) / 1000;
+      if (t >= duration) { stopPlay(duration); return; }
+      setScrubT(Math.round(t * 100) / 100);
+      scrubAudioRef.current?.syncPlaying(t);
+      playRef.current = requestAnimationFrame(tick);
+    };
+    playRef.current = requestAnimationFrame(tick);
+  };
+
   const onRulerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
+    stopPlay();
     // (Re)load this slide's audio sources at drag start; the pointer press
     // is the user gesture autoplay policies want.
     scrubAudioRef.current?.load(slide, duration);
@@ -343,6 +376,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       <div className="timeline-head">
         <span className="timeline-title">Timeline</span>
         {onCollapse && <button className="btn btn-ghost btn-icon" onClick={onCollapse} title="Hide the timeline">{'\u2013'}</button>}
+        <button
+          className={`btn btn-icon tl-play ${playing ? 'on' : ''}`}
+          title={playing ? 'Pause the preview' : 'Play the timeline: previews animations and audio on the canvas (from the playhead, or the start)'}
+          onClick={() => (playing ? stopPlay(scrubT ?? undefined) : startPlay())}
+        >
+          {playing ? '\u23f8' : '\u25b6'}
+        </button>
         <label className="timeline-length" title="How many seconds this slide's timeline runs">
           Length (s)
           <input

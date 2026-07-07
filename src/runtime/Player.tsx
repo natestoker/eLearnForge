@@ -5,7 +5,7 @@ import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
-import { PlayerSideNav } from './PlayerChrome';
+import { PlayerNavButtons, PlayerSideNav } from './PlayerChrome';
 import { accessibilityFor } from './accessibility';
 import { runEmphasis } from '../blocks/emphasis';
 import type { Emphasis } from '../blocks/emphasis';
@@ -330,6 +330,9 @@ export function Player({ project, adapter, startSlideId }: {
                 <div className="player-course-progress-fill" style={{ width: `${((slideIndex + 1) / project.slides.length) * 100}%` }} />
               </div>
             )}
+            {(settings.navPosition ?? 'right') === 'left' && (
+              <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
+            )}
             {hasTimeline && (
               <div className="player-controls">
                 <button
@@ -359,6 +362,11 @@ export function Player({ project, adapter, startSlideId }: {
                 {slide.name} ({slideIndex + 1}/{project.slides.length})
               </span>
             </div>
+            {(settings.navPosition ?? 'right') === 'right' && (
+              <div style={{ marginLeft: 'auto' }}>
+                <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
+              </div>
+            )}
           </div>
         </div>
       </div>

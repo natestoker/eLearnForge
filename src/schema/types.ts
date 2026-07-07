@@ -375,6 +375,8 @@ export interface PlayerSettings {
   back: PlayerButton;
   submit: PlayerButton;
   menu: { show: boolean; locked?: boolean }; // locked = view-only (no jumping)
+  // Where Back/Next/Submit sit in the bottom bar. Default right.
+  navPosition?: 'left' | 'right';
   // Chrome styling.
   accent?: string;        // player accent (buttons, progress) - defaults to theme
   chrome?: 'dark' | 'light' | 'minimal';

@@ -832,3 +832,29 @@ or squashes the result. Image tracing also honors the image's fit
   targets hide on slide load and show when the source shape is clicked.
 - Hyperlink jumps (hlinkClick to a slide, next/previous/first/last)
   become onClick goToSlide triggers.
+
+
+# v6.5
+
+## Fixes and follow-ups from v6.4 feedback
+- **Pinned canvas overlays.** The zoom control and the size/snap chip now
+  live OUTSIDE the scrolling pasteboard, pinned to the canvas corners -
+  they no longer drift over the slide as you scroll.
+- **Player nav back in the bottom bar.** Back/Next/Submit returned to the
+  player's bottom bar; the hamburger sidebar holds only the course menu.
+  New player option: nav buttons position (bottom bar left or right).
+- **Full Kokoro voice set.** The bake picker now lists all 28 English
+  Kokoro-82M voices with their real names plus accent/gender labels,
+  ordered by the model card's quality grades (Heart, Bella, Nicole,
+  Fenrir, Michael, Emma, ...).
+- **Timeline Play button.** Play the timeline right on the canvas: the
+  playhead advances, blocks animate mid-flight, and every audio source
+  (narration, audio blocks, attached audio) plays in sync - no full
+  Preview needed. Pause anywhere; scrubbing the ruler stops playback.
+- **Save, desktop-style, for real.** New File > "Set project folder...":
+  pick a folder once and Save writes <title>.elearnforge.json into it
+  with no prompts (the folder persists across sessions). Save As always
+  asks for the name. If the editor runs from a file:// URL the browser
+  forbids in-place writes entirely - the fallback alert now says exactly
+  that and points at running over http (npm run dev / dist on localhost),
+  which is why Save was "creating a new file each time".

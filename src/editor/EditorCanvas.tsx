@@ -550,18 +550,17 @@ export function EditorCanvas() {
   };
 
   return (
-    <div 
-      className="canvas-area" 
-      ref={containerRef} 
+    // Two layers: the scroller (.canvas-area) and, OUTSIDE it, the pinned
+    // overlays (zoom, size/snap). Anything inside the scroller travels with
+    // the pasteboard - which is exactly how the overlays ended up floating
+    // over the slide before.
+    <div className="canvas-wrap">
+    <div
+      className="canvas-area"
+      ref={containerRef}
       style={{ overflow: 'auto', position: 'relative', display: 'flex' }}
       onPointerDown={startMarquee}
     >
-      <div style={{ position: 'absolute', right: 16, bottom: 16, display: 'flex', gap: 4, background: '#11151a', padding: 4, borderRadius: 6, border: '1px solid #1c222b', zIndex: 10 }}>
-        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.max(0.1, s - 0.1)); }}>-</button>
-        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
-        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.min(3, s + 0.1)); }}>+</button>
-        <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
-      </div>
       {/* Pasteboard: a scrollable margin around the slide. margin:auto keeps
           it centered while small AND fully reachable when it overflows (flex
           centering alone makes the left/top overflow unreachable). */}
@@ -630,9 +629,16 @@ export function EditorCanvas() {
         )}
       </div>
       </div>
+    </div>
+      <div className="canvas-zoom">
+        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.max(0.1, activeScale - 0.1)); }}>-</button>
+        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
+        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.min(3, activeScale + 0.1)); }}>+</button>
+        <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
+      </div>
       <div className="canvas-meta">
         <span>
-          {slide.width} x {slide.height} @ {(scale * 100).toFixed(0)}%
+          {slide.width} x {slide.height} @ {(activeScale * 100).toFixed(0)}%
         </span>
         <label className="snap-toggle">
           <input
