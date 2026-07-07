@@ -1,71 +1,45 @@
-import { useRef, useState } from 'react';
 import type { Project, PlayerSettings } from '../schema/types';
 import type { Runtime } from '../engine/runtime';
 
-// Configurable player chrome, modeled on the PPTX Narrator player:
-// Back / Next / Submit with author labels, show flags, and trigger-gated
-// enabling; a Menu drawer listing slides.
-export function PlayerChrome({ runtime, project, slideIndex, settings }: {
+// Player navigation lives in a collapsible LEFT sidebar (hamburger-toggled
+// from the stage) instead of the bottom bar: the course menu plus
+// Back/Next/Submit, out of the way until needed so the stage gets the
+// vertical space. The bottom bar keeps only the timeline transport and the
+// course HUD. Applies to Preview and published players only - the editor
+// is untouched.
+export function PlayerSideNav({ runtime, project, slideIndex, settings, onNavigate }: {
   runtime: Runtime;
   project: Project;
   slideIndex: number;
   settings: PlayerSettings;
+  onNavigate?: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const go = (dir: 1 | -1) => {
     const next = project.slides[slideIndex + dir];
     if (next) runtime.enterSlide(next.id);
   };
 
   return (
-    <>
-      {menuOpen && (
-        <>
-          <div className="player-menu-scrim" onClick={() => setMenuOpen(false)} />
-          <div className="player-menu-drawer" ref={menuRef}>
-            <div className="player-menu-head">
-              <span>Contents</span>
-              <button className="player-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">x</button>
-            </div>
-            {project.slides.map((s, i) => (
-              <button
-                key={s.id}
-                className={`player-menu-item ${i === slideIndex ? 'active' : ''}`}
-                disabled={settings.menu.locked ? i > slideIndex && !runtime.slideVisited(s.id) : false}
-                onClick={() => { runtime.enterSlide(s.id); setMenuOpen(false); }}
-              >
-                <span className="player-menu-num">{i + 1}</span>
-                <span className="player-menu-label">{s.name}</span>
-              </button>
-            ))}
-          </div>
-        </>
+    <div className="player-sidenav-inner">
+      <div className="player-menu-head">
+        <span>Contents</span>
+      </div>
+      {settings.menu.show && (
+        <div className="player-sidenav-list">
+          {project.slides.map((s, i) => (
+            <button
+              key={s.id}
+              className={`player-menu-item ${i === slideIndex ? 'active' : ''}`}
+              disabled={settings.menu.locked ? i > slideIndex && !runtime.slideVisited(s.id) : false}
+              onClick={() => { runtime.enterSlide(s.id); onNavigate?.(); }}
+            >
+              <span className="player-menu-num">{i + 1}</span>
+              <span className="player-menu-label">{s.name}</span>
+            </button>
+          ))}
+        </div>
       )}
-
-      <div className="player-navbar">
-        {settings.menu.show && (
-          <button
-            className="player-chrome-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-          >
-            Menu
-          </button>
-        )}
-
-        <span className="player-navbar-spacer" />
-
-        {settings.submit.show && (
-          <button
-            className="player-chrome-btn accent"
-            disabled={!runtime.isPlayerButtonEnabled('submit')}
-            onClick={() => runtime.submit()}
-          >
-            {settings.submit.label}
-          </button>
-        )}
+      <div className="player-sidenav-buttons">
         {settings.back.show && (
           <button
             className="player-chrome-btn"
@@ -84,7 +58,16 @@ export function PlayerChrome({ runtime, project, slideIndex, settings }: {
             {settings.next.label}
           </button>
         )}
+        {settings.submit.show && (
+          <button
+            className="player-chrome-btn accent"
+            disabled={!runtime.isPlayerButtonEnabled('submit')}
+            onClick={() => runtime.submit()}
+          >
+            {settings.submit.label}
+          </button>
+        )}
       </div>
-    </>
+    </div>
   );
 }

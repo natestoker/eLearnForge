@@ -5,7 +5,7 @@ import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
-import { PlayerChrome } from './PlayerChrome';
+import { PlayerSideNav } from './PlayerChrome';
 import { accessibilityFor } from './accessibility';
 import { runEmphasis } from '../blocks/emphasis';
 import type { Emphasis } from '../blocks/emphasis';
@@ -133,6 +133,7 @@ export function Player({ project, adapter, startSlideId }: {
   const [playing, setPlaying] = useState(false);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [downId, setDownId] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     setT(0);
@@ -203,7 +204,28 @@ export function Player({ project, adapter, startSlideId }: {
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>
-      <div className="player-stage-area" ref={stageAreaRef}>
+      <div className="player-body">
+        {/* Navigation sidebar: hamburger-toggled, animates its width, and
+            navOpen persists for the whole run (state lives on Player, which
+            never remounts between slides). */}
+        <aside className={`player-sidenav ${navOpen ? 'open' : ''}`} aria-hidden={!navOpen}>
+          <PlayerSideNav
+            runtime={runtime}
+            project={project}
+            slideIndex={slideIndex}
+            settings={settings}
+          />
+        </aside>
+        <div className="player-main">
+          <button
+            className="player-hamburger"
+            aria-label={navOpen ? 'Hide navigation' : 'Show navigation'}
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((o) => !o)}
+          >
+            <span /><span /><span />
+          </button>
+          <div className="player-stage-area" ref={stageAreaRef}>
         <div
           className="player-stage"
           ref={stageAnimRef}
@@ -302,47 +324,43 @@ export function Player({ project, adapter, startSlideId }: {
         )}
       </div>
       </div>
-      <div className="player-chrome-bar">
-        {settings.progressBar && (
-          <div className="player-course-progress" title={`Slide ${slideIndex + 1} of ${project.slides.length}`}>
-            <div className="player-course-progress-fill" style={{ width: `${((slideIndex + 1) / project.slides.length) * 100}%` }} />
+          <div className="player-chrome-bar slim">
+            {settings.progressBar && (
+              <div className="player-course-progress" title={`Slide ${slideIndex + 1} of ${project.slides.length}`}>
+                <div className="player-course-progress-fill" style={{ width: `${((slideIndex + 1) / project.slides.length) * 100}%` }} />
+              </div>
+            )}
+            {hasTimeline && (
+              <div className="player-controls">
+                <button
+                  className="player-play"
+                  onClick={() => (playing ? clockRef.current?.pause() : clockRef.current?.play())}
+                  aria-label={playing ? 'Pause' : 'Play'}
+                >
+                  {playing ? '||' : '>'}
+                </button>
+                <input
+                  className="player-seek"
+                  type="range"
+                  min={0}
+                  max={duration}
+                  step={0.05}
+                  value={Math.min(t, duration)}
+                  onChange={(e) => clockRef.current?.seek(Number(e.target.value))}
+                />
+                <span className="player-time">
+                  {t.toFixed(1)}s / {duration.toFixed(1)}s
+                </span>
+              </div>
+            )}
+            <div className="player-hud">
+              <span className="player-hud-title">{project.title}</span>
+              <span className="player-hud-slide">
+                {slide.name} ({slideIndex + 1}/{project.slides.length})
+              </span>
+            </div>
           </div>
-        )}
-        {hasTimeline && (
-          <div className="player-controls">
-            <button
-              className="player-play"
-              onClick={() => (playing ? clockRef.current?.pause() : clockRef.current?.play())}
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? '||' : '>'}
-            </button>
-            <input
-              className="player-seek"
-              type="range"
-              min={0}
-              max={duration}
-              step={0.05}
-              value={Math.min(t, duration)}
-              onChange={(e) => clockRef.current?.seek(Number(e.target.value))}
-            />
-            <span className="player-time">
-              {t.toFixed(1)}s / {duration.toFixed(1)}s
-            </span>
-          </div>
-        )}
-        <div className="player-hud">
-          <span className="player-hud-title">{project.title}</span>
-          <span className="player-hud-slide">
-            {slide.name} ({slideIndex + 1}/{project.slides.length})
-          </span>
         </div>
-        <PlayerChrome
-          runtime={runtime}
-          project={project}
-          slideIndex={slideIndex}
-          settings={project.player ?? defaultPlayerSettings()}
-        />
       </div>
     </div>
   );

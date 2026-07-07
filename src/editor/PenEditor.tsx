@@ -23,9 +23,18 @@ import {
 // drawings are trimmed to their content: everything normalizes to the
 // bounding box and the block resizes to match.
 
-const SIZE = 480; // editor canvas is square; maps 0..100 -> 0..SIZE
-
-const toSvg = (v: number) => (v / 100) * SIZE;
+// The editor canvas matches the BLOCK's aspect ratio (it used to be a
+// square, which distorted everything: art drawn true-to-life in the square
+// stretched when applied to a non-square block). Same 0..100 space, just
+// displayed at the block's real proportions - WYSIWYG.
+const MAX_EDIT = 520;
+const MIN_EDIT = 220;
+function editSize(bw: number, bh: number): { w: number; h: number } {
+  const ratio = Math.max(0.25, Math.min(4, bh / Math.max(1, bw)));
+  let w = MAX_EDIT, h = MAX_EDIT * ratio;
+  if (h > MAX_EDIT) { h = MAX_EDIT; w = MAX_EDIT / ratio; }
+  return { w: Math.max(MIN_EDIT, Math.round(w)), h: Math.max(MIN_EDIT, Math.round(h)) };
+}
 
 function seedNodes(mode: 'shape' | 'imageClip', props: ShapeProps | ImageProps): PathNode[] {
   if (mode === 'imageClip') {
@@ -219,9 +228,13 @@ export function PenEditor() {
     close();
   };
 
-  const imgSrc = penEditor.mode === 'imageClip' ? (block.props as ImageProps).src : null;
+  const imgProps = penEditor.mode === 'imageClip' ? (block.props as ImageProps) : null;
+  const imgSrc = imgProps?.src ?? null;
   const selNode = sel !== null ? nodes[sel] : null;
   const d = nodes.length >= 2 ? pathFromNodes(nodes, nodes.length >= 3) : '';
+  const { w: EW, h: EH } = editSize(block.w, block.h);
+  const toSvgX = (v: number) => (v / 100) * EW;
+  const toSvgY = (v: number) => (v / 100) * EH;
 
   return (
     <div className="pen-overlay" onClick={close}>
@@ -236,17 +249,26 @@ export function PenEditor() {
         <svg
           ref={svgRef}
           className="pen-canvas"
-          width={SIZE}
-          height={SIZE}
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          width={EW}
+          height={EH}
+          viewBox={`0 0 ${EW} ${EH}`}
           onClick={onCanvasClick}
           onPointerMove={onMove}
           onPointerUp={onUp}
         >
-          {imgSrc && <image href={imgSrc} x="0" y="0" width={SIZE} height={SIZE} preserveAspectRatio="none" opacity="0.55" />}
-          <rect x="0" y="0" width={SIZE} height={SIZE} fill="none" stroke="#2c3648" />
+          {imgSrc && (
+            <image
+              href={imgSrc}
+              x="0" y="0" width={EW} height={EH}
+              // Match how the block actually displays the image, so tracing
+              // is accurate: contain letterboxes, cover crops.
+              preserveAspectRatio={imgProps?.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet'}
+              opacity="0.55"
+            />
+          )}
+          <rect x="0" y="0" width={EW} height={EH} fill="none" stroke="#2c3648" />
           {d && (
-            <g transform={`scale(${SIZE / 100})`}>
+            <g transform={`scale(${EW / 100} ${EH / 100})`}>
               <path
                 d={d}
                 fill={nodes.length >= 3 ? 'rgba(61,220,151,0.25)' : 'none'}
@@ -263,13 +285,13 @@ export function PenEditor() {
             return (
               <g key={hk}>
                 <line
-                  x1={toSvg(selNode.x)} y1={toSvg(selNode.y)}
-                  x2={toSvg(hpos.x)} y2={toSvg(hpos.y)}
+                  x1={toSvgX(selNode.x)} y1={toSvgY(selNode.y)}
+                  x2={toSvgX(hpos.x)} y2={toSvgY(hpos.y)}
                   stroke="#7aa2ff" strokeWidth={1}
                 />
                 <rect
                   className="pen-handle"
-                  x={toSvg(hpos.x) - 5} y={toSvg(hpos.y) - 5}
+                  x={toSvgX(hpos.x) - 5} y={toSvgY(hpos.y) - 5}
                   width={10} height={10}
                   onPointerDown={(e) => startDrag({ kind: hk, index: sel! }, e)}
                 />
@@ -280,8 +302,8 @@ export function PenEditor() {
             <circle
               key={i}
               className={`pen-node ${i === sel ? 'active' : ''} ${n.smooth ? 'smooth' : ''}`}
-              cx={toSvg(n.x)}
-              cy={toSvg(n.y)}
+              cx={toSvgX(n.x)}
+              cy={toSvgY(n.y)}
               r={7}
               onPointerDown={(e) => startDrag({ kind: 'anchor', index: i }, e)}
               onDoubleClick={(e) => removeNode(i, e)}

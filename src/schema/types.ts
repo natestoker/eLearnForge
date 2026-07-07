@@ -241,6 +241,13 @@ export interface Block {
   groupId?: string;
   // Timeline authoring visibility (eye icon toggle)
   editorHidden?: boolean;
+  // Authoring lock (timeline padlock): a locked block can be selected and
+  // inspected but not moved, resized, nudged, deleted, or retimed until
+  // unlocked. Editor-only concept; the player ignores it.
+  locked?: boolean;
+  // Rotation in degrees, clockwise, around the block center. Rendered in
+  // the editor and the player alike.
+  rotation?: number;
   // PowerPoint-style shadow (outer or inner). Replaces the old boolean
   // ShapeProps.shadow, which migrates to a default spec on read.
   shadow?: ShadowSpec;
@@ -262,6 +269,8 @@ export interface Layer {
   id: string;
   name: string;
   visibleByDefault: boolean;
+  // Authoring lock for the whole layer (see Block.locked).
+  locked?: boolean;
   blocks: Block[];
 }
 

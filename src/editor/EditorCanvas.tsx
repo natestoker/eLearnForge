@@ -9,6 +9,17 @@ import { shadowStyle } from '../shared/shadow';
 
 const GRID = 8;
 const MIN_SIZE = 40;
+// Pasteboard margin around the slide, in stage units: objects staged here
+// are visible and editable but sit outside the slide (the player clips
+// them). Scrollable like Illustrator's artboard surround.
+const PASTEBOARD = 320;
+
+// Authoring lock: a block is locked by its own padlock or its layer's.
+// Locked blocks stay selectable (so the lock is discoverable) but refuse
+// moves, resizes, nudges, deletes, and timeline drags.
+export function isBlockLocked(block: Block, layer?: Layer): boolean {
+  return Boolean(block.locked || layer?.locked);
+}
 
 const snap = (v: number, disable: boolean) => (disable ? Math.round(v) : Math.round(v / GRID) * GRID);
 
@@ -51,9 +62,10 @@ export function BlockNode({
   const shapeProps = block.type === 'shape' ? (block.props as ShapeProps) : null;
   const isCallout = Boolean(shapeProps && CALLOUT_BODY[shapeProps.kind] && !shapeProps.points && !shapeProps.nodes?.length);
   const tail = shapeProps?.tail ?? DEFAULT_TAIL;
+  const locked = isBlockLocked(block, layer);
   return (
     <div
-      className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''}`}
+      className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''} ${locked ? 'locked' : ''}`}
       style={{ left: block.x, top: block.y, width: block.w, height: block.h, ...previewStyle }}
       onPointerDown={(e) => startMove(e, block, layer)}
       onDoubleClick={
@@ -100,7 +112,7 @@ export function BlockNode({
           }
         />
       </div>
-      {isSelected && (
+      {isSelected && !locked && (
         <>
           {HANDLES.map((h) => (
             <div
@@ -120,12 +132,14 @@ export function BlockNode({
           <div className="block-badge">{def.label}</div>
         </>
       )}
+      {isSelected && locked && <div className="block-badge locked">{'\u{1F512}'} {def.label} (locked)</div>}
+      {!isSelected && locked && <div className="lock-glyph" title="Locked - unlock from its timeline row or layer">{'\u{1F512}'}</div>}
     </div>
   );
 }
 
 interface Gesture {
-  kind: 'move' | 'resize' | 'tail';
+  kind: 'move' | 'resize' | 'tail' | 'groupResize';
   blockId: string;
   startClientX: number;
   startClientY: number;
@@ -135,6 +149,9 @@ interface Gesture {
   group?: Record<string, { x: number; y: number }>;
   // For tail drags: the callout tail's starting point (0..100 space).
   tail?: { x: number; y: number };
+  // For groupResize: every selected block's full starting rect; `start`
+  // holds the selection bounding box the scale factors derive from.
+  rects?: Record<string, { x: number; y: number; w: number; h: number }>;
 }
 
 interface Marquee {
@@ -182,6 +199,16 @@ export function EditorCanvas() {
     return () => ro.disconnect();
   }, [slide.width, slide.height]);
 
+  // Keep the slide centered in view when the pasteboard overflows: scroll
+  // to the middle on slide/zoom changes (margin:auto handles the
+  // small-enough case).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
+    el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
+  }, [slide.id, activeScale]);
+
   // Drag / resize: record() once at gesture start, silent updates during,
   // so the whole gesture is one undo step.
   useEffect(() => {
@@ -204,6 +231,7 @@ export function EditorCanvas() {
           const hits: string[] = [];
           const layer = slide.layers.find((l) => l.id === selection.layerId) ?? slide.layers[0];
           for (const b of layer.blocks) {
+            if (b.editorHidden || isBlockLocked(b, layer)) continue;
             const ix = b.x < x + w && b.x + b.w > x && b.y < y + h && b.y + b.h > y;
             if (ix) hits.push(b.id);
           }
@@ -222,6 +250,23 @@ export function EditorCanvas() {
       const noSnap = e.altKey ? snapOn : !snapOn;
       const dx = (e.clientX - g.startClientX) / activeScale;
       const dy = (e.clientY - g.startClientY) / activeScale;
+
+      // Resize the whole multi-selection about its bounding-box origin.
+      // Shift keeps the box's aspect (the larger factor wins).
+      if (g.kind === 'groupResize' && g.rects) {
+        let sx = Math.max(0.05, (g.start.w + dx) / g.start.w);
+        let sy = Math.max(0.05, (g.start.h + dy) / g.start.h);
+        if (e.shiftKey) { const s = Math.max(sx, sy); sx = s; sy = s; }
+        for (const [id, r0] of Object.entries(g.rects)) {
+          updateBlock(id, (b) => {
+            b.x = Math.round(g.start.x + (r0.x - g.start.x) * sx);
+            b.y = Math.round(g.start.y + (r0.y - g.start.y) * sy);
+            b.w = Math.max(MIN_SIZE, Math.round(r0.w * sx));
+            b.h = Math.max(MIN_SIZE, Math.round(r0.h * sy));
+          }, false);
+        }
+        return;
+      }
 
       updateBlock(
         g.blockId,
@@ -314,6 +359,13 @@ export function EditorCanvas() {
       const blockId = store.selection.blockId;
       if (!blockId) return;
 
+      // Locked blocks ignore nudges and Delete.
+      const slideNow = store.project.slides.find((sl) => sl.id === store.selection.slideId);
+      for (const l of slideNow?.layers ?? []) {
+        const b = walkBlocks(l.blocks).find((bl) => bl.id === blockId);
+        if (b && isBlockLocked(b, l)) return;
+      }
+
       const step = e.shiftKey ? GRID * 2 : 1;
       const nudge = (dx: number, dy: number) => {
         e.preventDefault();
@@ -377,6 +429,13 @@ export function EditorCanvas() {
       dragIds = new Set([block.id]);
       select({ blockId: block.id, layerId: targetLayerId, blockIds: [] });
     }
+    // Locked blocks select but never move; locked co-selected members stay
+    // put while the rest of the selection drags.
+    if (isBlockLocked(block, layer)) return;
+    for (const id of [...dragIds]) {
+      const bl = allBlocks.find((x) => x.id === id);
+      if (bl && isBlockLocked(bl, layer)) dragIds.delete(id);
+    }
     record();
 
     let group: Record<string, { x: number; y: number }> | undefined;
@@ -424,6 +483,55 @@ export function EditorCanvas() {
     };
   };
 
+  // Marquee can start ANYWHERE that isn't a block: the stage, the pasteboard
+  // around it, or the outer canvas area. Coordinates are stage-relative and
+  // may be negative - off-stage (pasteboard) objects select the same way.
+  const startMarquee = (e: React.PointerEvent) => {
+    if (e.target !== e.currentTarget || e.button !== 0) return;
+    const stageEl = containerRef.current?.querySelector('.stage') as HTMLElement | null;
+    if (!stageEl) return;
+    const rect = stageEl.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) / activeScale;
+    const sy = (e.clientY - rect.top) / activeScale;
+    if (!e.shiftKey) select({ blockId: null, blockIds: [] });
+    marqueeRef.current = { startX: sx, startY: sy, x: sx, y: sy, w: 0, h: 0, additive: e.shiftKey };
+    setMarquee({ x: sx, y: sy, w: 0, h: 0 });
+  };
+
+  // Bounding box of the multi-selection (2+ blocks): one SE handle resizes
+  // everything together, proportional with Shift.
+  const selIds = [...(selection.blockIds ?? []), ...(selection.blockId ? [selection.blockId] : [])];
+  const selBlocks = selIds.length >= 2
+    ? slide.layers.flatMap((l) => l.blocks).filter((b) => selIds.includes(b.id) && !b.editorHidden)
+    : [];
+  const selBox = selBlocks.length >= 2
+    ? {
+        x: Math.min(...selBlocks.map((b) => b.x)),
+        y: Math.min(...selBlocks.map((b) => b.y)),
+        w: Math.max(...selBlocks.map((b) => b.x + b.w)) - Math.min(...selBlocks.map((b) => b.x)),
+        h: Math.max(...selBlocks.map((b) => b.y + b.h)) - Math.min(...selBlocks.map((b) => b.y))
+      }
+    : null;
+  const startGroupResize = (e: React.PointerEvent) => {
+    if (!selBox) return;
+    e.stopPropagation();
+    record();
+    const rects: Record<string, { x: number; y: number; w: number; h: number }> = {};
+    for (const b of selBlocks) {
+      const layer = slide.layers.find((l) => l.blocks.includes(b));
+      if (isBlockLocked(b, layer)) continue;
+      rects[b.id] = { x: b.x, y: b.y, w: b.w, h: b.h };
+    }
+    gestureRef.current = {
+      kind: 'groupResize',
+      blockId: selBlocks[0].id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      start: selBox,
+      rects
+    };
+  };
+
   const selectedLayerIndex = slide.layers.findIndex((l) => l.id === selection.layerId);
 
   // Timeline scrub preview: with a playhead set, each block renders in its
@@ -445,10 +553,8 @@ export function EditorCanvas() {
     <div 
       className="canvas-area" 
       ref={containerRef} 
-      style={{ overflow: 'auto', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
-      onPointerDown={(e) => {
-        if (e.target === e.currentTarget) select({ blockId: null, blockIds: [] });
-      }}
+      style={{ overflow: 'auto', position: 'relative', display: 'flex' }}
+      onPointerDown={startMarquee}
     >
       <div style={{ position: 'absolute', right: 16, bottom: 16, display: 'flex', gap: 4, background: '#11151a', padding: 4, borderRadius: 6, border: '1px solid #1c222b', zIndex: 10 }}>
         <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.max(0.1, s - 0.1)); }}>-</button>
@@ -456,25 +562,32 @@ export function EditorCanvas() {
         <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(s => Math.min(3, s + 0.1)); }}>+</button>
         <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
       </div>
-      <div style={{ width: slide.width * activeScale, height: slide.height * activeScale, flexShrink: 0, position: 'relative' }}
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) select({ blockId: null, blockIds: [] });
+      {/* Pasteboard: a scrollable margin around the slide. margin:auto keeps
+          it centered while small AND fully reachable when it overflows (flex
+          centering alone makes the left/top overflow unreachable). */}
+      <div
+        className="pasteboard"
+        style={{
+          width: (slide.width + PASTEBOARD * 2) * activeScale,
+          height: (slide.height + PASTEBOARD * 2) * activeScale,
+          flexShrink: 0,
+          position: 'relative',
+          margin: 'auto'
         }}
+        onPointerDown={startMarquee}
       >
         <div
           className="stage"
-          style={{ width: slide.width, height: slide.height, transform: `scale(${activeScale})`, transformOrigin: "top left", position: 'absolute', top: 0, left: 0 }}
-        onPointerDown={(e) => {
-          if (e.target !== e.currentTarget) return;
-          // Empty-canvas press starts a marquee. Shift keeps the current
-          // selection and adds to it.
-          const rect = e.currentTarget.getBoundingClientRect();
-          const sx = (e.clientX - rect.left) / activeScale;
-          const sy = (e.clientY - rect.top) / activeScale;
-          if (!e.shiftKey) select({ blockId: null, blockIds: [] });
-          marqueeRef.current = { startX: sx, startY: sy, x: sx, y: sy, w: 0, h: 0, additive: e.shiftKey };
-          setMarquee({ x: sx, y: sy, w: 0, h: 0 });
-        }}
+          style={{
+            width: slide.width,
+            height: slide.height,
+            transform: `scale(${activeScale})`,
+            transformOrigin: 'top left',
+            position: 'absolute',
+            top: PASTEBOARD * activeScale,
+            left: PASTEBOARD * activeScale
+          }}
+          onPointerDown={startMarquee}
       >
         {marquee && (marquee.w > 2 || marquee.h > 2) && (
           <div
@@ -503,6 +616,18 @@ export function EditorCanvas() {
             </div>
           );
         })}
+        {selBox && (
+          <div
+            className="multi-bbox"
+            style={{ left: selBox.x, top: selBox.y, width: selBox.w, height: selBox.h }}
+          >
+            <div
+              className="handle handle-se multi"
+              title="Drag to resize the selection together (Shift keeps proportions)"
+              onPointerDown={startGroupResize}
+            />
+          </div>
+        )}
       </div>
       </div>
       <div className="canvas-meta">

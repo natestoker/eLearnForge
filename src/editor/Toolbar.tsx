@@ -116,6 +116,19 @@ function InsertMenu({ close }: { close: () => void }) {
               <button className="menu-item" onClick={() => { insertLine(addBlock, true); close(); }}>
                 <span className="menu-glyph">{'→'}</span> Arrow
               </button>
+              <button
+                className="menu-item"
+                title="Insert a shape and draw its geometry with the pen tool"
+                onClick={() => {
+                  addBlock('shape', (b) => { b.w = 300; b.h = 300; });
+                  close();
+                  // addBlock selects the new block; hand it straight to the pen.
+                  const id = useProjectStore.getState().selection.blockId;
+                  if (id) useUiStore.getState().openPenEditor(id, 'shape');
+                }}
+              >
+                <span className="menu-glyph">{'✎'}</span> Custom shape
+              </button>
             </div>
             <ShapePicker
               onPick={(kind) => {

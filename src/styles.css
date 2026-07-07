@@ -277,8 +277,9 @@ select.input { appearance: auto; }
   flex: 1;
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  /* No flex centering here: the pasteboard child centers itself with
+     margin:auto, which (unlike justify/align center) keeps the whole
+     surface scroll-reachable when it overflows. */
   background:
     radial-gradient(ellipse at 50% 0%, rgba(61, 220, 151, 0.05), transparent 60%),
     var(--bg-deep);
@@ -287,9 +288,13 @@ select.input { appearance: auto; }
 
 .stage {
   position: relative;
-  /* It is a stage: anything positioned past the edges is clipped, in the
-     editor and at runtime alike, so authoring matches what learners see. */
-  overflow: hidden;
+  /* Pasteboard model (Illustrator/Figma): the editor does NOT clip - blocks
+     parked outside the slide stay visible and editable for staging. The
+     PLAYER clips to the slide (.player-stage overflow hidden), so off-stage
+     objects never appear in Preview or exports. The crisp outline marks the
+     visible slide edge. */
+  overflow: visible;
+  outline: 1px solid rgba(61, 220, 151, 0.55);
   background:
     linear-gradient(rgba(20, 26, 34, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(20, 26, 34, 0.05) 1px, transparent 1px),
@@ -1399,6 +1404,31 @@ select.input { appearance: auto; }
 .align-grid .btn { font-size: 14px; }
 .stage-block.co-selected { outline: 2px dashed rgba(61, 220, 151, 0.7); outline-offset: 1px; }
 
+/* Pasteboard: faint surround so the slide edge reads clearly. */
+.pasteboard {
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 10px, transparent 10px 20px);
+  border-radius: 4px;
+}
+
+/* Locked blocks: selectable to inspect, but visibly not editable. */
+.stage-block.locked { cursor: default; }
+.stage-block.locked:hover { outline: 1px dashed rgba(233, 75, 90, 0.6); }
+.stage-block.locked.selected { outline: 2px solid rgba(233, 75, 90, 0.8); }
+.block-badge.locked { background: #e94b5a; color: #fff; }
+.lock-glyph {
+  position: absolute; top: 2px; right: 2px; font-size: 11px;
+  opacity: 0.75; pointer-events: none;
+}
+
+/* Multi-selection bounding box: resize the whole selection together. */
+.multi-bbox {
+  position: absolute;
+  border: 1px dashed rgba(61, 220, 151, 0.9);
+  pointer-events: none;
+}
+.multi-bbox .handle.multi { pointer-events: auto; }
+
 /* ---- timeline v2: rows, ramps, z-order ---- */
 .timeline-row { display: flex; align-items: center; gap: 6px; }
 .timeline-row-controls { display: flex; flex-direction: column; flex: none; width: 16px; gap: 1px; }
@@ -1567,6 +1597,45 @@ select.input { appearance: auto; }
 
 /* ---- player chrome variants + options ---- */
 .player { --player-accent: var(--accent); }
+
+/* v6.4: player navigation lives in a collapsible left sidebar (hamburger).
+   The bar below the stage keeps only the transport + HUD. */
+.player-body { display: flex; flex: 1; min-height: 0; }
+.player-sidenav {
+  flex: none;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.25s ease;
+  background: #10141b;
+  border-right: 1px solid transparent;
+}
+.player-sidenav.open { width: 280px; border-right-color: #2c3648; }
+.player-sidenav-inner {
+  width: 280px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.player-sidenav-list { flex: 1; overflow-y: auto; min-height: 0; }
+.player-sidenav-buttons {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #2c3648;
+}
+.player-sidenav-buttons .player-chrome-btn { flex: 1; }
+.player-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.chrome-light .player-sidenav { background: #f4f6f9; }
+.chrome-light .player-sidenav.open { border-right-color: #d8dee7; }
+.chrome-light .player-menu-item { color: #2a3442; }
 .player-course-progress {
   position: absolute; top: -3px; left: 0; right: 0; height: 3px;
   background: rgba(255,255,255,0.08);
@@ -1688,6 +1757,29 @@ select.input { appearance: auto; }
   font-size: 10px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* Row drag grip + authoring locks */
+.tl-grip {
+  flex: none;
+  cursor: grab;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: -2px;
+  padding: 0 3px 0 0;
+  user-select: none;
+}
+.tl-grip:hover { color: var(--accent); }
+.tl-grip:active { cursor: grabbing; }
+.timeline-header-row.locked .tl-block-name { color: #b06771; }
+.tl-row-action-btn.on { color: #e94b5a; opacity: 1; }
+.timeline-bar.locked {
+  cursor: not-allowed;
+  background: rgba(233, 75, 90, 0.12);
+  border-color: rgba(233, 75, 90, 0.45);
+  border-style: dashed;
 }
 
 .timeline-header-row {

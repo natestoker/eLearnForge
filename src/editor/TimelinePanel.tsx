@@ -1,10 +1,11 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
-import { useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
+import { selectedIds, useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { timelineDuration } from '../engine/timeline';
 import { blockDisplayName } from '../shared/blockName';
-import type { Block } from '../schema/types';
+import type { Block, Layer } from '../schema/types';
 import { useWaveform } from '../shared/useWaveform';
+import { ScrubAudio } from './scrubAudio';
 
 // Storyline-style timeline strip.
 // Uses a clean, aligned two-column layout:
@@ -47,6 +48,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
 
   // The playhead is per-slide-visit state: switching slides clears it.
   useEffect(() => { setScrubT(null); }, [slide.id, setScrubT]);
+
+  // Audio scrubbing: dragging the playhead plays synchronized snippets of
+  // narration / audio blocks / attached audio, so animation can be timed
+  // to speech by ear. Sources reload when the slide (or its audio) changes.
+  const scrubAudioRef = useRef<ScrubAudio | null>(null);
+  if (!scrubAudioRef.current) scrubAudioRef.current = new ScrubAudio();
+  useEffect(() => () => scrubAudioRef.current?.dispose(), []);
   const gesture = useRef<{
     blockId: string; mode: GestureMode;
     startX: number; origStart: number; origEnd: number | undefined;
@@ -83,11 +91,16 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   const pxPerSec = () => ((trackRef.current?.clientWidth ?? 600) * timelineZoom) / duration;
   const q = (v: number) => (snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 100) / 100);
 
+  const blockLayer = (blockId: string): Layer | undefined =>
+    slide.layers.find((l) => walkBlocks(l.blocks).some((b) => b.id === blockId));
+  const rowLocked = (b: Block): boolean => Boolean(b.locked || blockLayer(b.id)?.locked);
+
   const onDown = (e: React.PointerEvent, blockId: string, mode: GestureMode) => {
     e.stopPropagation();
     const b = blocks.find((x) => x.id === blockId);
     if (!b) return;
     select({ blockId, blockIds: [] });
+    if (rowLocked(b)) return; // locked rows select but never retime
     record();
     if (!b.timing) {
       updateBlock(blockId, (blk) => { blk.timing = { start: 0, end: duration }; }, false);
@@ -156,12 +169,63 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     if (!content) return;
     const r = content.getBoundingClientRect();
     const t = Math.max(0, Math.min(duration, ((e.clientX - r.left) / r.width) * duration));
-    setScrubT(Math.round(t * 20) / 20);
+    const snapped = Math.round(t * 20) / 20;
+    setScrubT(snapped);
+    scrubAudioRef.current?.scrub(snapped);
   };
   const onRulerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
+    // (Re)load this slide's audio sources at drag start; the pointer press
+    // is the user gesture autoplay policies want.
+    scrubAudioRef.current?.load(slide, duration);
     scrubFromEvent(e);
     const onMove = (ev: PointerEvent) => scrubFromEvent(ev);
+    const onUp = () => {
+      scrubAudioRef.current?.pauseAll();
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  // Row drag-reorder: dragging a header row (its grip or name) restacks the
+  // block within its sibling list live - z-order updates as you drag, like
+  // AE/Premiere. Multi-selected siblings travel together as a chunk.
+  const startRowDrag = (e: React.PointerEvent, b: Block, parent: { layerId?: string; groupId?: string }, dispIdx: number, count: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const sel = useProjectStore.getState().selection;
+    const ids = selectedIds(sel).includes(b.id) ? selectedIds(sel) : [b.id];
+    select({ blockId: b.id, blockIds: ids.filter((id) => id !== b.id) });
+    const startY = e.clientY;
+    let recorded = false;
+    let cur = dispIdx;
+    const apply = (target: number) => {
+      mutate((p) => {
+        const s = p.slides.find((sl) => sl.id === slide.id);
+        if (!s) return;
+        let arr: Block[] | undefined;
+        if (parent.layerId) arr = s.layers.find((l) => l.id === parent.layerId)?.blocks;
+        else if (parent.groupId) {
+          const g = s.layers.flatMap((l) => walkBlocks(l.blocks)).find((x) => x.id === parent.groupId);
+          arr = g ? ((g.props as { blocks: Block[] }).blocks) : undefined;
+        }
+        if (!arr) return;
+        const disp = [...arr].reverse(); // rows list top-most first
+        const moving = disp.filter((x) => ids.includes(x.id));
+        const rest = disp.filter((x) => !ids.includes(x.id));
+        rest.splice(Math.max(0, Math.min(target, rest.length)), 0, ...moving);
+        arr.splice(0, arr.length, ...rest.reverse());
+      }, false);
+    };
+    const onMove = (ev: PointerEvent) => {
+      const target = Math.max(0, Math.min(count - 1, dispIdx + Math.round((ev.clientY - startY) / ROW_H)));
+      if (target === cur) return;
+      if (!recorded) { record(); recorded = true; }
+      cur = target;
+      apply(target);
+    };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
@@ -171,12 +235,23 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   };
 
   // Render the left-hand column track info recursively
-  const renderHeaderRow = (b: Block, layerBlocks: Block[], depth = 0): React.ReactNode => {
+  const renderHeaderRow = (b: Block, layerBlocks: Block[], depth: number, parent: { layerId?: string; groupId?: string }): React.ReactNode => {
     const idx = layerBlocks.indexOf(b);
     const selected = selection.blockId === b.id;
+    const locked = rowLocked(b);
     return (
       <Fragment key={b.id}>
-        <div className={`timeline-header-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H, paddingLeft: depth * 16 + 8 }}>
+        <div
+          className={`timeline-header-row ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
+          style={{ height: ROW_H, paddingLeft: depth * 16 + 8 }}
+        >
+          <span
+            className="tl-grip"
+            title="Drag to reorder (restacks immediately; selected rows move together)"
+            onPointerDown={(e) => startRowDrag(e, b, parent, idx, layerBlocks.length)}
+          >
+            {'\u22EE\u22EE'}
+          </span>
           {b.type === 'group' ? (
             <button
               className="tl-expand-btn"
@@ -188,12 +263,19 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           ) : (
             <span className="tl-expand-spacer" />
           )}
-          
-          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={() => select({ blockId: b.id, blockIds: [] })}>
+
+          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={(e) => { select({ blockId: b.id, blockIds: [] }); startRowDrag(e, b, parent, idx, layerBlocks.length); }}>
             {blockDisplayName(b)}
           </span>
-          
+
           <div className="tl-row-actions">
+            <button
+              className={`tl-row-action-btn ${b.locked ? 'on' : ''}`}
+              title={b.locked ? 'Unlock (allow editing)' : 'Lock (prevent moves, resizes, retiming)'}
+              onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, (blk) => { blk.locked = blk.locked ? undefined : true; }); }}
+            >
+              {b.locked ? '\u{1F512}' : '\u{1F513}'}
+            </button>
             <button className="tl-row-action-btn" style={{ opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false); }}>
               {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
             </button>
@@ -206,7 +288,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
         {b.type === 'group' && expandedGroups.has(b.id) && (
           <Fragment key={b.id + '_children_headers'}>
             {/* Reversed like top-level rows: top of the list = paints on top. */}
-            {[...((b.props as any).blocks as Block[])].reverse().map((child, _i, arr) => renderHeaderRow(child, arr, depth + 1))}
+            {[...((b.props as any).blocks as Block[])].reverse().map((child, _i, arr) => renderHeaderRow(child, arr, depth + 1, { groupId: b.id }))}
           </Fragment>
         )}
       </Fragment>
@@ -219,6 +301,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     const end = b.timing?.end ?? duration;
     const selected = selection.blockId === b.id;
     const untimed = !b.timing;
+    const locked = rowLocked(b);
     const span = Math.max(0.2, end - start);
     const animIn = b.timing?.animIn?.duration ?? 0;
     const animOut = b.timing?.animOut?.duration ?? 0;
@@ -226,24 +309,24 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       <Fragment key={b.id}>
         <div className={`timeline-lane-row ${selected ? 'selected' : ''}`} style={{ height: ROW_H }} onPointerDown={() => select({ blockId: b.id, blockIds: [] })}>
           <div
-            className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''}`}
+            className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''} ${locked ? 'locked' : ''}`}
             style={{ left: pct(start), width: pct(span) }}
             onPointerDown={(e) => onDown(e, b.id, 'move')}
-            title={untimed ? 'Whole slide - drag to add timing' : `${start.toFixed(1)}s - ${end.toFixed(1)}s`}
+            title={locked ? 'Locked - unlock to retime' : untimed ? 'Whole slide - drag to add timing' : `${start.toFixed(1)}s - ${end.toFixed(1)}s`}
           >
             {!untimed && animIn > 0 && <div className="tl-ramp tl-ramp-in" style={{ width: `${(animIn / span) * 100}%` }} />}
             {!untimed && animOut > 0 && <div className="tl-ramp tl-ramp-out" style={{ width: `${(animOut / span) * 100}%` }} />}
             {b.type === 'audio' && <BarWaveform src={(b.props as { src?: string }).src} />}
-            
-            {/* Anim handles */}
-            {!untimed && (
+
+            {/* Anim handles (hidden while locked - keyframes can't be dragged) */}
+            {!untimed && !locked && (
               <div className="tl-ramp-strip" onPointerDown={(e) => e.stopPropagation()}>
                 <span className="tl-ramp-handle in" style={{ left: `${(animIn / span) * 100}%` }} onPointerDown={(e) => onDown(e, b.id, 'animIn')} title="Drag to set animate-in length" />
                 <span className="tl-ramp-handle out" style={{ right: `${(animOut / span) * 100}%` }} onPointerDown={(e) => onDown(e, b.id, 'animOut')} title="Drag to set animate-out length" />
               </div>
             )}
-            <span className="timeline-bar-handle start" onPointerDown={(e) => onDown(e, b.id, 'trimStart')} title="Drag to change the start (trims, doesn't move)" />
-            <span className="timeline-bar-handle" onPointerDown={(e) => onDown(e, b.id, 'trim')} title="Drag to trim the end" />
+            {!locked && <span className="timeline-bar-handle start" onPointerDown={(e) => onDown(e, b.id, 'trimStart')} title="Drag to change the start (trims, doesn't move)" />}
+            {!locked && <span className="timeline-bar-handle" onPointerDown={(e) => onDown(e, b.id, 'trim')} title="Drag to trim the end" />}
           </div>
         </div>
         {b.type === 'group' && expandedGroups.has(b.id) && (
@@ -286,6 +369,20 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
           snap
         </label>
+        <button
+          className={`btn btn-ghost tl-row-action-btn ${slide.layers.every((l) => l.locked) ? 'on' : ''}`}
+          title={slide.layers.every((l) => l.locked) ? 'Unlock all layers' : 'Lock all layers (prevents every move, resize, and retime)'}
+          onClick={() =>
+            mutate((p) => {
+              const s = p.slides.find((sl) => sl.id === slide.id);
+              if (!s) return;
+              const lockAll = !s.layers.every((l) => l.locked);
+              s.layers.forEach((l) => { l.locked = lockAll ? true : undefined; });
+            })
+          }
+        >
+          {slide.layers.every((l) => l.locked) ? '\u{1F512} all' : '\u{1F513} all'}
+        </button>
         {scrubT !== null && (
           <button
             className="btn btn-ghost tl-playhead-chip"
@@ -311,9 +408,22 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             return (
               <div key={layer.id}>
                 <div className="timeline-layer-header-name">
-                  {layer.name}{li === 0 ? ' (base)' : ''}
+                  <span>{layer.name}{li === 0 ? ' (base)' : ''}</span>
+                  <button
+                    className={`tl-row-action-btn ${layer.locked ? 'on' : ''}`}
+                    title={layer.locked ? 'Unlock this layer' : 'Lock this whole layer'}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      mutate((p) => {
+                        const l = p.slides.find((sl) => sl.id === slide.id)?.layers.find((x) => x.id === layer.id);
+                        if (l) l.locked = l.locked ? undefined : true;
+                      });
+                    }}
+                  >
+                    {layer.locked ? '\u{1F512}' : '\u{1F513}'}
+                  </button>
                 </div>
-                {ordered.map((b) => renderHeaderRow(b, ordered, 0))}
+                {ordered.map((b) => renderHeaderRow(b, ordered, 0, { layerId: layer.id }))}
               </div>
             );
           })}

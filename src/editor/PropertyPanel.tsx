@@ -1,4 +1,5 @@
-import { useCurrentSlide, useProjectStore, useSelectedBlock } from '../state/projectStore';
+import { selectedIds, useCurrentSlide, useProjectStore, useSelectedBlock, walkBlocks } from '../state/projectStore';
+import type { Block, ButtonProps, ShapeProps, TextProps } from '../schema/types';
 import { BLOCKS } from '../blocks/registry';
 import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, Row, SelectInput, TextInput } from './fields';
 import { VoiceRecorder } from './VoiceRecorder';
@@ -16,10 +17,16 @@ import { useState } from 'react';
 export function PropertyPanel() {
   const block = useSelectedBlock();
   const slide = useCurrentSlide();
+  const selection = useProjectStore((s) => s.selection);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const moveBlockZ = useProjectStore((s) => s.moveBlockZ);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
   const mutate = useProjectStore((s) => s.mutate);
+
+  // 2+ blocks selected: shared editing is the workflow, not an edge case -
+  // one panel that writes common settings to the whole selection.
+  const multiIds = selectedIds(selection);
+  if (multiIds.length >= 2) return <MultiPropertyPanel ids={multiIds} />;
 
   if (!block) {
     return (
@@ -236,6 +243,25 @@ export function PropertyPanel() {
           <NumberInput value={Math.round(block.h)} min={40} onChange={(v) => updateBlock(block.id, (b) => { b.h = v; })} />
         </Field>
       </Row>
+      <Row>
+        <Field label="Rotation (deg)">
+          <NumberInput
+            value={block.rotation ?? 0}
+            step={15}
+            onChange={(v) => updateBlock(block.id, (b) => { b.rotation = v ? ((v % 360) + 360) % 360 : undefined; })}
+          />
+        </Field>
+        <Field label="Lock">
+          <button
+            className="btn"
+            style={block.locked ? { color: '#e94b5a' } : undefined}
+            onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
+            title="A locked block can be selected but not moved, resized, or retimed"
+          >
+            {block.locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked'}
+          </button>
+        </Field>
+      </Row>
       <div className="divider" />
       <def.Properties
         block={block}
@@ -309,6 +335,147 @@ export function PropertyPanel() {
   );
 }
 
+
+// Shared editing for a multi-selection: common settings write to every
+// selected block (where the property applies), and the selection-level
+// tools (align, distribute, group, delete) live right here.
+function MultiPropertyPanel({ ids }: { ids: string[] }) {
+  const slide = useCurrentSlide();
+  const updateBlock = useProjectStore((s) => s.updateBlock);
+  const mutate = useProjectStore((s) => s.mutate);
+  const select = useProjectStore((s) => s.select);
+  const blocks = slide.layers.flatMap((l) => walkBlocks(l.blocks)).filter((b) => ids.includes(b.id));
+  if (blocks.length < 2) return null;
+  const first = blocks[0];
+
+  const each = (fn: (b: Block) => void) => {
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (!s) return;
+      for (const l of s.layers) {
+        for (const b of walkBlocks(l.blocks)) if (ids.includes(b.id)) fn(b);
+      }
+    });
+  };
+
+  const fillables = blocks.filter((b) => b.type === 'shape' || b.type === 'button');
+  const shapes = blocks.filter((b) => b.type === 'shape');
+  const texts = blocks.filter((b) => b.type === 'text');
+  const anyLocked = blocks.some((b) => b.locked);
+
+  return (
+    <div className="panel-scroll">
+      <h3 className="panel-title">{blocks.length} blocks selected</h3>
+      <p className="hint">Changes apply to every selected block. Drag the dashed box's corner on the canvas to resize together (Shift keeps proportions).</p>
+      {fillables.length > 0 && (
+        <Field label={`Fill (${fillables.length})`}>
+          <ColorInput
+            value={(fillables[0].props as ShapeProps | ButtonProps).fill ?? '#3ddc97'}
+            onChange={(v) => each((b) => {
+              if (b.type === 'shape' || b.type === 'button') (b.props as { fill?: string }).fill = v;
+            })}
+          />
+        </Field>
+      )}
+      {shapes.length > 0 && (
+        <Row>
+          <Field label="Border">
+            <ColorInput
+              value={(shapes[0].props as ShapeProps).borderColor}
+              onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderColor = v; })}
+            />
+          </Field>
+          <Field label="Border width">
+            <NumberInput
+              value={(shapes[0].props as ShapeProps).borderWidth}
+              min={0}
+              onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderWidth = Math.max(0, v); })}
+            />
+          </Field>
+        </Row>
+      )}
+      {texts.length > 0 && (
+        <Row>
+          <Field label={`Font size (${texts.length})`}>
+            <NumberInput
+              value={(texts[0].props as TextProps).fontSize}
+              min={6}
+              onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).fontSize = Math.max(6, v); })}
+            />
+          </Field>
+          <Field label="Text color">
+            <ColorInput
+              value={(texts[0].props as TextProps).color ?? '#e7e9ec'}
+              onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).color = v; })}
+            />
+          </Field>
+        </Row>
+      )}
+      <Row>
+        <Field label="Rotation (deg)">
+          <NumberInput
+            value={first.rotation ?? 0}
+            step={15}
+            onChange={(v) => each((b) => { b.rotation = v ? ((v % 360) + 360) % 360 : undefined; })}
+          />
+        </Field>
+        <Field label="Lock">
+          <button
+            className="btn"
+            style={anyLocked ? { color: '#e94b5a' } : undefined}
+            onClick={() => each((b) => { b.locked = anyLocked ? undefined : true; })}
+          >
+            {anyLocked ? '\u{1F513} Unlock all' : '\u{1F512} Lock all'}
+          </button>
+        </Field>
+      </Row>
+      <Field label="Emphasis (all)">
+        <SelectInput
+          value={first.emphasis ?? 'none'}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'pulse', label: 'Pulse' },
+            { value: 'heartbeat', label: 'Heartbeat' },
+            { value: 'bounce', label: 'Bounce' },
+            { value: 'float', label: 'Float' },
+            { value: 'wobble', label: 'Wobble' },
+            { value: 'tada', label: 'Tada' },
+            { value: 'glow', label: 'Glow' },
+            { value: 'shake', label: 'Shake' }
+          ]}
+          onChange={(v) => each((b) => { b.emphasis = v === 'none' ? undefined : (v as 'pulse'); })}
+        />
+      </Field>
+      <div className="divider" />
+      <h3 className="panel-title">Shadow (all)</h3>
+      <ShadowSection
+        block={first}
+        onUpdate={(fn) => { ids.forEach((id) => updateBlock(id, (b) => fn(b), id === ids[0])); }}
+      />
+      <div className="divider" />
+      <h3 className="panel-title">Align</h3>
+      <AlignControls />
+      <GroupControls />
+      <div className="divider" />
+      <button
+        className="btn btn-danger-solid"
+        onClick={() => {
+          mutate((p) => {
+            const s = p.slides.find((sl) => sl.id === slide.id);
+            if (!s) return;
+            const idSet = new Set(ids);
+            for (const l of s.layers) {
+              l.blocks = l.blocks.filter((b) => !idSet.has(b.id));
+            }
+          });
+          select({ blockId: null, blockIds: [] });
+        }}
+      >
+        Delete {blocks.length} blocks
+      </button>
+    </div>
+  );
+}
 
 function PlayerSettingsSection() {
   const mutate = useProjectStore((s) => s.mutate);

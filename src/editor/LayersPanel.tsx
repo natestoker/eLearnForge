@@ -46,6 +46,21 @@ export function LayersPanel() {
               >
                 {editorHidden ? '-' : 'o'}
               </button>
+              <button
+                className="btn btn-ghost btn-icon"
+                style={layer.locked ? { color: '#e94b5a' } : undefined}
+                title={layer.locked ? 'Unlock this layer' : 'Lock this layer (blocks can be selected but not edited)'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  mutate((p) => {
+                    const s = p.slides.find((sl) => sl.id === slide.id);
+                    const l = s?.layers.find((ly) => ly.id === layer.id);
+                    if (l) l.locked = l.locked ? undefined : true;
+                  });
+                }}
+              >
+                {layer.locked ? '\u{1F512}' : '\u{1F513}'}
+              </button>
               {renamingId === layer.id ? (
                 <input
                   className="input input-inline"

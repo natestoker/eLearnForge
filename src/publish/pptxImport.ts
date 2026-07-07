@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { Block, Project, ShadowSpec, Slide } from '../schema/types';
+import type { AnimDirection, AnimSpec, Block, Project, ShadowSpec, Slide, Trigger } from '../schema/types';
 import { createLayer, uid } from '../schema/factory';
 import { PRSTGEOM_TO_KIND } from '../blocks/shape/geometry';
 
@@ -474,7 +474,51 @@ function readShadow(node: Element, theme: ThemeColors): ShadowSpec | undefined {
   };
 }
 
+// Click hyperlinks found on shapes, resolved into goToSlide triggers after
+// every slide exists (forward links need the target slide's generated id).
+interface PendingLink { blockId: string; slideNum?: number; jump?: 'next' | 'prev' | 'first' | 'last' }
+
+// Per-slide import context: DrawingML shape ids -> our block ids (timing
+// nodes and interactive triggers target shapes by spid), plus hyperlinks.
+interface SlideCtx { idMap: Map<string, string>; links: PendingLink[]; rels: string | null }
+
+function readHlink(node: Element, ctx: SlideCtx, blockId: string): void {
+  const hl = local(node, 'hlinkClick')[0];
+  if (!hl) return;
+  const action = hl.getAttribute('action') ?? '';
+  if (action.includes('jump=nextslide')) { ctx.links.push({ blockId, jump: 'next' }); return; }
+  if (action.includes('jump=previousslide')) { ctx.links.push({ blockId, jump: 'prev' }); return; }
+  if (action.includes('jump=firstslide')) { ctx.links.push({ blockId, jump: 'first' }); return; }
+  if (action.includes('jump=lastslide')) { ctx.links.push({ blockId, jump: 'last' }); return; }
+  const rId = hl.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
+    ?? hl.getAttribute('r:id');
+  if (!rId || !ctx.rels) return;
+  const m = ctx.rels.match(new RegExp(`Id="${rId}"[^>]*Target="[^"]*slide(\\d+)\\.xml"`));
+  if (m) ctx.links.push({ blockId, slideNum: Number(m[1]) });
+}
+
 async function importShape(
+  zip: JSZip, slidePath: string, node: Element,
+  groupOffset: { dx: number; dy: number },
+  layout: { spMap: Map<PhKey, Element>; bgFill: string | null },
+  theme: ThemeColors,
+  out: Block[],
+  usedFonts: Set<string>,
+  ctx: SlideCtx
+): Promise<void> {
+  const before = out.length;
+  const spid = local(node, 'cNvPr')[0]?.getAttribute('id');
+  await importShapeInner(zip, slidePath, node, groupOffset, layout, theme, out, usedFonts);
+  const created = out.slice(before);
+  if (!created.length) return;
+  // The visual block (shape/image) is the animation/click target; a
+  // text-only sp maps to its text block.
+  const primary = created.find((b) => b.type !== 'text') ?? created[0];
+  if (spid) ctx.idMap.set(spid, primary.id);
+  readHlink(node, ctx, primary.id);
+}
+
+async function importShapeInner(
   zip: JSZip, slidePath: string, node: Element,
   groupOffset: { dx: number; dy: number },
   layout: { spMap: Map<PhKey, Element>; bgFill: string | null },
@@ -635,6 +679,153 @@ function firstTextColor(sp: Element, theme: ThemeColors): string | null {
   return null;
 }
 
+// PowerPoint animations -> our timeline ------------------------------------
+// The p:timing tree nests effect cTn nodes (presetClass entr/exit, presetID
+// = the gallery effect, presetSubtype = direction bits) inside a mainSeq.
+// PowerPoint advances by click; our timeline has a clock, so click groups
+// are laid out sequentially: each clickEffect starts when the previous
+// group's longest effect ends. Interactive sequences ("start on click of
+// shape X") become real triggers: hide the targets on slide load, show
+// them when the source is clicked.
+
+const directChild = (el: Element, name: string): Element | undefined =>
+  Array.from(el.children).find((c) => c.localName === name);
+
+function effectDelaySec(eff: Element): number {
+  const st = directChild(eff, 'stCondLst');
+  const d = st ? directChild(st, 'cond')?.getAttribute('delay') : null;
+  return d && d !== 'indefinite' ? Number(d) / 1000 : 0;
+}
+
+function effectDurSec(eff: Element): number {
+  let max = 0;
+  for (const c of local(eff, 'cTn')) {
+    const dur = c.getAttribute('dur');
+    if (dur && dur !== 'indefinite') max = Math.max(max, Number(dur) / 1000);
+  }
+  return max || 0.5;
+}
+
+// Fly-in style subtype bits: 1=from top, 2=from right, 4=from bottom,
+// 8=from left (corners are sums; the dominant bit wins).
+function subtypeDirection(sub: number): AnimDirection {
+  if (sub & 4) return 'up';    // enters FROM the bottom, moving up
+  if (sub & 1) return 'down';
+  if (sub & 8) return 'right';
+  if (sub & 2) return 'left';
+  return 'up';
+}
+
+function mapPresetToAnim(eff: Element, durSec: number): AnimSpec | null {
+  const presetId = Number(eff.getAttribute('presetID') ?? 0);
+  const sub = Number(eff.getAttribute('presetSubtype') ?? 0);
+  const dur = Math.max(0.1, durSec);
+  const spec = (type: AnimSpec['type'], extra: Partial<AnimSpec> = {}): AnimSpec =>
+    ({ type, duration: dur, ease: 'power2.out', ...extra });
+  switch (presetId) {
+    case 1: return spec('fade', { duration: 0.1 });        // Appear
+    case 2: return spec('slide', { direction: subtypeDirection(sub), distance: 300 }); // Fly In
+    case 10: return spec('fade');                           // Fade
+    case 14: return spec('slide', { direction: subtypeDirection(sub) }); // Peek In
+    case 23: {                                              // Wipe
+      // The animEffect filter names the direction outright: wipe(up)...
+      const filter = local(eff, 'animEffect')[0]?.getAttribute('filter') ?? '';
+      const m = /wipe\((up|down|left|right)\)/i.exec(filter);
+      return spec('wipe', { direction: (m?.[1]?.toLowerCase() as AnimDirection) ?? subtypeDirection(sub) });
+    }
+    case 26: case 53: return spec('zoom');                  // Zoom / Faded zoom
+    case 34: case 47: return spec('rise', { ease: 'power3.out' }); // Rise Up / Ascend
+    case 30: return spec('zoomOut');                        // Shrink-ish
+    case 54: return spec('flip', { direction: 'left' });    // Flip
+    case 56: return spec('bounceIn');                       // Bounce
+    default: return spec('fade');                           // everything else approximates as a fade
+  }
+}
+
+interface TimingResult { animated: boolean; endsAt: number }
+
+function importTiming(
+  doc: Document,
+  idMap: Map<string, string>,
+  blocks: Block[],
+  triggers: Trigger[],
+  warnings: string[],
+  slideNum: number
+): TimingResult {
+  const timing = local(doc, 'timing')[0];
+  if (!timing) return { animated: false, endsAt: 0 };
+  const byId = new Map(blocks.map((b) => [b.id, b]));
+  const target = (eff: Element): Block | undefined => {
+    const spid = local(eff, 'spTgt')[0]?.getAttribute('spid');
+    const id = spid ? idMap.get(spid) : undefined;
+    return id ? byId.get(id) : undefined;
+  };
+
+  let animated = false;
+  let endsAt = 0;
+
+  for (const seq of local(timing, 'seq')) {
+    const seqCtn = directChild(seq, 'cTn');
+    if (!seqCtn) continue;
+    const isMain = seqCtn.getAttribute('nodeType') === 'mainSeq';
+    const effects = local(seqCtn, 'cTn').filter((c) => c.getAttribute('presetClass'));
+
+    if (isMain) {
+      // Sequential click groups on the timeline clock.
+      let clock = 0;      // current group's base time
+      let groupEnd = 0;   // when the current group's longest effect ends
+      let lastStart = 0;
+      for (const eff of effects) {
+        const cls = eff.getAttribute('presetClass');
+        const nodeType = eff.getAttribute('nodeType');
+        const b = target(eff);
+        const durSec = effectDurSec(eff);
+        if (nodeType === 'clickEffect' || nodeType === 'afterEffect') clock = groupEnd;
+        const start = (nodeType === 'withEffect' ? lastStart : clock) + effectDelaySec(eff);
+        lastStart = start;
+        groupEnd = Math.max(groupEnd, start + durSec);
+        endsAt = Math.max(endsAt, start + durSec);
+        if (!b) continue;
+        if (cls === 'entr') {
+          const anim = mapPresetToAnim(eff, durSec);
+          b.timing = { ...(b.timing ?? {}), start: Math.round(start * 10) / 10, animIn: anim ?? undefined };
+          animated = true;
+        } else if (cls === 'exit') {
+          const anim = mapPresetToAnim(eff, durSec);
+          const end = Math.round((start + durSec) * 10) / 10;
+          b.timing = { ...(b.timing ?? { start: 0 }), end, animOut: anim ?? undefined };
+          animated = true;
+        } else {
+          warnings.push(`Slide ${slideNum}: an ${cls} animation was skipped (only entrance/exit import).`);
+        }
+      }
+    } else {
+      // Interactive sequence: effects start on a click of a source shape.
+      const condTgt = local(seq, 'cond').map((c) => local(c, 'spTgt')[0]).find(Boolean);
+      const srcId = condTgt?.getAttribute('spid') ? idMap.get(condTgt.getAttribute('spid')!) : undefined;
+      const shown = effects.filter((e) => e.getAttribute('presetClass') === 'entr').map(target).filter(Boolean) as Block[];
+      const hidden = effects.filter((e) => e.getAttribute('presetClass') === 'exit').map(target).filter(Boolean) as Block[];
+      if (!srcId || (!shown.length && !hidden.length)) continue;
+      // Click-revealed blocks start hidden, then the click shows them.
+      for (const b of shown) {
+        triggers.push({ id: uid('trg'), event: 'onSlideLoad', conditions: [], actions: [{ type: 'hideBlock', blockId: b.id }] });
+      }
+      triggers.push({
+        id: uid('trg'),
+        event: 'onClick',
+        sourceBlockId: srcId,
+        conditions: [],
+        actions: [
+          ...shown.map((b) => ({ type: 'showBlock', blockId: b.id } as const)),
+          ...hidden.map((b) => ({ type: 'hideBlock', blockId: b.id } as const))
+        ]
+      });
+      animated = true;
+    }
+  }
+  return { animated, endsAt };
+}
+
 export interface PptxImportResult {
   project: Project;
   warnings: string[];
@@ -671,6 +862,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
   // itself embeds (ppt/fonts/*.fntdata).
   const usedFonts = new Set<string>();
   const slides: Slide[] = [];
+  const slideLinks: PendingLink[][] = []; // per slide, resolved after all exist
   for (const path of slidePaths) {
     const xmlStr = await fileString(zip, path);
     if (!xmlStr) continue;
@@ -679,6 +871,8 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
     const blocks: Block[] = [];
 
     const layout = await readLayout(zip, path, theme);
+    const relsPath = path.replace(/slides\/(slide\d+\.xml)$/i, 'slides/_rels/$1.rels');
+    const ctx: SlideCtx = { idMap: new Map(), links: [], rels: await fileString(zip, relsPath) };
     const walk = async (parent: Element, offset: { dx: number; dy: number }) => {
       for (const child of Array.from(parent.children)) {
         if (child.localName === 'AlternateContent') {
@@ -694,7 +888,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
           const dy = gx && chOff ? gx.y - Number(chOff.getAttribute('y')) / EMU : 0;
           await walk(child, { dx: offset.dx + dx, dy: offset.dy + dy });
         } else if (child.localName === 'sp' || child.localName === 'pic' || child.localName === 'cxnSp') {
-          await importShape(zip, path, child, offset, layout, theme, blocks, usedFonts);
+          await importShape(zip, path, child, offset, layout, theme, blocks, usedFonts, ctx);
         } else if (child.localName === 'graphicFrame') {
           warnings.push(`Slide ${slides.length + 1}: a table/chart/SmartArt frame was skipped.`);
         }
@@ -703,7 +897,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
     if (spTree) await walk(spTree, { dx: 0, dy: 0 });
 
     const layer = createLayer('Base layer', true);
-    
+
     let bgHex = extractBgFill(local(doc, 'bg')[0], theme) || layout.bgFill;
     if (bgHex && bgHex !== 'transparent') {
       blocks.unshift({
@@ -711,25 +905,58 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
         props: { kind: 'rectangle', fill: bgHex, borderColor: 'transparent', borderWidth: 0, cornerRadius: 0 }
       } as Block);
     }
-    
+
     layer.blocks = blocks;
     const notes = await readNotes(zip, path);
     const n = slides.length + 1;
+
+    // Animations + interactive (click-triggered) effects from p:timing.
+    const triggers: Trigger[] = [];
+    const anim = importTiming(doc, ctx.idMap, blocks, triggers, warnings, n);
+
+    // Timeline: narration estimate when there are notes; otherwise long
+    // enough for the imported animations to play out.
+    let timeline = notes
+      ? { duration: Math.max(3, Math.round(narrationEstimate(notes))), autoAdvance: true }
+      : undefined;
+    if (!timeline && anim.animated && anim.endsAt > 0) {
+      timeline = { duration: Math.max(3, Math.ceil(anim.endsAt + 1)), autoAdvance: false };
+    }
+
     slides.push({
       id: uid('sl'),
       name: `Slide ${n}`,
       width, height,
       layers: [layer],
-      triggers: [],
+      triggers,
       notes: notes || undefined,
-      // Slides with speaker notes get a pre-estimated timeline duration; the
-      // author can then bake the notes to a narration file with Kokoro.
-      timeline: notes
-        ? { duration: Math.max(3, Math.round(narrationEstimate(notes))), autoAdvance: true }
-        : undefined
+      timeline
     });
+    slideLinks.push(ctx.links);
     if (blocks.length === 0) warnings.push(`Slide ${n}: nothing importable (shapes may rely on layout placeholders).`);
   }
+
+  // Hyperlink jumps become onClick goToSlide triggers now that every slide
+  // (and its generated id) exists.
+  slides.forEach((slide, i) => {
+    for (const link of slideLinks[i] ?? []) {
+      const idx =
+        link.jump === 'next' ? i + 1 :
+        link.jump === 'prev' ? i - 1 :
+        link.jump === 'first' ? 0 :
+        link.jump === 'last' ? slides.length - 1 :
+        (link.slideNum ?? 0) - 1;
+      const targetSlide = slides[idx];
+      if (!targetSlide || targetSlide.id === slide.id) continue;
+      slide.triggers.push({
+        id: uid('trg'),
+        event: 'onClick',
+        sourceBlockId: link.blockId,
+        conditions: [],
+        actions: [{ type: 'goToSlide', slideId: targetSlide.id }]
+      });
+    }
+  });
 
   const title = existingTitle || file.name.replace(/\.pptx$/i, '');
   const embeddedFonts = await readEmbeddedFonts(zip, presXml ?? '');

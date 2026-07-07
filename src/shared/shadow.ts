@@ -43,16 +43,19 @@ export function innerShadowBoxCss(s: ShadowSpec | undefined): string | undefined
   return `inset ${dx.toFixed(1)}px ${dy.toFixed(1)}px ${s.blur}px ${s.spread ?? 0}px ${shadowRgba(s)}`;
 }
 
-// Block-level shadow, rendered identically by the editor canvas and the
-// player. Shape blocks draw inner shadows inside their own SVG, so they
-// get nothing here; other blocks approximate inner with an inset
-// box-shadow.
+// Block-level content styling shared verbatim by the editor canvas and the
+// player: the shadow, plus rotation (both live on the same wrapper so the
+// shadow rotates with the content). Shape blocks draw inner shadows inside
+// their own SVG; other blocks approximate inner with an inset box-shadow.
 export function shadowStyle(block: Block): React.CSSProperties {
+  const out: React.CSSProperties = {};
+  if (block.rotation) out.transform = `rotate(${block.rotation}deg)`;
   const s = effectiveShadow(block);
-  if (!s) return {};
-  if (!s.inner) return { filter: outerShadowFilter(s) };
-  if (block.type === 'shape') return {};
-  return { boxShadow: innerShadowBoxCss(s) };
+  if (s) {
+    if (!s.inner) out.filter = outerShadowFilter(s);
+    else if (block.type !== 'shape') out.boxShadow = innerShadowBoxCss(s);
+  }
+  return out;
 }
 
 // PowerPoint's preset gallery, trimmed to the ones people reach for.

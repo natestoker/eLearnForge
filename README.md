@@ -757,3 +757,78 @@ builds; opening them resurrected the old toolbar/preview and its export
 bugs ("only the last slide"). They're deleted - the editor is dist/
 index.html (or npm run dev). The current single-file web export embeds
 every slide and navigates them (verified end to end).
+
+
+# v6.4
+
+## Timeline & layer locking
+Padlocks everywhere they're needed: per-row in the timeline, per-layer in
+the Layers panel and timeline layer headers, and a lock-all toggle in the
+timeline head. A locked block stays selectable (so the lock is
+discoverable) but refuses moves, resizes, nudges, deletes, timeline bar
+drags, and ramp (keyframe) drags. Locked rows/bars/blocks read clearly
+(red dashed bar, lock badge); locked blocks are also skipped by marquee
+selection and multi-drags.
+
+## Pasteboard (off-stage editing)
+The editor no longer clips at the slide edge: a scrollable pasteboard
+surrounds the slide (Illustrator-style), so assets can be staged outside
+the visible area, fully editable, with snapping intact. The slide edge is
+a crisp outline; the player still clips to the slide, so off-stage
+objects never appear in Preview or exports.
+
+## Marquee selection from anywhere
+Drag-select can start on the stage, the pasteboard, or the outer canvas -
+anywhere that isn't a block - and selects everything the box touches,
+off-stage objects included.
+
+## Multi-selection, first-class
+- A dashed bounding box wraps 2+ selected blocks; drag its corner to
+  resize the whole selection together (Shift keeps proportions).
+- Selecting several blocks opens a shared properties panel: fill, border,
+  font size/color, rotation, lock, emphasis, shadow - each writes to every
+  selected block - plus align/distribute/group and delete.
+- Blocks gained rotation (degrees, around center), rendered in editor and
+  player; the multi panel rotates the whole selection together.
+
+## Timeline row reordering
+Drag a row (its grip or name) up and down to restack - the z-order
+updates live as you drag, and multi-selected sibling rows travel
+together. Works for top-level rows and inside expanded groups.
+
+## Audio scrubbing
+Dragging the timeline playhead now plays synchronized snippets of
+everything audible at that moment - narration, audio blocks, block-attached
+audio - so animations can be synced to speech by ear, Premiere-style.
+
+## Player: navigation in a collapsible left sidebar
+The published player and Preview moved navigation out of the bottom bar:
+a hamburger (top-left) toggles an animated left panel holding the course
+menu and Back/Next/Submit. The panel remembers its state while the course
+runs, and the bottom bar keeps only the transport and HUD - more vertical
+space for content. Editor chrome is unchanged.
+
+## Save remembers its file across sessions
+The save-file handle now persists in IndexedDB: reopen the editor and
+Save still overwrites the same project file (the browser re-confirms
+write permission on the first save). Save As targets a new file, which
+becomes current; cancelling it keeps the old target.
+
+## Pen editor: true proportions
+The pen canvas now matches the block's aspect ratio instead of being a
+square, so drawn or traced artwork is WYSIWYG - Apply no longer stretches
+or squashes the result. Image tracing also honors the image's fit
+(contain letterboxes, cover crops), and Insert > Shapes gained a
+"Custom shape" entry that drops a block and opens the pen directly.
+
+## PowerPoint animations and triggers import
+- p:timing parses into real timeline animations: Fade/Appear, Fly In
+  (direction + long travel), Peek In, Wipe (direction from its filter),
+  Zoom, Rise Up/Ascend, Bounce, Flip; exit effects set the block's end +
+  animate-out. Click groups sequence onto the clock (each click's effects
+  start when the previous group ends); "with previous" and delays are
+  honored. Slides with animations get a timeline sized to fit.
+- Interactive ("start on click of") sequences become real triggers: the
+  targets hide on slide load and show when the source shape is clicked.
+- Hyperlink jumps (hlinkClick to a slide, next/previous/first/last)
+  become onClick goToSlide triggers.

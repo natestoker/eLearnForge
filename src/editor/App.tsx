@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
-import { loadProject, saveProject } from '../state/persistence';
+import { loadProject, restoreFileHandle, saveProject } from '../state/persistence';
 import { Toolbar } from './Toolbar';
 import { SlidesPanel } from './SlidesPanel';
 import { LayersPanel } from './LayersPanel';
@@ -35,8 +35,10 @@ export function App() {
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
   const saveTimer = useRef<number>();
 
-  // Boot: restore the last autosave if there is one.
+  // Boot: restore the last autosave if there is one, and the last session's
+  // save-file handle so Save keeps overwriting the same file after a reload.
   useEffect(() => {
+    void restoreFileHandle();
     loadProject()
       .then((p) => { if (p) useProjectStore.getState().setProject(p); })
       .catch(() => { /* fresh profile or blocked IDB; demo project stands */ })
