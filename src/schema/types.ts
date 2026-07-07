@@ -22,6 +22,7 @@ export interface TextProps {
   // Line height multiplier. Default 1.35; PPTX import writes the deck's
   // real spacing (single spacing = 1.2) so layouts match PowerPoint.
   lineHeight?: number;
+  letterSpacing?: number; // px; 0 = normal
 }
 
 export interface ImageProps {
@@ -396,6 +397,9 @@ export interface PlayerSettings {
   menu: { show: boolean; locked?: boolean }; // locked = view-only (no jumping)
   // Where Back/Next/Submit sit in the bottom bar. Default right.
   navPosition?: 'left' | 'right';
+  // Course title placement. 'bottom' (default) in the chrome bar HUD;
+  // 'top' shows a title bar above the stage; 'hidden' removes it.
+  titlePosition?: 'bottom' | 'top' | 'hidden';
   // Hover effect on the nav buttons (Back/Next/Submit).
   buttonHover?: 'none' | 'lift' | 'glow' | 'scale' | 'brightness';
   // Looping attention animation on the ENABLED accent buttons (Next/Submit).

@@ -77,6 +77,38 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
           onChange={(v) => onUpdateProps((p: TextProps) => { p.valign = v as TextProps['valign']; })}
         />
       </Field>
+      <Field label="Line height">
+        <NumberInput
+          value={props.lineHeight ?? 1.35}
+          min={0.8}
+          max={3}
+          step={0.05}
+          onChange={(v) => onUpdateProps((p: TextProps) => { p.lineHeight = Math.abs(v - 1.35) < 0.001 ? undefined : v; })}
+        />
+      </Field>
+      <Field label="Letter spacing (px)">
+        <NumberInput
+          value={props.letterSpacing ?? 0}
+          min={-5}
+          max={40}
+          step={0.5}
+          onChange={(v) => onUpdateProps((p: TextProps) => { p.letterSpacing = v ? v : undefined; })}
+        />
+      </Field>
+      <button
+        className="btn btn-ghost"
+        title="Strip all inline HTML formatting, keeping just the words (so the panel's font/size/color take over)"
+        onClick={() => onUpdateProps((p: TextProps) => {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = p.html;
+          // Keep paragraph breaks: block elements -> newlines, then text only.
+          tmp.querySelectorAll('div,p,br').forEach((el) => el.replaceWith('\n' + (el.textContent ?? '')));
+          const text = (tmp.textContent ?? '').replace(/\n{2,}/g, '\n').trim();
+          p.html = text.split('\n').map((line) => line ? `<div>${line.replace(/</g, '&lt;')}</div>` : '<div><br/></div>').join('');
+        })}
+      >
+        Clear formatting (HTML)
+      </button>
       <Field label="Text animation (plays when it enters)">
         <SelectInput
           value={props.textAnim ?? 'none'}

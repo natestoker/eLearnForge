@@ -572,6 +572,17 @@ function PlayerSettingsSection() {
           onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.navPosition = v === 'right' ? undefined : 'left'; })}
         />
       </Field>
+      <Field label="Course title">
+        <SelectInput
+          value={player.titlePosition ?? 'bottom'}
+          options={[
+            { value: 'bottom', label: 'Bottom bar' },
+            { value: 'top', label: 'Title bar above the stage' },
+            { value: 'hidden', label: 'Hidden' }
+          ]}
+          onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.titlePosition = v === 'bottom' ? undefined : (v as 'top'); })}
+        />
+      </Field>
       <Field label="Button style">
         <SelectInput
           value={player.buttonStyle ?? 'solid'}

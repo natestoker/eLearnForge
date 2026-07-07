@@ -230,6 +230,12 @@ export function Player({ project, adapter, startSlideId }: {
           >
             <span /><span /><span />
           </button>
+          {settings.titlePosition === 'top' && (
+            <div className="player-titlebar">
+              <span className="player-titlebar-title">{project.title}</span>
+              <span className="player-titlebar-slide">{slide.name} ({slideIndex + 1}/{project.slides.length})</span>
+            </div>
+          )}
           <div className="player-stage-area" ref={stageAreaRef}>
         <div
           className="player-stage"
@@ -361,12 +367,14 @@ export function Player({ project, adapter, startSlideId }: {
                 </span>
               </div>
             )}
-            <div className="player-hud">
-              <span className="player-hud-title">{project.title}</span>
-              <span className="player-hud-slide">
-                {slide.name} ({slideIndex + 1}/{project.slides.length})
-              </span>
-            </div>
+            {(settings.titlePosition ?? 'bottom') === 'bottom' && (
+              <div className="player-hud">
+                <span className="player-hud-title">{project.title}</span>
+                <span className="player-hud-slide">
+                  {slide.name} ({slideIndex + 1}/{project.slides.length})
+                </span>
+              </div>
+            )}
             {(settings.navPosition ?? 'right') === 'right' && (
               <div style={{ marginLeft: 'auto' }}>
                 <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
