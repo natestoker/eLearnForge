@@ -145,6 +145,9 @@ export function TriggersPanel() {
       case 'pauseTimeline': return { type };
       case 'resumeTimeline': return { type };
       case 'seekTimeline': return { type, seconds: 0 };
+      case 'openUrl': return { type, url: 'https://' };
+      case 'toggleBlock': return { type, blockId: blocks[0]?.block.id ?? '' };
+      case 'restartTimeline': return { type };
     }
   };
 
@@ -355,7 +358,10 @@ export function TriggersPanel() {
                     { value: 'pulseBlock', label: 'Pulse / emphasize a block' },
                     { value: 'pauseTimeline', label: 'Pause the timeline' },
                     { value: 'resumeTimeline', label: 'Resume the timeline' },
-                    { value: 'seekTimeline', label: 'Jump the timeline to...' }
+                    { value: 'seekTimeline', label: 'Jump the timeline to...' },
+                    { value: 'restartTimeline', label: 'Restart the timeline' },
+                    { value: 'toggleBlock', label: 'Toggle block visibility' },
+                    { value: 'openUrl', label: 'Open URL' }
                   ]}
                   onChange={(v) =>
                     edit(trigger.id, (t) => { t.actions[ai] = defaultAction(v as ActionType); })
@@ -372,7 +378,19 @@ export function TriggersPanel() {
                     }
                   />
                 )}
-                {(action.type === 'showBlock' || action.type === 'hideBlock') && (
+                {action.type === 'openUrl' && (
+                  <input
+                    className="input"
+                    value={action.url}
+                    placeholder="https://example.com"
+                    onChange={(e) =>
+                      edit(trigger.id, (t) => {
+                        (t.actions[ai] as { url: string }).url = e.target.value;
+                      }, false)
+                    }
+                  />
+                )}
+                {(action.type === 'showBlock' || action.type === 'hideBlock' || action.type === 'toggleBlock') && (
                   <SelectInput
                     value={action.blockId}
                     options={blocks.map(({ block, layerName }) => ({

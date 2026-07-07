@@ -116,6 +116,9 @@ export function Player({ project, adapter, startSlideId }: {
         clockRef.current?.play();
       } else if (action.type === 'seekTimeline') {
         clockRef.current?.seek(action.seconds);
+      } else if (action.type === 'restartTimeline') {
+        clockRef.current?.seek(0);
+        clockRef.current?.play();
       } else if (action.type === 'pulseBlock') {
         const el = document.querySelector(`[data-block-id="${action.blockId}"] .block-fx`) as HTMLElement | null;
         if (el) {
@@ -200,7 +203,9 @@ export function Player({ project, adapter, startSlideId }: {
 
   const settings = project.player ?? defaultPlayerSettings();
   const playerAccent = settings.accent ?? project.theme?.accent ?? '#3ddc97';
-  const chromeClass = `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}`;
+  const chromeClass =
+    `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}` +
+    ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${settings.buttonEmphasis ?? 'none'}`;
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>

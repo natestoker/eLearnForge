@@ -19,11 +19,17 @@ const ANIMS: { value: AnimType; label: string }[] = [
   { value: 'spin', label: 'Spin in' },
   { value: 'flip', label: 'Flip' },
   { value: 'bounceIn', label: 'Bounce in' },
-  { value: 'popRotate', label: 'Pop + rotate' }
+  { value: 'popRotate', label: 'Pop + rotate' },
+  { value: 'grow', label: 'Grow' },
+  { value: 'stretch', label: 'Stretch (horizontal)' },
+  { value: 'collapse', label: 'Unfold (vertical)' },
+  { value: 'drop', label: 'Drop in' },
+  { value: 'swivel', label: 'Swivel' },
+  { value: 'whipIn', label: 'Whip in' }
 ];
 
-const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip'];
-const DISTANCED: AnimType[] = ['slide', 'rise'];
+const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip', 'whipIn'];
+const DISTANCED: AnimType[] = ['slide', 'rise', 'drop', 'whipIn'];
 const DIRECTIONS: { value: AnimDirection; label: string }[] = [
   { value: 'up', label: 'Up' },
   { value: 'down', label: 'Down' },

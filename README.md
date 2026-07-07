@@ -858,3 +858,48 @@ or squashes the result. Image tracing also honors the image's fit
   forbids in-place writes entirely - the fallback alert now says exactly
   that and points at running over http (npm run dev / dist on localhost),
   which is why Save was "creating a new file each time".
+
+
+# v6.6
+
+## PPTX import fidelity (the "Phishing Awareness Deck" issues)
+- **No more clipped text.** Text blocks stopped hiding overflow - like
+  PowerPoint, text taller than its box paints past it ("Scroll overflow"
+  still opts into a scrollbox). Autofit is honored too: normAutofit
+  fontScale multiplies every run size, so autofit decks import at the
+  size PowerPoint actually rendered.
+- **Line spacing imports.** a:lnSpc spcPct maps to a real line-height
+  (single spacing = 1.2, tighter than the editor default); text blocks
+  gained a lineHeight prop.
+- **Fonts: embedded first, metric-compatible substitutes second.**
+  Families the deck embeds keep their names (the @font-face wins).
+  Non-embedded Microsoft fonts substitute to metric-compatible Google
+  fonts - Calibri->Carlito, Cambria->Caladea, Arial->Arimo, Times->Tinos,
+  Courier->Cousine, Georgia->Gelasio and friends - so widths, line breaks
+  and box fits survive. Every substituted family is added to the
+  project's font list so it actually loads.
+- **Groups stay groups.** p:grpSp imports as a real group block: children
+  transform through chOff/chExt (including group scaling) into
+  group-relative coordinates, so imported groups move, scale, animate,
+  and edit together. Nested groups flatten into their parent.
+
+## More animations
+Six new entrances: Grow (from nothing), Stretch (unfolds horizontally),
+Unfold (vertically), Drop in (configurable fall distance - pair with a
+bounce ease), Swivel (full Y-axis turn), Whip in (fast angled swing,
+direction + distance). All scrub, reverse, and export like the rest.
+
+## Storyline-style variable references
+Text substitutes %Name% at runtime: project variables by name plus
+built-ins - %SlideNumber%/%CurrentSlide%, %TotalSlides%, %SlideName%,
+%ProjectName%/%CourseName%, %ProgressPercent%, %ViewedSlides%,
+%ScorePercent%, %Date%, %Time%, %RandomNumber%. Live: values update as
+variables change. The Variables panel documents the list.
+
+## New trigger actions
+Open URL (new tab), Toggle block visibility, Restart the timeline.
+
+## Player button effects
+Player options for the nav buttons: hover effect (Lift / Glow / Scale /
+Brighten) and a looping emphasis on the enabled accent buttons
+(Pulse / Glow) - the "make Next impossible to miss" knob.

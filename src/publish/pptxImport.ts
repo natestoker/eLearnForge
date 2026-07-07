@@ -30,6 +30,39 @@ const EMU = 9525;
 const PT_TO_PX = 4 / 3;
 const runPx = (szHundredths: number) => (szHundredths / 100) * PT_TO_PX;
 
+// Microsoft fonts that aren't embedded and aren't on Google Fonts get a
+// METRIC-COMPATIBLE Google substitute (same widths/heights, so line breaks
+// and box fits survive). Families the deck embeds keep their real name -
+// the embedded @font-face wins.
+const FONT_SUBSTITUTES: Record<string, string> = {
+  'calibri': 'Carlito',
+  'cambria': 'Caladea',
+  'arial': 'Arimo',
+  'helvetica': 'Arimo',
+  'times new roman': 'Tinos',
+  'courier new': 'Cousine',
+  'georgia': 'Gelasio',
+  'verdana': 'Open Sans',
+  'tahoma': 'Open Sans',
+  'segoe ui': 'Open Sans',
+  'century gothic': 'Questrial',
+  'garamond': 'EB Garamond',
+  'book antiqua': 'PT Serif',
+  'palatino linotype': 'PT Serif'
+};
+// Families the current import found embedded font files for (set once per
+// import; the importer is single-flight).
+let EMBEDDED_FAMILIES = new Set<string>();
+// Every family the import actually emitted (run spans included), so the
+// project's Google Fonts <link> covers substitutes like Carlito.
+let SEEN_FONTS = new Set<string>();
+function mapFont(name: string): string {
+  if (EMBEDDED_FAMILIES.has(name.toLowerCase())) return name;
+  const mapped = FONT_SUBSTITUTES[name.toLowerCase()] ?? name;
+  SEEN_FONTS.add(mapped);
+  return mapped;
+}
+
 function local(el: Element | Document, name: string): Element[] {
   return Array.from(el.getElementsByTagNameNS('*', name));
 }
@@ -59,7 +92,7 @@ function readXfrm(sp: Element): Xfrm | null {
   };
 }
 
-function parseParagraphHtml(p: Element, theme: ThemeColors): string {
+function parseParagraphHtml(p: Element, theme: ThemeColors, fontScale = 1): string {
   const htmlParts: string[] = [];
   for (const child of Array.from(p.children)) {
     const name = child.localName;
@@ -95,12 +128,12 @@ function parseParagraphHtml(p: Element, theme: ThemeColors): string {
         
         const sz = Number(rPr.getAttribute('sz'));
         if (sz) {
-          style += `font-size: ${Math.round(runPx(sz))}px;`;
+          style += `font-size: ${Math.round(runPx(sz) * fontScale)}px;`;
         }
 
         const latin = local(rPr, 'latin')[0]?.getAttribute('typeface');
         if (latin && !latin.startsWith('+')) {
-          style += `font-family: ${latin};`;
+          style += `font-family: ${mapFont(latin)};`;
         }
       }
       
@@ -122,7 +155,7 @@ function parseParagraphHtml(p: Element, theme: ThemeColors): string {
   return htmlParts.join('');
 }
 
-function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element): { html: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null; valign: 'top' | 'center' | 'bottom' | null } {
+function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element): { html: string; fontSize: number | null; bold: boolean; font: string | null; color: string | null; align: string | null; valign: 'top' | 'center' | 'bottom' | null; lineHeight: number | null } {
   const txBody = local(sp, 'txBody')[0];
   const target = txBody ?? sp;
   const paras = local(target, 'p').filter((p) => p.namespaceURI?.includes('drawingml'));
@@ -137,17 +170,30 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
   // Vertical anchor lives on bodyPr (anchor="ctr"/"b"); decks that center
   // text in its box rely on it, so dropping it broke their alignment.
   let valign: 'top' | 'center' | 'bottom' | null = null;
-  const anchor = txBody ? local(txBody, 'bodyPr')[0]?.getAttribute('anchor') : null;
+  const bodyPr = txBody ? local(txBody, 'bodyPr')[0] : null;
+  const anchor = bodyPr?.getAttribute('anchor') ?? null;
   if (anchor === 'ctr') valign = 'center';
   else if (anchor === 'b') valign = 'bottom';
   else if (anchor === 't') valign = 'top';
+
+  // Autofit: PowerPoint shrinks text to fit the box and records the factor
+  // (normAutofit fontScale, 100000 = 100%). Ignoring it made autofit decks
+  // render oversized and clip.
+  const fontScaleAttr = bodyPr ? local(bodyPr, 'normAutofit')[0]?.getAttribute('fontScale') : null;
+  const fontScale = fontScaleAttr ? Number(fontScaleAttr) / 100000 : 1;
+
+  // Line spacing: a:lnSpc spcPct (100000 = single). PowerPoint's single
+  // spacing renders ~1.2, tighter than our 1.35 default.
+  let lineHeight: number | null = null;
+  const lnPct = local(target, 'lnSpc')[0] ? local(local(target, 'lnSpc')[0], 'spcPct')[0]?.getAttribute('val') : null;
+  if (lnPct) lineHeight = Math.round((Number(lnPct) / 100000) * 1.2 * 100) / 100;
 
   // Scan all defRPr elements under the target (list styles, body defaults) for block-level fallbacks
   for (const defRPr of local(target, 'defRPr')) {
     if (defRPr.getAttribute('b') === '1') bold = true;
     if (!font) {
       const defLatin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
-      if (defLatin && !defLatin.startsWith('+')) font = defLatin;
+      if (defLatin && !defLatin.startsWith('+')) font = mapFont(defLatin);
     }
     if (!color) {
       const defSf = local(defRPr, 'solidFill')[0];
@@ -155,7 +201,7 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     }
     if (!size) {
       const defSz = Number(defRPr.getAttribute('sz'));
-      if (defSz) size = runPx(defSz);
+      if (defSz) size = runPx(defSz) * fontScale;
     }
   }
 
@@ -171,27 +217,27 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     }
     if (pAlign && !align) align = pAlign;
 
-    const pHtml = parseParagraphHtml(p, theme);
+    const pHtml = parseParagraphHtml(p, theme, fontScale);
     if (pHtml) {
       let pStyle = '';
       if (pAlign) pStyle += `text-align: ${pAlign};`;
-      
+
       const defRPr = pPr ? local(pPr, 'defRPr')[0] : null;
       if (defRPr) {
         if (defRPr.getAttribute('b') === '1') pStyle += `font-weight: bold;`;
 
         const sz = Number(defRPr.getAttribute('sz'));
-        if (sz) pStyle += `font-size: ${Math.round(runPx(sz))}px;`;
-        
+        if (sz) pStyle += `font-size: ${Math.round(runPx(sz) * fontScale)}px;`;
+
         const sf = local(defRPr, 'solidFill')[0];
         if (sf) {
           const pColor = resolveColorEl(sf, theme);
           if (pColor) pStyle += `color: ${pColor};`;
         }
-        
+
         const latin = local(defRPr, 'latin')[0]?.getAttribute('typeface');
         if (latin && !latin.startsWith('+')) {
-          pStyle += `font-family: ${latin};`;
+          pStyle += `font-family: ${mapFont(latin)};`;
         }
       }
       
@@ -204,7 +250,7 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
   
   for (const rPr of local(target, 'rPr')) {
     const sz = Number(rPr.getAttribute('sz'));
-    if (sz && !size) size = runPx(sz);
+    if (sz && !size) size = runPx(sz) * fontScale;
     if (rPr.getAttribute('b') === '1') bold = true;
   }
 
@@ -216,6 +262,7 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     if (!color) color = l.color;
     if (!align) align = l.align;
     if (!valign) valign = l.valign;
+    if (!lineHeight) lineHeight = l.lineHeight;
   }
 
   return {
@@ -225,7 +272,8 @@ function parseTextBodyHtml(sp: Element, theme: ThemeColors, layoutSp?: Element):
     font,
     color,
     align,
-    valign
+    valign,
+    lineHeight
   };
 }
 
@@ -555,7 +603,7 @@ async function importShapeInner(
   }
 
   if (name === 'sp' || name === 'cxnSp') {
-    const { html, fontSize, bold, font, color: runColor, align, valign } = parseTextBodyHtml(node, theme, layoutSp);
+    const { html, fontSize, bold, font, color: runColor, align, valign, lineHeight } = parseTextBodyHtml(node, theme, layoutSp);
     const prst = prstGeomOf(node);
     const isConnector = name === 'cxnSp' || prst === 'line' || prst === 'straightConnector1' || prst === 'bentConnector3' || prst === 'curvedConnector3';
     
@@ -659,6 +707,8 @@ async function importShapeInner(
           fontSize: Math.round(finalFontSize),
           align: align ?? (kind && !isTextBox ? 'center' : 'left'),
           valign: valign ?? (kind && !isTextBox ? 'center' : 'top'),
+          // PowerPoint's single spacing (~1.2) unless the deck sets its own.
+          lineHeight: lineHeight ?? 1.2,
           ...(color ? { color } : {}),
           ...(font ? { fontFamily: font } : {}),
           ...(bold ? { bold } : {})
@@ -858,8 +908,13 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
   if (slidePaths.length === 0) throw new Error('No slides found - is this a .pptx file?');
 
   const theme = await readTheme(zip);
-  // Fonts the deck actually uses (for embedding) and any font files the deck
-  // itself embeds (ppt/fonts/*.fntdata).
+  // Embedded fonts come first: families the deck ships keep their real
+  // names (the @font-face wins); everything else may substitute to a
+  // metric-compatible Google font via mapFont().
+  const embeddedFonts = await readEmbeddedFonts(zip, presXml ?? '');
+  EMBEDDED_FAMILIES = new Set(embeddedFonts.map((f) => f.family.toLowerCase()));
+  SEEN_FONTS = new Set();
+  // Fonts the deck actually uses (for the Google Fonts <link>).
   const usedFonts = new Set<string>();
   const slides: Slide[] = [];
   const slideLinks: PendingLink[][] = []; // per slide, resolved after all exist
@@ -882,11 +937,58 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
           const fb = local(child, 'Fallback')[0] ?? local(child, 'Choice')[0];
           if (fb) await walk(fb, offset);
         } else if (child.localName === 'grpSp') {
+          // PowerPoint groups stay GROUPS: children import in the group's
+          // child coordinate space, transform through chOff/chExt (groups
+          // can scale their contents), and land in a real group block so
+          // they keep moving/scaling/animating together.
           const gx = readXfrm(child);
-          const chOff = local(child, 'chOff')[0];
-          const dx = gx && chOff ? gx.x - Number(chOff.getAttribute('x')) / EMU : 0;
-          const dy = gx && chOff ? gx.y - Number(chOff.getAttribute('y')) / EMU : 0;
-          await walk(child, { dx: offset.dx + dx, dy: offset.dy + dy });
+          const grpXfrm = local(child, 'xfrm')[0];
+          const chOff = grpXfrm ? local(grpXfrm, 'chOff')[0] : null;
+          const chExt = grpXfrm ? local(grpXfrm, 'chExt')[0] : null;
+          if (gx && chOff && chExt) {
+            const inner: Block[] = [];
+            for (const gchild of Array.from(child.children)) {
+              if (gchild.localName === 'sp' || gchild.localName === 'pic' || gchild.localName === 'cxnSp') {
+                await importShape(zip, path, gchild, { dx: 0, dy: 0 }, layout, theme, inner, usedFonts, ctx);
+              } else if (gchild.localName === 'grpSp') {
+                // Nested groups flatten into this one (rare; keeps this simple).
+                const ngx = readXfrm(gchild);
+                const nOff = local(gchild, 'chOff')[0];
+                const dx = ngx && nOff ? ngx.x - Number(nOff.getAttribute('x')) / EMU : 0;
+                const dy = ngx && nOff ? ngx.y - Number(nOff.getAttribute('y')) / EMU : 0;
+                for (const nchild of Array.from(gchild.children)) {
+                  if (nchild.localName === 'sp' || nchild.localName === 'pic' || nchild.localName === 'cxnSp') {
+                    await importShape(zip, path, nchild, { dx, dy }, layout, theme, inner, usedFonts, ctx);
+                  }
+                }
+              }
+            }
+            const ox = Number(chOff.getAttribute('x')) / EMU;
+            const oy = Number(chOff.getAttribute('y')) / EMU;
+            const sx = gx.w / Math.max(1, Number(chExt.getAttribute('cx')) / EMU);
+            const sy = gx.h / Math.max(1, Number(chExt.getAttribute('cy')) / EMU);
+            for (const b of inner) {
+              b.x = Math.round((b.x - ox) * sx);
+              b.y = Math.round((b.y - oy) * sy);
+              b.w = Math.max(8, Math.round(b.w * sx));
+              b.h = Math.max(8, Math.round(b.h * sy));
+            }
+            if (inner.length) {
+              blocks.push({
+                id: uid('grp'), type: 'group',
+                name: local(child, 'cNvPr')[0]?.getAttribute('name') || 'Group',
+                x: Math.round(gx.x + offset.dx), y: Math.round(gx.y + offset.dy),
+                w: Math.max(8, Math.round(gx.w)), h: Math.max(8, Math.round(gx.h)),
+                props: { blocks: inner }
+              } as Block);
+            }
+          } else {
+            // No usable transform: fall back to flattening with offsets.
+            const chOff2 = local(child, 'chOff')[0];
+            const dx = gx && chOff2 ? gx.x - Number(chOff2.getAttribute('x')) / EMU : 0;
+            const dy = gx && chOff2 ? gx.y - Number(chOff2.getAttribute('y')) / EMU : 0;
+            await walk(child, { dx: offset.dx + dx, dy: offset.dy + dy });
+          }
         } else if (child.localName === 'sp' || child.localName === 'pic' || child.localName === 'cxnSp') {
           await importShape(zip, path, child, offset, layout, theme, blocks, usedFonts, ctx);
         } else if (child.localName === 'graphicFrame') {
@@ -959,7 +1061,6 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
   });
 
   const title = existingTitle || file.name.replace(/\.pptx$/i, '');
-  const embeddedFonts = await readEmbeddedFonts(zip, presXml ?? '');
   return {
     project: {
       id: uid('prj'),
@@ -967,7 +1068,7 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
       slides,
       variables: [],
       completion: { mode: 'allSlides' },
-      fonts: [...usedFonts].filter((f) => !embeddedFonts.some((e) => e.family === f)),
+      fonts: [...new Set([...usedFonts, ...SEEN_FONTS])].filter((f) => !embeddedFonts.some((e) => e.family === f)),
       embeddedFonts: embeddedFonts.length ? embeddedFonts : undefined
     },
     warnings

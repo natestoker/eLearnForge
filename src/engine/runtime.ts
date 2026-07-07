@@ -48,6 +48,42 @@ export class Runtime {
   private blockStates: Record<string, BlockState> = {};
   private playerButtons = { next: true, back: true, submit: true };
   private completed = false;
+  private lastScore = 0;
+
+  // Storyline-style built-in references, readable from text as %Name%
+  // (alongside project variables by their names). Kept as a method so text
+  // re-renders pick up live values on every runtime change.
+  resolveReference(name: string): string | null {
+    const slide = this.currentSlide();
+    const idx = this.project.slides.findIndex((s) => s.id === slide.id);
+    switch (name) {
+      case 'CurrentSlide':
+      case 'SlideNumber': return String(idx + 1);
+      case 'TotalSlides': return String(this.project.slides.length);
+      case 'SlideName': return slide.name;
+      case 'CourseName':
+      case 'ProjectName': return this.project.title;
+      case 'ProgressPercent': return String(Math.round(((idx + 1) / this.project.slides.length) * 100));
+      case 'ViewedSlides': return String(this.viewedSlideIds.size);
+      case 'Score':
+      case 'ScorePercent': return String(this.lastScore);
+      case 'Date': return new Date().toLocaleDateString();
+      case 'Time': return new Date().toLocaleTimeString();
+      case 'RandomNumber': return String(1 + Math.floor(Math.random() * 100));
+      default: {
+        const v = this.project.variables.find((vr) => vr.name === name);
+        if (!v) return null;
+        return String(this.snapshot.variables[v.id] ?? v.defaultValue);
+      }
+    }
+  }
+
+  // Replace %Reference% tokens in author text with live values. Unknown
+  // names pass through untouched so stray percent signs stay harmless.
+  substituteReferences(html: string): string {
+    if (!html.includes('%')) return html;
+    return html.replace(/%([A-Za-z_][\w.]*)%/g, (m, name: string) => this.resolveReference(name) ?? m);
+  }
 
   constructor(project: Project) {
     this.project = project;
@@ -389,7 +425,19 @@ export class Runtime {
         break;
       case 'setScore': {
         const score = Math.max(0, Math.min(100, action.score));
+        this.lastScore = score;
         this.track({ type: 'scored', score });
+        break;
+      }
+      case 'openUrl':
+        if (typeof window !== 'undefined') window.open(action.url, '_blank', 'noopener');
+        break;
+      case 'toggleBlock': {
+        const visible = this.snapshot.blockVisible[action.blockId] ?? true;
+        this.snapshot = {
+          ...this.snapshot,
+          blockVisible: { ...this.snapshot.blockVisible, [action.blockId]: !visible }
+        };
         break;
       }
       case 'setState':
@@ -404,6 +452,7 @@ export class Runtime {
       case 'pauseTimeline':
       case 'resumeTimeline':
       case 'seekTimeline':
+      case 'restartTimeline':
         // These touch the live player (audio elements, the clock, transient
         // emphasis), which the runtime doesn't own - hand them to the Player.
         this.effectHandler?.(action);

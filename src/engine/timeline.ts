@@ -13,6 +13,8 @@ export interface BlockVisualState {
   translateX: number; // px
   translateY: number;
   scale: number;
+  scaleX: number;     // stretch
+  scaleY: number;     // collapse
   rotate: number;     // deg (spin/pop)
   rotateX: number;    // deg (flip up/down)
   rotateY: number;    // deg (flip left/right)
@@ -91,6 +93,12 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
         ? { opacity: 1 - k, rotateY: (dir === 'left' ? 90 : -90) * k }
         : { opacity: 1 - k, rotateX: (dir === 'up' ? 90 : -90) * k };
     case 'bounceIn': return { opacity: 1 - Math.min(1, k * 2), scale: 1 - 0.6 * k, translateY: -30 * k };
+    case 'grow': return { opacity: 1 - k, scale: 1 - k };            // from nothing
+    case 'stretch': return { opacity: 1 - Math.min(1, k * 1.4), scaleX: 1 - k }; // unfolds horizontally
+    case 'collapse': return { opacity: 1 - Math.min(1, k * 1.4), scaleY: 1 - k }; // unfolds vertically
+    case 'drop': return { opacity: 1 - Math.min(1, k * 2), translateY: -(spec.distance ?? 200) * k }; // falls in (pair with bounce ease)
+    case 'swivel': return { opacity: 1 - k, rotateY: 360 * k, scale: 1 - 0.2 * k };
+    case 'whipIn': return { opacity: 1 - k, translateX: (spec.distance ?? 240) * k * (dir === 'right' ? -1 : 1), rotate: -14 * k, scale: 1 - 0.15 * k };
     case 'wipe': {
       const clip = { top: 0, right: 0, bottom: 0, left: 0 };
       if (dir === 'up') clip.top = k;          // reveals upward from the bottom
@@ -104,7 +112,7 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
   }
 }
 
-const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
+const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, scaleX: 1, scaleY: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
 
 export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number): BlockVisualState {
   if (!timing) return REST;
@@ -153,6 +161,8 @@ export function styleFor(state: BlockVisualState): React.CSSProperties {
     transform:
       `translate(${state.translateX}px, ${state.translateY}px)` +
       ` scale(${state.scale})` +
+      (state.scaleX !== 1 ? ` scaleX(${state.scaleX})` : '') +
+      (state.scaleY !== 1 ? ` scaleY(${state.scaleY})` : '') +
       (state.rotate ? ` rotate(${state.rotate}deg)` : '') +
       (state.rotateX ? ` rotateX(${state.rotateX}deg)` : '') +
       (state.rotateY ? ` rotateY(${state.rotateY}deg)` : ''),

@@ -19,6 +19,9 @@ export interface TextProps {
   textAnim?: TextAnim;  // GSAP entrance animation for the text itself
   valign?: 'top' | 'center' | 'bottom'; // vertical alignment in the box
   scroll?: boolean; // show a scrollbar when text overflows the box
+  // Line height multiplier. Default 1.35; PPTX import writes the deck's
+  // real spacing (single spacing = 1.2) so layouts match PowerPoint.
+  lineHeight?: number;
 }
 
 export interface ImageProps {
@@ -187,7 +190,13 @@ export type AnimType =
   | 'wipe'    // directional reveal (direction)
   | 'flip'    // 3D flip (direction picks the axis: up/down = X, left/right = Y)
   | 'zoom' | 'zoomOut'
-  | 'spin' | 'bounceIn' | 'popRotate';
+  | 'spin' | 'bounceIn' | 'popRotate'
+  | 'grow'     // scales up from nothing
+  | 'stretch'  // unfolds horizontally
+  | 'collapse' // unfolds vertically
+  | 'drop'     // falls in from above (distance; pair with a bounce ease)
+  | 'swivel'   // full Y-axis turn while fading in
+  | 'whipIn';  // fast angled swing-in (direction left/right, distance)
 
 // Legacy stored values from projects saved before the consolidation.
 export type LegacyAnimType =
@@ -333,7 +342,10 @@ export type Action =
   | { type: 'pulseBlock'; blockId: string; emphasis: 'pulse' | 'bounce' | 'shake' | 'float' }
   | { type: 'pauseTimeline' }
   | { type: 'resumeTimeline' }
-  | { type: 'seekTimeline'; seconds: number };
+  | { type: 'seekTimeline'; seconds: number }
+  | { type: 'openUrl'; url: string }
+  | { type: 'toggleBlock'; blockId: string }
+  | { type: 'restartTimeline' };
 
 export type ActionType = Action['type'];
 
@@ -377,6 +389,10 @@ export interface PlayerSettings {
   menu: { show: boolean; locked?: boolean }; // locked = view-only (no jumping)
   // Where Back/Next/Submit sit in the bottom bar. Default right.
   navPosition?: 'left' | 'right';
+  // Hover effect on the nav buttons (Back/Next/Submit).
+  buttonHover?: 'none' | 'lift' | 'glow' | 'scale' | 'brightness';
+  // Looping attention animation on the ENABLED accent buttons (Next/Submit).
+  buttonEmphasis?: 'none' | 'pulse' | 'glow';
   // Chrome styling.
   accent?: string;        // player accent (buttons, progress) - defaults to theme
   chrome?: 'dark' | 'light' | 'minimal';

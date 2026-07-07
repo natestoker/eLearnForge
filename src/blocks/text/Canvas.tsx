@@ -21,13 +21,13 @@ export function textStyle(props: TextProps): CSSProperties {
     textAlign: props.align,
     width: '100%',
     height: '100%',
-    // Only scroll when content clearly exceeds the box. A hidden overflow
-    // with a small tolerance keeps one- and two-liners from getting a
-    // scrollbar the moment they're a pixel too tall. The author can turn on
-    // an always-scroll box via the "Scroll overflow" toggle.
-    overflowY: props.scroll ? 'auto' : 'hidden',
-    overflowX: 'hidden',
-    lineHeight: 1.35,
+    // PowerPoint model: text boxes do NOT clip - text taller than the box
+    // simply paints past it. Hidden overflow was cutting imported decks off
+    // mid-line. The author can still opt into a scrollbox via "Scroll
+    // overflow".
+    overflowY: props.scroll ? 'auto' : 'visible',
+    overflowX: props.scroll ? 'hidden' : 'visible',
+    lineHeight: props.lineHeight ?? 1.35,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center'
