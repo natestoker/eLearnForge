@@ -19,7 +19,11 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   audio: { w: 360, h: 56 },
   textEntry: { w: 360, h: 56 },
   code: { w: 480, h: 320 },
-  group: { w: 400, h: 400 }
+  group: { w: 400, h: 400 },
+  fillBlank: { w: 480, h: 200 },
+  progress: { w: 360, h: 48 },
+  timer: { w: 200, h: 80 },
+  dragDrop: { w: 600, h: 380 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -93,7 +97,44 @@ export function defaultProps(type: BlockType): BlockProps {
         feedbackIncorrect: 'Some matches are off - try again.'
       };
     }
+    case 'fillBlank':
+      return {
+        question: 'The capital of France is ___.',
+        correctAnswers: ['Paris'],
+        caseSensitive: false,
+        fontSize: 20,
+        feedbackCorrect: 'Correct!',
+        feedbackIncorrect: 'Not quite - try again.'
+      };
+    case 'progress':
+      return { source: 'course', showLabel: true, shape: 'bar' };
+    case 'timer':
+      return { mode: 'countdown', seconds: 60, fontSize: 32, autoStart: true };
+    case 'dragDrop': {
+      const t1 = uid('tgt'); const t2 = uid('tgt');
+      return {
+        question: 'Drag each item to the correct group.',
+        targets: [{ id: t1, label: 'Fruit' }, { id: t2, label: 'Vegetable' }],
+        items: [
+          { id: uid('itm'), text: 'Apple', targetId: t1 },
+          { id: uid('itm'), text: 'Carrot', targetId: t2 },
+          { id: uid('itm'), text: 'Banana', targetId: t1 }
+        ],
+        feedbackCorrect: 'All placed correctly!',
+        feedbackIncorrect: 'Some items are in the wrong group - try again.'
+      };
+    }
   }
+}
+
+export function fillBlankVariableName(blockId: string): string {
+  return `fb_${blockId}_correct`;
+}
+export function timerDoneVariableName(blockId: string): string {
+  return `timer_${blockId}_done`;
+}
+export function dragDropVariableName(blockId: string): string {
+  return `dd_${blockId}_correct`;
 }
 
 export function mcVariableName(blockId: string): string {

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { Block, BlockType, Project } from '../schema/types';
 import {
-  createBlock, createDemoProject, createLayer, createSlide, mcVariableName, textEntryVariableName, uid
+  createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
+  mcVariableName, textEntryVariableName, timerDoneVariableName, uid
 } from '../schema/factory';
 
 // History design note (open question #1 from the brief):
@@ -355,6 +356,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           type: 'string',
           defaultValue: ''
         });
+      }
+      // Fill-in-the-blank and the countdown timer each auto-register a
+      // boolean result variable so triggers can key off it immediately.
+      if (type === 'fillBlank') {
+        p.variables.push({ id: uid('var'), name: fillBlankVariableName(block.id), type: 'boolean', defaultValue: false });
+      }
+      if (type === 'timer') {
+        p.variables.push({ id: uid('var'), name: timerDoneVariableName(block.id), type: 'boolean', defaultValue: false });
+      }
+      if (type === 'dragDrop') {
+        p.variables.push({ id: uid('var'), name: dragDropVariableName(block.id), type: 'boolean', defaultValue: false });
       }
       init?.(block);
     });
