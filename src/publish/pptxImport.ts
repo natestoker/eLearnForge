@@ -974,13 +974,20 @@ export async function importPptx(file: File, existingTitle?: string): Promise<Pp
               b.h = Math.max(8, Math.round(b.h * sy));
             }
             if (inner.length) {
-              blocks.push({
+              const grpBlock: Block = {
                 id: uid('grp'), type: 'group',
                 name: local(child, 'cNvPr')[0]?.getAttribute('name') || 'Group',
                 x: Math.round(gx.x + offset.dx), y: Math.round(gx.y + offset.dy),
                 w: Math.max(8, Math.round(gx.w)), h: Math.max(8, Math.round(gx.h)),
                 props: { blocks: inner }
-              } as Block);
+              } as Block;
+              blocks.push(grpBlock);
+              // Register the GROUP's own shape id so a group-level animation
+              // (p:timing targets the grpSp's spid) and a group hyperlink
+              // resolve to the group block - otherwise they were dropped.
+              const grpSpid = local(child, 'cNvPr')[0]?.getAttribute('id');
+              if (grpSpid) ctx.idMap.set(grpSpid, grpBlock.id);
+              readHlink(child, ctx, grpBlock.id);
             }
           } else {
             // No usable transform: fall back to flattening with offsets.

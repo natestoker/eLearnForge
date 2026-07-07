@@ -22,6 +22,7 @@ export interface TextProps {
   // Line height multiplier. Default 1.35; PPTX import writes the deck's
   // real spacing (single spacing = 1.2) so layouts match PowerPoint.
   lineHeight?: number;
+  letterSpacing?: number; // px; 0 = normal
 }
 
 export interface ImageProps {
@@ -298,6 +299,7 @@ export type TriggerEvent =
   | 'onAnimationComplete'  // the block's animate-in finishes
   | 'onStateAll'           // every watched block reached the watched state
   | 'onHover'              // pointer enters the source block
+  | 'onMouseLeave'         // pointer leaves the source block
   | 'onDoubleClick'        // source block double-clicked
   | 'onSubmit';            // the player Submit button
 
@@ -314,7 +316,9 @@ export interface StateStyle {
   opacity?: number;
 }
 
-export type ConditionOperator = 'eq' | 'ne' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
+export type ConditionOperator =
+  | 'eq' | 'ne' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains'
+  | 'notContains' | 'startsWith' | 'endsWith' | 'between' | 'isEmpty' | 'notEmpty';
 
 export interface Condition {
   variableId: string;
@@ -322,6 +326,7 @@ export interface Condition {
   // operator as 'eq' with `value` falling back to `equals` for migration.
   operator?: ConditionOperator;
   value?: VariableValue;
+  value2?: VariableValue; // upper bound for 'between'
   equals?: VariableValue;
 }
 
@@ -357,6 +362,9 @@ export interface Trigger {
   watchBlockIds?: string[]; // onStateAll
   watchState?: BlockState;  // onStateAll
   conditions: Condition[];
+  // How the conditions combine. 'and' (default) requires all; 'or' requires
+  // any one. Absent = 'and' for older projects.
+  conditionLogic?: 'and' | 'or';
   actions: Action[];
 }
 
@@ -389,6 +397,9 @@ export interface PlayerSettings {
   menu: { show: boolean; locked?: boolean }; // locked = view-only (no jumping)
   // Where Back/Next/Submit sit in the bottom bar. Default right.
   navPosition?: 'left' | 'right';
+  // Course title placement. 'bottom' (default) in the chrome bar HUD;
+  // 'top' shows a title bar above the stage; 'hidden' removes it.
+  titlePosition?: 'bottom' | 'top' | 'hidden';
   // Hover effect on the nav buttons (Back/Next/Submit).
   buttonHover?: 'none' | 'lift' | 'glow' | 'scale' | 'brightness';
   // Looping attention animation on the ENABLED accent buttons (Next/Submit).

@@ -258,6 +258,13 @@ export class Runtime {
     if (matches.length) { this.runTriggers(matches, 0); this.emit(); }
   }
 
+  leaveBlock(blockId: string): void {
+    const matches = this.currentSlide().triggers.filter(
+      (t) => t.event === 'onMouseLeave' && t.sourceBlockId === blockId
+    );
+    if (matches.length) { this.runTriggers(matches, 0); this.emit(); }
+  }
+
   doubleClickBlock(blockId: string): void {
     const matches = this.currentSlide().triggers.filter(
       (t) => t.event === 'onDoubleClick' && t.sourceBlockId === blockId
@@ -267,7 +274,7 @@ export class Runtime {
 
   blockHasInteractionTrigger(blockId: string): boolean {
     return this.currentSlide().triggers.some(
-      (t) => (t.event === 'onClick' || t.event === 'onHover' || t.event === 'onDoubleClick') && t.sourceBlockId === blockId
+      (t) => (t.event === 'onClick' || t.event === 'onHover' || t.event === 'onMouseLeave' || t.event === 'onDoubleClick') && t.sourceBlockId === blockId
     );
   }
 
@@ -353,23 +360,30 @@ export class Runtime {
     return undefined;
   }
 
-  private conditionsPass(conditions: Condition[]): boolean {
-    return conditions.every((c) => {
+  private conditionsPass(conditions: Condition[], logic: 'and' | 'or' = 'and'): boolean {
+    if (conditions.length === 0) return true;
+    const test = (c: Condition): boolean => {
       const actual = this.snapshot.variables[c.variableId];
       const expected = c.value !== undefined ? c.value : c.equals;
-      const op = c.operator ?? 'eq';
-      switch (op) {
+      const s = (v: unknown) => String(v ?? '').toLowerCase();
+      switch (c.operator ?? 'eq') {
         case 'eq': return actual === expected;
         case 'ne': return actual !== expected;
         case 'gt': return Number(actual) > Number(expected);
         case 'lt': return Number(actual) < Number(expected);
         case 'gte': return Number(actual) >= Number(expected);
         case 'lte': return Number(actual) <= Number(expected);
-        case 'contains':
-          return String(actual ?? '').toLowerCase().includes(String(expected ?? '').toLowerCase());
+        case 'contains': return s(actual).includes(s(expected));
+        case 'notContains': return !s(actual).includes(s(expected));
+        case 'startsWith': return s(actual).startsWith(s(expected));
+        case 'endsWith': return s(actual).endsWith(s(expected));
+        case 'between': return Number(actual) >= Number(expected) && Number(actual) <= Number(c.value2);
+        case 'isEmpty': return actual === undefined || actual === '' || actual === false;
+        case 'notEmpty': return !(actual === undefined || actual === '' || actual === false);
         default: return false;
       }
-    });
+    };
+    return logic === 'or' ? conditions.some(test) : conditions.every(test);
   }
 
   private runTriggers(triggers: Trigger[], depth: number): void {
@@ -378,7 +392,7 @@ export class Runtime {
       return;
     }
     for (const trigger of triggers) {
-      if (!this.conditionsPass(trigger.conditions)) continue;
+      if (!this.conditionsPass(trigger.conditions, trigger.conditionLogic ?? 'and')) continue;
       for (const action of trigger.actions) this.applyAction(action, depth + 1);
     }
   }

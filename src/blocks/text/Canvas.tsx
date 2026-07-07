@@ -28,6 +28,7 @@ export function textStyle(props: TextProps): CSSProperties {
     overflowY: props.scroll ? 'auto' : 'visible',
     overflowX: props.scroll ? 'hidden' : 'visible',
     lineHeight: props.lineHeight ?? 1.35,
+    letterSpacing: props.letterSpacing ? `${props.letterSpacing}px` : undefined,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center'

@@ -903,3 +903,26 @@ Open URL (new tab), Toggle block visibility, Restart the timeline.
 Player options for the nav buttons: hover effect (Lift / Glow / Scale /
 Brighten) and a looping emphasis on the enabled accent buttons
 (Pulse / Glow) - the "make Next impossible to miss" knob.
+
+
+# v6.7
+
+## Text properties + editing
+- Line height and letter spacing controls on text blocks.
+- "Clear formatting (HTML)" button strips inline HTML to plain text
+  (keeping paragraph breaks) so the panel's font/size/color take over.
+
+## Multi-object animation
+Selecting 2+ blocks and opening Animate applies one entrance or emphasis
+to the whole selection at once. (Properties already applied fill, border,
+text, shadow, rotation and lock to multi-selections.)
+
+## Player: title placement
+New player option - the course title can sit in the bottom bar (default),
+in a title bar ABOVE the stage, or be hidden.
+
+## Richer trigger logic
+- Conditions combine with AND (all) or OR (any).
+- New condition operators: between, doesn't contain, starts with,
+  ends with, is empty, is not empty.
+- New trigger event: on mouse leave.
