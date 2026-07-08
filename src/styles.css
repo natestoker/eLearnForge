@@ -1439,6 +1439,14 @@ select.input { appearance: auto; }
   background: rgba(61, 220, 151, 0.05);
 }
 .bake-message { color: var(--accent); }
+.caption-status {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin: 0 0 8px;
+}
+.caption-status.ok { color: var(--accent); background: rgba(61, 220, 151, 0.08); }
+.caption-status.missing { color: #e9a23b; background: rgba(233, 162, 59, 0.1); }
 
 /* ---- v5.3: hamburger menu ---- */
 .player-hamburger {
