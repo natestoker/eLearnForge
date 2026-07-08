@@ -1896,7 +1896,13 @@ select.input { appearance: auto; }
 
 .timeline-grid-col {
   flex: 1;
-  overflow-x: auto;
+  /* overflow must stay 'visible' so the timeline-container is the SINGLE
+     scroll container. If this pane scrolled on its own, the sticky ruler
+     would pin to this pane's top and the ruler ticks would scroll out of
+     view as you move down the rows. Horizontal overflow (wide zoomed grid)
+     is handled by the container, with the left headers column pinned via
+     position: sticky; left: 0. */
+  overflow: visible;
   position: relative;
   background: var(--panel-2);
 }
