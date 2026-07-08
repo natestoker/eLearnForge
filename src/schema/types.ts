@@ -537,6 +537,26 @@ export interface Project {
   resources?: ResourceItem[];
   // Course-level glossary terms, shown in the player's Glossary panel.
   glossary?: GlossaryTerm[];
+  // Reusable text styles (like paragraph/heading styles): capture a text
+  // block's look once and apply it to others. Travels in the project file.
+  textStyles?: TextStyle[];
+}
+
+// A named, reusable text style. Applying it copies these props onto a text
+// block and wraps its content in `tag`.
+export interface TextStyle {
+  id: string;
+  name: string;
+  tag?: 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+  fontFamily?: string;
+  fontSize: number;
+  color?: string;
+  fontWeight?: number;
+  bold?: boolean;
+  align: 'left' | 'center' | 'right';
+  valign?: 'top' | 'center' | 'bottom';
+  lineHeight?: number;
+  letterSpacing?: number;
 }
 
 export interface SlideTemplate {

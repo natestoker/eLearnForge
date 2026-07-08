@@ -1040,6 +1040,13 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Reusable text styles
+Capture a text block's look — font, size, color, weight, alignment, spacing,
+and its heading/paragraph tag — as a named **text style** (Properties ▸ Saved
+text styles ▸ *Save this look as a style*), then apply it to any other text
+block with one click. Applying a style writes to every selected text block, so
+you can restyle a batch at once. Styles travel inside the project file.
+
 ## Slide templates
 Save any slide as a reusable **template** (the ▢ action in the Slides panel),
 then insert new slides from it. Inserting regenerates every id and remaps

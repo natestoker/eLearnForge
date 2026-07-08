@@ -57,6 +57,7 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
           onChange={setOuterTag}
         />
       </Field>
+      <SavedTextStyles blockId={block.id} currentTag={outerTag} />
       <Field label="Font">
         <SelectInput
           value={props.fontFamily ?? ''}
@@ -187,5 +188,40 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
       </Field>
       <CheckboxInput label="Scroll overflow (show scrollbar when text is too tall)" checked={props.scroll ?? false} onChange={(v) => onUpdateProps((p: TextProps) => { p.scroll = v || undefined; })} />
     </>
+  );
+}
+
+const TAG_LABEL: Record<string, string> = {
+  '': 'Normal text', p: 'Paragraph', h1: 'Heading 1', h2: 'Heading 2',
+  h3: 'Heading 3', h4: 'Heading 4', h5: 'Heading 5', h6: 'Heading 6'
+};
+
+// Reusable named text styles: save this block's look, then apply it to any
+// other text block (applies to the whole selection). Stored on the project so
+// they travel with the file.
+function SavedTextStyles({ blockId, currentTag }: { blockId: string; currentTag: string }) {
+  const styles = useProjectStore((s) => s.project.textStyles) ?? [];
+  const saveTextStyle = useProjectStore((s) => s.saveTextStyle);
+  const applyTextStyle = useProjectStore((s) => s.applyTextStyle);
+  const deleteTextStyle = useProjectStore((s) => s.deleteTextStyle);
+  const save = () => {
+    const suggested = TAG_LABEL[currentTag] ?? 'Text style';
+    const name = window.prompt('Name this text style', suggested);
+    if (name && name.trim()) saveTextStyle(name.trim(), blockId);
+  };
+  return (
+    <div className="mini-card">
+      <span className="field-label">Saved text styles</span>
+      {styles.length === 0 && <p className="hint" style={{ margin: '4px 0' }}>Save this block's look, then apply it to other text.</p>}
+      {styles.map((s) => (
+        <div key={s.id} className="field-row" style={{ marginTop: 4 }}>
+          <button className="btn" style={{ flex: 1, textAlign: 'left' }} title="Apply to every selected text block" onClick={() => applyTextStyle(s.id)}>
+            {s.name}
+          </button>
+          <button className="btn btn-ghost btn-icon btn-danger" title="Delete style" onClick={() => deleteTextStyle(s.id)}>x</button>
+        </div>
+      ))}
+      <button className="btn btn-accent" style={{ marginTop: 6, width: '100%' }} onClick={save}>+ Save this look as a style</button>
+    </div>
   );
 }
