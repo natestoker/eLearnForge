@@ -1,9 +1,9 @@
 import type { Block, ReflectionSpec } from '../schema/types';
 import { REFLECTION_PRESETS } from '../shared/shadow';
-import { CheckboxInput, Field, NumberInput, RangeInput, Row } from './fields';
+import { CheckboxInput, Field, NumberInput, RangeInput, Row, SelectInput } from './fields';
 
 // PowerPoint-style reflection controls, shared by every visual block type.
-const DEFAULT_REFLECTION: ReflectionSpec = { opacity: 0.5, size: 0.6, distance: 4 };
+const DEFAULT_REFLECTION: ReflectionSpec = { opacity: 0.5, size: 0.6, distance: 4, direction: 'below' };
 
 export function ReflectionSection({ block, onUpdate }: {
   block: Block;
@@ -16,7 +16,7 @@ export function ReflectionSection({ block, onUpdate }: {
   return (
     <>
       <CheckboxInput
-        label="Reflection (mirrored copy below)"
+        label="Reflection (mirrored copy)"
         checked={Boolean(r)}
         onChange={(v) => onUpdate((b) => { b.reflection = v ? { ...DEFAULT_REFLECTION } : undefined; })}
       />
@@ -25,9 +25,21 @@ export function ReflectionSection({ block, onUpdate }: {
           <Field label="Preset">
             <div className="field-row">
               {REFLECTION_PRESETS.map((p) => (
-                <button key={p.label} className="btn" onClick={() => onUpdate((b) => { b.reflection = { ...p.spec }; })}>{p.label}</button>
+                <button key={p.label} className="btn" onClick={() => onUpdate((b) => { b.reflection = { ...p.spec, direction: r.direction ?? 'below' }; })}>{p.label}</button>
               ))}
             </div>
+          </Field>
+          <Field label="Mirror side">
+            <SelectInput
+              value={r.direction ?? 'below'}
+              options={[
+                { value: 'below', label: 'Below (classic)' },
+                { value: 'above', label: 'Above' },
+                { value: 'left', label: 'Left' },
+                { value: 'right', label: 'Right' }
+              ]}
+              onChange={(v) => write({ direction: v as ReflectionSpec['direction'] })}
+            />
           </Field>
           <Field label="Strength">
             <RangeInput value={Math.round(r.opacity * 100)} min={0} max={100} step={5} format={(v) => `${v}%`} onChange={(v) => write({ opacity: v / 100 })} />

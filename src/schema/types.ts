@@ -353,11 +353,14 @@ export interface Block {
   motion?: MotionPath;
 }
 
-// A mirrored reflection under the block (CSS -webkit-box-reflect).
+// A mirrored reflection hugging one edge of the block (CSS -webkit-box-reflect).
 export interface ReflectionSpec {
   opacity: number;  // 0..1 strength nearest the block
   size: number;     // 0..1 fraction of the reflection that is visible before fading out
   distance: number; // px gap between the block and its reflection
+  // Which edge the mirrored copy attaches to. Absent = 'below' (the classic
+  // PowerPoint/dock reflection), for projects saved before this was added.
+  direction?: 'below' | 'above' | 'left' | 'right';
 }
 
 // PowerPoint shadow model: dir/dist polar offset, blur, color+alpha.

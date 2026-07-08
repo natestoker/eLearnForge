@@ -978,6 +978,17 @@ select.input { appearance: auto; }
   gap: 12px;
   margin-bottom: 6px;
 }
+/* The trailing hint must never wrap: the panel has a fixed height, so a
+   taller head (from wrapped text) steals room from the row grid below and
+   can silently clip block bars out of the visible/clickable area. Truncate
+   instead - the full text is still available as a tooltip. */
+.timeline-head .hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .timeline-title {
   font-family: var(--mono);
   font-size: 12px;

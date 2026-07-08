@@ -1,20 +1,39 @@
 import type { Block, ReflectionSpec, ShadowSpec } from '../schema/types';
 
-// PowerPoint-style reflection: a mirrored copy below the block that fades out.
-// Implemented with -webkit-box-reflect (Chromium/WebKit); the gradient is a
-// mask - opaque near the block, fading to transparent at `size` down the
-// reflection. `distance` is the gap in px.
+// PowerPoint-style reflection: a mirrored copy hugging one edge of the block,
+// fading out away from it. Implemented with -webkit-box-reflect
+// (Chromium/WebKit); the mask is a gradient - opaque nearest the block,
+// fading to transparent over `size` fraction of the reflection.
+//
+// -webkit-box-reflect mirrors the element AND its mask together: the mask is
+// authored in the element's own (pre-flip) top-to-bottom/left-to-right frame,
+// then the whole thing is flipped into place. That means the edge of the
+// element nearest the reflection (e.g. the BOTTOM edge for a 'below'
+// reflection) corresponds to the FAR end of a naive "to bottom" gradient, not
+// the near end - so each direction needs its gradient axis reversed relative
+// to where you'd naively expect, verified empirically against the rendered
+// output. Get this wrong and the reflection floats a visible gap away from
+// the block instead of hugging it.
+const GRADIENT_DIR: Record<NonNullable<ReflectionSpec['direction']>, string> = {
+  below: 'to top',
+  above: 'to bottom',
+  right: 'to left',
+  left: 'to right'
+};
+
 export function reflectionCss(r: ReflectionSpec | undefined): string | undefined {
   if (!r || r.opacity <= 0) return undefined;
   const op = Math.max(0, Math.min(1, r.opacity)).toFixed(2);
   const fade = Math.max(1, Math.min(100, (r.size || 0.5) * 100)).toFixed(0);
-  return `below ${Math.max(0, r.distance)}px linear-gradient(to bottom, rgba(255,255,255,${op}) 0%, transparent ${fade}%)`;
+  const dir = r.direction ?? 'below';
+  const gradientDir = GRADIENT_DIR[dir];
+  return `${dir} ${Math.max(0, r.distance)}px linear-gradient(${gradientDir}, rgba(255,255,255,${op}) 0%, transparent ${fade}%)`;
 }
 
 export const REFLECTION_PRESETS: { label: string; spec: ReflectionSpec }[] = [
-  { label: 'Tight', spec: { opacity: 0.5, size: 0.5, distance: 2 } },
-  { label: 'Half', spec: { opacity: 0.5, size: 0.6, distance: 4 } },
-  { label: 'Full', spec: { opacity: 0.45, size: 1, distance: 6 } }
+  { label: 'Tight', spec: { opacity: 0.5, size: 0.5, distance: 2, direction: 'below' } },
+  { label: 'Half', spec: { opacity: 0.5, size: 0.6, distance: 4, direction: 'below' } },
+  { label: 'Full', spec: { opacity: 0.45, size: 1, distance: 6, direction: 'below' } }
 ];
 
 // PowerPoint-style shadows, one implementation for every block type.
