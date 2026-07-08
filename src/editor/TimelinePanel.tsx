@@ -115,6 +115,14 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   // Find all blocks recursively (including grouped blocks)
   const blocks = walkBlocks(slide.layers.flatMap((l) => l.blocks));
   const duration = timelineDuration(slide.timeline, blocks);
+  // The AUTHOR-DECLARED length (the red "set" line/Length field) - distinct
+  // from `duration` above, which grows to include whatever already overflows
+  // it. Clamping/pinning must anchor to this, not the extended value: if
+  // several blocks already share the same overflow point, they collectively
+  // define `duration`, so checking a drag against `duration` makes every one
+  // of them look "pinned to the end" at that shared (accidental) point
+  // instead of the real one.
+  const setDuration = slide.timeline.duration;
   const driven = Boolean(slide.timeline.narrationSrc);
   const selectedRowIds = new Set(selectedIds(selection));
   const cues = slide.timeline.cues ?? [];
@@ -176,29 +184,42 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       return bestDelta;
     };
     // Slide one bar by dSec, PRESERVING its length - EXCEPT a non-audio bar
-    // that's already pinned to the timeline's end (end === duration) stays
-    // pinned: dragging it only moves the start (like trimStart), so its end
-    // never lifts off the boundary. That reads better than a move that's
-    // simply capped in place, which used to make an end-anchored bar feel
-    // stuck - now you can still shorten/lengthen it from the left while the
-    // out-point holds. Audio is exempt everywhere: it may push the end past
-    // duration (narration naturally runs long, and that's how it's meant to
-    // extend/define the slide's length).
+    // that's already pinned to the DECLARED end (end === setDuration, the red
+    // "set" line) stays pinned: dragging it only moves the start (like
+    // trimStart), so its end never lifts off the boundary. That reads better
+    // than a move that's simply capped in place, which used to make an
+    // end-anchored bar feel stuck - now you can still shorten/lengthen it
+    // from the left while the out-point holds.
+    //
+    // A regular block already sitting ENTIRELY PAST setDuration (pre-existing
+    // overflow - an old project, an import, or state from before this cap
+    // existed) is exempt from the cap altogether and moves completely freely,
+    // the same as audio. The cap only exists to stop a drag from newly
+    // introducing overflow on a block that doesn't have any yet; a block
+    // that's already past the boundary isn't "reaching the end" when you drag
+    // it further, so nothing should hold it in place. (Anchoring the cap to
+    // `origEnd` instead of exempting it entirely was tried and is wrong: for
+    // a bar whose end already equals its cap, `cap - len` collapses to
+    // exactly its original start, freezing it - it could never move right
+    // again.)
     const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number, snapActive: boolean) => {
       if (!blk.timing) return;
-      const pinnedToEnd = blk.type !== 'audio' && origEnd !== undefined && Math.abs(origEnd - duration) < 0.05;
+      const pinnedToEnd = blk.type !== 'audio' && origEnd !== undefined && Math.abs(origEnd - setDuration) < 0.05;
       if (pinnedToEnd) {
         let ns = origStart + dSec;
         ns += nearestCueDelta([ns], snapActive);
-        blk.timing.start = Math.max(0, Math.min(q(ns), duration - 0.2));
-        blk.timing.end = duration;
+        blk.timing.start = Math.max(0, Math.min(q(ns), setDuration - 0.2));
+        blk.timing.end = setDuration;
         return;
       }
       const len = (origEnd ?? duration) - origStart;
       let ns = Math.max(0, origStart + dSec);
       ns += nearestCueDelta([ns, ns + len], snapActive);
       ns = Math.max(0, q(ns));
-      if (blk.type !== 'audio') ns = Math.min(ns, Math.max(0, duration - len));
+      const alreadyOverflowing = origEnd !== undefined && origEnd > setDuration + 0.05;
+      if (blk.type !== 'audio' && !alreadyOverflowing) {
+        ns = Math.min(ns, Math.max(0, setDuration - len));
+      }
       blk.timing.start = ns;
       if (origEnd !== undefined) blk.timing.end = q(ns + len);
     };
@@ -224,7 +245,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           const base = g.origEnd ?? duration;
           let ne = base + dSec;
           ne += nearestCueDelta([ne], snapActive);
-          const cap = blk.type === 'audio' ? Infinity : duration;
+          // Same reasoning as the move cap above: a bar already past
+          // setDuration is exempt (it's already overflowing, so trimming it
+          // further out isn't "reaching the end" - capping at its own
+          // current position would just freeze it there). Only a bar that's
+          // currently within bounds gets capped at setDuration.
+          const alreadyOverflowing = base > setDuration + 0.05;
+          const cap = (blk.type === 'audio' || alreadyOverflowing) ? Infinity : setDuration;
           blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(ne), cap));
         } else if (g.mode === 'trimStart') {
           const endFixed = g.origEnd ?? duration;

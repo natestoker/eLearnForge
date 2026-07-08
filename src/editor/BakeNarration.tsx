@@ -41,8 +41,15 @@ export function BakeNarration({ slideId }: { slideId: string }) {
     });
   };
 
+  const hasCaptions = Boolean(slide?.timeline?.captionsVtt);
+
   return (
     <>
+      {slide?.timeline && (
+        <p className={`caption-status ${hasCaptions ? 'ok' : 'missing'}`}>
+          {hasCaptions ? '✓ This slide has captions.' : '✗ No captions on this slide yet - use "Add as narration" below (not "Add to timeline").'}
+        </p>
+      )}
       <AudioBaker
         text={notes}
         bakeLabel="Bake narration"
@@ -50,8 +57,8 @@ export function BakeNarration({ slideId }: { slideId: string }) {
         resultActions={(r) => (
           <>
             <button className="btn" onClick={() => downloadBake(r, baseName)}>Download .mp3</button>
-            <button className="btn btn-accent" onClick={() => addToTimeline(r, false)}>Add to timeline</button>
-            <button className="btn" onClick={() => addToTimeline(r, true)} title="Adds it as a hidden track that sets the slide length">Add as narration</button>
+            <button className="btn" onClick={() => addToTimeline(r, false)} title="Adds a visible, controllable audio clip - no captions, doesn't set slide length">Add to timeline</button>
+            <button className="btn btn-accent" onClick={() => addToTimeline(r, true)} title="The usual choice for slide narration: hidden track that sets the slide length and writes captions">Add as narration</button>
           </>
         )}
       />

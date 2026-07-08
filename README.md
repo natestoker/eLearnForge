@@ -1058,10 +1058,22 @@ it past the timeline's current end - only **audio** blocks may still extend
 long and that's the intended way it drives duration.
 
 A bar that's already **pinned to the end** (its end already equals the
-timeline's duration) behaves specially when you drag its body: instead of
-sliding both edges and getting capped in place, only the **start** moves -
-the end holds at the boundary either way, so you can still lengthen or
-shorten it from the left without it feeling stuck.
+timeline's declared duration - the "Length (s)" field, the red set-line)
+behaves specially when you drag its body: instead of sliding both edges and
+getting capped in place, only the **start** moves - the end holds at the
+boundary either way, so you can still lengthen or shorten it from the left
+without it feeling stuck.
+
+Fixed a related bug: the cap and the pin above are anchored to that
+**declared** duration, not the extended one the timeline grows to whenever
+something already overflows it. If several blocks already share the same
+overflow point (imported content, or state from before this cap existed),
+checking against the extended value made every one of them look "at the
+end" at that shared, accidental point - dragging any of them barely moved,
+or moved only one direction. A block already past the declared duration is
+now exempt from the cap entirely and moves completely freely, same as
+audio; the cap only stops a fresh drag from introducing *new* overflow on a
+block that doesn't have any yet.
 
 ## Canvas alignment guides
 Right-click empty space on the stage to drop a **vertical or horizontal
