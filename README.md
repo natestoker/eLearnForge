@@ -1040,6 +1040,29 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Stacked entrance / exit animations
+Any block can now layer **multiple** entrance (and exit) effects that play
+together — e.g. *fade + spin + zoom in*. In the Animate tab, use **+ Stack
+another entrance / exit** to add effects under the base one; each keeps its
+own duration, direction, distance, and ease. The timeline composites them
+(opacity and scale multiply, translate and rotate add, wipes take the largest
+reveal), and scrubbing stays exact because it's all recomputed per frame.
+
+## Editable text margins
+Headings and paragraphs no longer carry a default **top** margin, so text
+always hugs the top of its box. Instead, each text block has explicit
+**Margins** (Properties ▸ Margins) — top/right/bottom/left space inside the
+box, in px — that you set yourself (PowerPoint's internal text margin). Saved
+text styles capture the margins too.
+
+## Reusable text styles
+Capture a text block's look — font, size, color, weight, alignment, spacing,
+margins, and its heading/paragraph tag — as a named **text style** (Properties
+▸ Saved text styles ▸ *Save this look as a style*), then apply it to any other
+text block with one click. Applying a style writes to every selected text
+block, so you can restyle a batch at once. Styles travel inside the project
+file.
+
 ## Slide templates
 Save any slide as a reusable **template** (the ▢ action in the Slides panel),
 then insert new slides from it. Inserting regenerates every id and remaps

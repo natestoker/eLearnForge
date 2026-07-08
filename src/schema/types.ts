@@ -25,6 +25,9 @@ export interface TextProps {
   // real spacing (single spacing = 1.2) so layouts match PowerPoint.
   lineHeight?: number;
   letterSpacing?: number; // px; 0 = normal
+  // Internal margins (space between the box edge and the text), in px, per
+  // side. Absent sides = 0. PowerPoint calls this the internal text margin.
+  inset?: { top?: number; right?: number; bottom?: number; left?: number };
 }
 
 export interface ImageProps {
@@ -284,6 +287,11 @@ export interface BlockTiming {
   end?: number;       // absent = stays until the timeline ends
   animIn?: AnimSpec;
   animOut?: AnimSpec;
+  // Additional entrance/exit effects that play TOGETHER with animIn/animOut
+  // (e.g. fade + spin + zoom). Each has its own duration/ease, all anchored to
+  // the block's start (entrances) or end (exits). Composited by the timeline.
+  animInStack?: AnimSpec[];
+  animOutStack?: AnimSpec[];
 }
 
 // A block travelling along a curve over the slide timeline. Stored as a
@@ -537,6 +545,27 @@ export interface Project {
   resources?: ResourceItem[];
   // Course-level glossary terms, shown in the player's Glossary panel.
   glossary?: GlossaryTerm[];
+  // Reusable text styles (like paragraph/heading styles): capture a text
+  // block's look once and apply it to others. Travels in the project file.
+  textStyles?: TextStyle[];
+}
+
+// A named, reusable text style. Applying it copies these props onto a text
+// block and wraps its content in `tag`.
+export interface TextStyle {
+  id: string;
+  name: string;
+  tag?: 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+  fontFamily?: string;
+  fontSize: number;
+  color?: string;
+  fontWeight?: number;
+  bold?: boolean;
+  align: 'left' | 'center' | 'right';
+  valign?: 'top' | 'center' | 'bottom';
+  lineHeight?: number;
+  letterSpacing?: number;
+  inset?: { top?: number; right?: number; bottom?: number; left?: number };
 }
 
 export interface SlideTemplate {

@@ -6,6 +6,20 @@ export function uid(prefix = 'id'): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-3)}`;
 }
 
+// The semantic block tag wrapping a text block's whole content, or '' when the
+// content is plain (no single h1-h6/p wrapper).
+export function outerTagOf(html: string): '' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
+  const m = (html || '').trim().match(/^<(h[1-6]|p)>([\s\S]*)<\/\1>$/i);
+  return m ? (m[1].toLowerCase() as 'p') : '';
+}
+
+// Wrap (or unwrap) a text block's content in a semantic tag.
+export function setOuterTag(html: string, tag: string): string {
+  const m = (html || '').trim().match(/^<(h[1-6]|p)>([\s\S]*)<\/\1>$/i);
+  const inner = m ? m[2] : html;
+  return tag ? `<${tag}>${inner}</${tag}>` : inner;
+}
+
 // Recursively give a block (and any group children) a fresh id, recording the
 // old->new mapping so references elsewhere can be remapped.
 function reassignBlockIds(blocks: Block[], map: Map<string, string>): void {

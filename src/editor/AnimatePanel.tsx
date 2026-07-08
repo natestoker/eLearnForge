@@ -151,7 +151,7 @@ export function AnimatePanel() {
             block={block}
             onUpdate={(fn, history = true) => updateBlock(block.id, (b) => fn(b), history)}
           />
-          {block.timing?.animIn && (
+          {(block.timing?.animIn || block.timing?.animInStack?.length) && (
             <button
               className="btn btn-accent"
               style={{ marginTop: 8 }}

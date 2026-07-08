@@ -43,7 +43,11 @@ export function textContentStyle(props: TextProps): CSSProperties {
     textAlign: props.align,
     width: '100%',
     lineHeight: props.lineHeight ?? 1.35,
-    letterSpacing: props.letterSpacing ? `${props.letterSpacing}px` : undefined
+    letterSpacing: props.letterSpacing ? `${props.letterSpacing}px` : undefined,
+    paddingTop: props.inset?.top || undefined,
+    paddingRight: props.inset?.right || undefined,
+    paddingBottom: props.inset?.bottom || undefined,
+    paddingLeft: props.inset?.left || undefined
   };
 }
 

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { Block, BlockType, Project } from '../schema/types';
+import type { Block, BlockType, Project, TextProps, TextStyle } from '../schema/types';
 import {
   cloneSlideFresh, createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
-  mcVariableName, textEntryVariableName, timerDoneVariableName, uid
+  mcVariableName, outerTagOf, setOuterTag, textEntryVariableName, timerDoneVariableName, uid
 } from '../schema/factory';
 
 // History design note (open question #1 from the brief):
@@ -83,6 +83,9 @@ interface ProjectStore {
   undo: () => void;
   redo: () => void;
 
+  saveTextStyle: (name: string, blockId: string) => void;
+  applyTextStyle: (styleId: string) => void;
+  deleteTextStyle: (styleId: string) => void;
   addSlide: () => void;
   saveSlideAsTemplate: (slideId: string, name: string) => void;
   addSlideFromTemplate: (templateId: string) => void;
@@ -197,6 +200,58 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         dirty: s.dirty + 1
       };
     }),
+
+  // Capture a text block's look (font/size/color/weight/align/spacing plus its
+  // semantic tag) as a reusable, named style stored on the project.
+  saveTextStyle: (name, blockId) => {
+    const all = get().project.slides.flatMap((s) => s.layers.flatMap((l) => walkBlocks(l.blocks)));
+    const b = all.find((x) => x.id === blockId);
+    if (!b || b.type !== 'text') return;
+    const tp = b.props as TextProps;
+    const style: TextStyle = {
+      id: uid('ts'), name,
+      tag: outerTagOf(tp.html) || undefined,
+      fontFamily: tp.fontFamily, fontSize: tp.fontSize, color: tp.color,
+      fontWeight: tp.fontWeight, bold: tp.bold, align: tp.align, valign: tp.valign,
+      lineHeight: tp.lineHeight, letterSpacing: tp.letterSpacing,
+      inset: tp.inset ? { ...tp.inset } : undefined
+    };
+    get().mutate((p) => { p.textStyles = [...(p.textStyles ?? []), style]; });
+  },
+
+  // Apply a saved style to every selected text block: copies its props and
+  // re-wraps the content in the style's tag.
+  applyTextStyle: (styleId) => {
+    const { project, selection } = get();
+    const style = project.textStyles?.find((s) => s.id === styleId);
+    if (!style) return;
+    const ids = new Set(selectedIds(selection));
+    if (!ids.size) return;
+    get().mutate((p) => {
+      for (const s of p.slides) {
+        for (const l of s.layers) {
+          for (const b of walkBlocks(l.blocks)) {
+            if (!ids.has(b.id) || b.type !== 'text') continue;
+            const tp = b.props as TextProps;
+            tp.fontFamily = style.fontFamily;
+            tp.fontSize = style.fontSize;
+            tp.color = style.color;
+            tp.fontWeight = style.fontWeight;
+            tp.bold = style.bold;
+            tp.align = style.align;
+            tp.valign = style.valign;
+            tp.lineHeight = style.lineHeight;
+            tp.letterSpacing = style.letterSpacing;
+            tp.inset = style.inset ? { ...style.inset } : undefined;
+            tp.html = setOuterTag(tp.html, style.tag ?? '');
+          }
+        }
+      }
+    });
+  },
+
+  deleteTextStyle: (styleId) =>
+    get().mutate((p) => { if (p.textStyles) p.textStyles = p.textStyles.filter((s) => s.id !== styleId); }),
 
   addSlide: () => {
     const slide = createSlide(`Slide ${get().project.slides.length + 1}`);
