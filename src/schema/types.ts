@@ -25,6 +25,9 @@ export interface TextProps {
   // real spacing (single spacing = 1.2) so layouts match PowerPoint.
   lineHeight?: number;
   letterSpacing?: number; // px; 0 = normal
+  // Internal margins (space between the box edge and the text), in px, per
+  // side. Absent sides = 0. PowerPoint calls this the internal text margin.
+  inset?: { top?: number; right?: number; bottom?: number; left?: number };
 }
 
 export interface ImageProps {
@@ -557,6 +560,7 @@ export interface TextStyle {
   valign?: 'top' | 'center' | 'bottom';
   lineHeight?: number;
   letterSpacing?: number;
+  inset?: { top?: number; right?: number; bottom?: number; left?: number };
 }
 
 export interface SlideTemplate {

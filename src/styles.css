@@ -1653,8 +1653,11 @@ select.input { appearance: auto; }
 /* Semantic headings authored via the RTE style dropdown. Sized relative to
    the block's own font-size so the panel's Font size still scales everything,
    and margins collapsed so a single heading fills the box like plain text. */
+/* No top margin on headings/paragraphs - only bottom spacing between stacked
+   blocks - so text always hugs the top of its box. Use the block's internal
+   margins (Properties ▸ Margins) to add space instead. */
 .text-content h1, .text-content h2, .text-content h3,
-.text-content h4, .text-content h5, .text-content h6 { font-weight: 700; line-height: 1.2; margin: 0.2em 0; }
+.text-content h4, .text-content h5, .text-content h6 { font-weight: 700; line-height: 1.2; margin: 0 0 0.2em; }
 .text-content h1 { font-size: 2em; }
 .text-content h2 { font-size: 1.6em; }
 .text-content h3 { font-size: 1.3em; }

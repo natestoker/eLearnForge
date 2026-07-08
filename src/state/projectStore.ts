@@ -213,7 +213,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       tag: outerTagOf(tp.html) || undefined,
       fontFamily: tp.fontFamily, fontSize: tp.fontSize, color: tp.color,
       fontWeight: tp.fontWeight, bold: tp.bold, align: tp.align, valign: tp.valign,
-      lineHeight: tp.lineHeight, letterSpacing: tp.letterSpacing
+      lineHeight: tp.lineHeight, letterSpacing: tp.letterSpacing,
+      inset: tp.inset ? { ...tp.inset } : undefined
     };
     get().mutate((p) => { p.textStyles = [...(p.textStyles ?? []), style]; });
   },
@@ -241,6 +242,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             tp.valign = style.valign;
             tp.lineHeight = style.lineHeight;
             tp.letterSpacing = style.letterSpacing;
+            tp.inset = style.inset ? { ...style.inset } : undefined;
             tp.html = setOuterTag(tp.html, style.tag ?? '');
           }
         }

@@ -1,6 +1,6 @@
 import type { PropertiesRendererProps } from '../blockApi';
 import type { TextProps } from '../../schema/types';
-import { CheckboxInput, ColorInput, Field, NumberInput, RangeInput, SelectInput, TextArea } from '../../editor/fields';
+import { CheckboxInput, ColorInput, Field, NumberInput, RangeInput, Row, SelectInput, TextArea } from '../../editor/fields';
 import { GOOGLE_FONTS, SYSTEM_FONTS, ensureFont } from '../../shared/fonts';
 import { useProjectStore } from '../../state/projectStore';
 
@@ -128,6 +128,8 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
           onChange={(v) => onUpdateProps((p: TextProps) => { p.letterSpacing = v ? v : undefined; })}
         />
       </Field>
+      <span className="field-label">Margins — space inside the box (px)</span>
+      <InsetEditor props={props} onUpdateProps={onUpdateProps} />
       <button
         className="btn btn-ghost"
         title="Strip all inline HTML formatting, keeping just the words (so the panel's font/size/color take over)"
@@ -187,6 +189,32 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
         )}
       </Field>
       <CheckboxInput label="Scroll overflow (show scrollbar when text is too tall)" checked={props.scroll ?? false} onChange={(v) => onUpdateProps((p: TextProps) => { p.scroll = v || undefined; })} />
+    </>
+  );
+}
+
+// Per-side internal margins (padding between the box edge and the text).
+function InsetEditor({ props, onUpdateProps }: {
+  props: TextProps;
+  onUpdateProps: (fn: (p: TextProps) => void, history?: boolean) => void;
+}) {
+  const set = (side: 'top' | 'right' | 'bottom' | 'left', v: number) =>
+    onUpdateProps((p: TextProps) => {
+      const inset = { ...(p.inset ?? {}) };
+      if (v) inset[side] = v; else delete inset[side];
+      p.inset = Object.keys(inset).length ? inset : undefined;
+    });
+  const val = (side: 'top' | 'right' | 'bottom' | 'left') => props.inset?.[side] ?? 0;
+  return (
+    <>
+      <Row>
+        <Field label="Top"><NumberInput value={val('top')} min={0} onChange={(v) => set('top', Math.max(0, v))} /></Field>
+        <Field label="Bottom"><NumberInput value={val('bottom')} min={0} onChange={(v) => set('bottom', Math.max(0, v))} /></Field>
+      </Row>
+      <Row>
+        <Field label="Left"><NumberInput value={val('left')} min={0} onChange={(v) => set('left', Math.max(0, v))} /></Field>
+        <Field label="Right"><NumberInput value={val('right')} min={0} onChange={(v) => set('right', Math.max(0, v))} /></Field>
+      </Row>
     </>
   );
 }
