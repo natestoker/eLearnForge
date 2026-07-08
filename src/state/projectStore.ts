@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Block, BlockType, Project } from '../schema/types';
 import {
-  createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
+  cloneSlideFresh, createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
   mcVariableName, textEntryVariableName, timerDoneVariableName, uid
 } from '../schema/factory';
 
@@ -84,6 +84,9 @@ interface ProjectStore {
   redo: () => void;
 
   addSlide: () => void;
+  saveSlideAsTemplate: (slideId: string, name: string) => void;
+  addSlideFromTemplate: (templateId: string) => void;
+  deleteTemplate: (templateId: string) => void;
   deleteSlide: (slideId: string) => void;
   moveSlide: (slideId: string, dir: -1 | 1) => void;
   addLayer: (slideId: string) => void;
@@ -200,6 +203,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().mutate((p) => { p.slides.push(slide); });
     get().select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: null });
   },
+
+  saveSlideAsTemplate: (slideId, name) => {
+    const slide = get().project.slides.find((s) => s.id === slideId);
+    if (!slide) return;
+    // Store a plain snapshot; ids are regenerated on insert.
+    const snapshot = structuredClone(slide);
+    get().mutate((p) => {
+      p.templates = p.templates ?? [];
+      p.templates.push({ id: uid('tpl'), name: name || slide.name, slide: snapshot });
+    });
+  },
+
+  addSlideFromTemplate: (templateId) => {
+    const { project } = get();
+    const tpl = project.templates?.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const { slide, newVariables } = cloneSlideFresh(tpl.slide, project.variables);
+    slide.name = tpl.name;
+    get().mutate((p) => {
+      p.slides.push(slide);
+      if (newVariables.length) p.variables.push(...newVariables);
+    });
+    get().select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: null });
+  },
+
+  deleteTemplate: (templateId) =>
+    get().mutate((p) => { if (p.templates) p.templates = p.templates.filter((t) => t.id !== templateId); }),
 
   deleteSlide: (slideId) => {
     const { project, selection } = get();

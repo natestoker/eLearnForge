@@ -14,6 +14,7 @@ import type { StateStyle } from '../schema/types';
 import { defaultPlayerSettings } from '../schema/factory';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
 import { shadowStyle } from '../shared/shadow';
+import { parseVtt, cueAt } from './captions';
 
 // Standalone runtime module (per brief): takes Project JSON plus a variable
 // store, renders current slide/layer/block state, wires triggers, re-renders
@@ -137,6 +138,14 @@ export function Player({ project, adapter, startSlideId }: {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [downId, setDownId] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [ccOn, setCcOn] = useState(true);
+  const [infoPanel, setInfoPanel] = useState<'resources' | 'glossary' | null>(null);
+  const resources = project.resources ?? [];
+  const glossary = project.glossary ?? [];
+
+  // Captions for the current slide (auto-baked from narration, or authored).
+  const cues = useMemo(() => parseVtt(slide.timeline?.captionsVtt), [slide.timeline?.captionsVtt]);
+  const activeCue = ccOn && cues.length ? cueAt(cues, t) : null;
 
   useEffect(() => {
     setT(0);
@@ -236,6 +245,42 @@ export function Player({ project, adapter, startSlideId }: {
           >
             <span /><span /><span />
           </button>
+          {(resources.length > 0 || glossary.length > 0) && (
+            <div className="player-info-tabs">
+              {resources.length > 0 && (
+                <button className="player-info-btn" onClick={() => setInfoPanel((v) => (v === 'resources' ? null : 'resources'))} aria-pressed={infoPanel === 'resources'}>
+                  Resources
+                </button>
+              )}
+              {glossary.length > 0 && (
+                <button className="player-info-btn" onClick={() => setInfoPanel((v) => (v === 'glossary' ? null : 'glossary'))} aria-pressed={infoPanel === 'glossary'}>
+                  Glossary
+                </button>
+              )}
+            </div>
+          )}
+          {infoPanel && (
+            <div className="player-info-panel" role="dialog" aria-label={infoPanel}>
+              <div className="player-info-panel-head">
+                <span>{infoPanel === 'resources' ? 'Resources' : 'Glossary'}</span>
+                <button className="player-info-close" aria-label="Close" onClick={() => setInfoPanel(null)}>×</button>
+              </div>
+              <div className="player-info-panel-body">
+                {infoPanel === 'resources' && resources.map((r) => (
+                  <a key={r.id} className="player-resource" href={r.url || undefined} target="_blank" rel="noopener noreferrer" download={r.url.startsWith('data:') ? r.title : undefined}>
+                    <span className="player-resource-title">{r.title}</span>
+                    {r.description && <span className="player-resource-desc">{r.description}</span>}
+                  </a>
+                ))}
+                {infoPanel === 'glossary' && glossary.map((g) => (
+                  <div key={g.id} className="player-glossary-term">
+                    <div className="player-glossary-word">{g.term}</div>
+                    <div className="player-glossary-def">{g.definition}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {settings.titlePosition === 'top' && (
             <div className="player-titlebar">
               <span className="player-titlebar-title">{project.title}</span>
@@ -340,6 +385,11 @@ export function Player({ project, adapter, startSlideId }: {
           ) : null
         )}
       </div>
+      {activeCue && (
+        <div className="player-captions" aria-live="polite">
+          <span>{activeCue.text}</span>
+        </div>
+      )}
       </div>
           <div className="player-chrome-bar slim">
             {settings.progressBar && (
@@ -371,6 +421,16 @@ export function Player({ project, adapter, startSlideId }: {
                 <span className="player-time">
                   {t.toFixed(1)}s / {duration.toFixed(1)}s
                 </span>
+                {cues.length > 0 && (
+                  <button
+                    className={`player-cc ${ccOn ? 'on' : ''}`}
+                    onClick={() => setCcOn((c) => !c)}
+                    aria-pressed={ccOn}
+                    title={ccOn ? 'Hide captions' : 'Show captions'}
+                  >
+                    CC
+                  </button>
+                )}
               </div>
             )}
             {(settings.titlePosition ?? 'bottom') === 'bottom' && (

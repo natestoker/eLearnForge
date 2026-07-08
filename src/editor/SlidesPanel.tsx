@@ -3,12 +3,21 @@ import { useProjectStore } from '../state/projectStore';
 
 export function SlidesPanel() {
   const slides = useProjectStore((s) => s.project.slides);
+  const templates = useProjectStore((s) => s.project.templates);
   const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const addSlide = useProjectStore((s) => s.addSlide);
   const deleteSlide = useProjectStore((s) => s.deleteSlide);
   const moveSlide = useProjectStore((s) => s.moveSlide);
+  const saveSlideAsTemplate = useProjectStore((s) => s.saveSlideAsTemplate);
+  const addSlideFromTemplate = useProjectStore((s) => s.addSlideFromTemplate);
+  const deleteTemplate = useProjectStore((s) => s.deleteTemplate);
   const mutate = useProjectStore((s) => s.mutate);
+
+  const saveTemplate = (slideId: string, fallback: string) => {
+    const name = window.prompt('Template name', fallback);
+    if (name !== null) saveSlideAsTemplate(slideId, name.trim() || fallback);
+  };
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -57,6 +66,8 @@ export function SlidesPanel() {
                     onClick={() => moveSlide(slide.id, -1)}>&uarr;</button>
                   <button className="btn btn-ghost btn-icon" title="Move down" disabled={i === slides.length - 1}
                     onClick={() => moveSlide(slide.id, 1)}>&darr;</button>
+                  <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
+                    onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
                   <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"
                     disabled={slides.length <= 1}
                     onClick={() => deleteSlide(slide.id)}>x</button>
@@ -66,6 +77,23 @@ export function SlidesPanel() {
           );
         })}
       </div>
+      {templates && templates.length > 0 && (
+        <div className="templates-section">
+          <div className="templates-header">Templates</div>
+          {templates.map((t) => (
+            <div key={t.id} className="template-item">
+              <button
+                className="template-insert"
+                title="Add a new slide from this template"
+                onClick={() => addSlideFromTemplate(t.id)}
+              >
+                &#43; {t.name}
+              </button>
+              <button className="btn btn-ghost btn-icon btn-danger" title="Delete template" onClick={() => deleteTemplate(t.id)}>x</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

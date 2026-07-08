@@ -147,6 +147,14 @@ export interface VideoProps {
   controls: boolean;
   autoplay: boolean;
   loop: boolean;
+  // Still frame shown before playback (data URL or URL).
+  poster?: string;
+  // Raw WebVTT caption text. Stored as text (not a data: URL) so it stays
+  // serializable in the project and dodges the browser's CORS restriction on
+  // <track> data URLs - the renderer wraps it in a Blob URL on the fly.
+  captionsVtt?: string;
+  captionsLabel?: string; // track label, e.g. "English"
+  captionsLang?: string;  // BCP-47, e.g. "en"
 }
 
 export interface AudioProps {
@@ -465,6 +473,10 @@ export interface SlideTimeline {
   // Named markers on the timeline for planning; an onCuePoint trigger fires
   // when the playhead crosses one (forward only), Storyline-style.
   cues?: CuePoint[];
+  // WebVTT captions shown over the stage during playback, synced to the slide
+  // clock. Auto-generated when narration is baked from the speaker notes, or
+  // pasted/edited by the author.
+  captionsVtt?: string;
 }
 
 export interface PlayerButton {
@@ -517,4 +529,31 @@ export interface Project {
   embeddedFonts?: { family: string; dataUrl: string; weight?: number; italic?: boolean }[];
   // GSAP transition when entering a slide.
   slideTransition?: 'none' | 'fade' | 'slide' | 'slideLeft' | 'slideRight' | 'slideUp' | 'zoom' | 'zoomOut' | 'flip';
+  // Reusable slide layouts saved by the author. Inserting one clones the
+  // stored slide with fresh ids. Travels inside the project file.
+  templates?: SlideTemplate[];
+  // Course-level handouts learners can download, shown in the player's
+  // Resources panel.
+  resources?: ResourceItem[];
+  // Course-level glossary terms, shown in the player's Glossary panel.
+  glossary?: GlossaryTerm[];
+}
+
+export interface SlideTemplate {
+  id: string;
+  name: string;
+  slide: Slide; // snapshot; cloned with new ids on insert
+}
+
+export interface ResourceItem {
+  id: string;
+  title: string;
+  url: string;       // external URL or an embedded data: URL
+  description?: string;
+}
+
+export interface GlossaryTerm {
+  id: string;
+  term: string;
+  definition: string;
 }
