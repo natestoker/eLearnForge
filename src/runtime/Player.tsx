@@ -223,10 +223,23 @@ export function Player({ project, adapter, startSlideId }: {
     else if (kind === 'zoom') gsap.fromTo(el, { scale: 0.96, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'zoomOut') gsap.fromTo(el, { scale: 1.06, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'flip') gsap.fromTo(el, { rotationY: 90, autoAlpha: 0 }, { rotationY: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out', transformOrigin: 'center', transformPerspective: 900 });
-    // Page flip: pivots on the LEFT edge (like turning a page from its
-    // spine), not the center - that asymmetry is what reads as a page turn
-    // rather than the symmetric card-flip of `flip` above.
-    else if (kind === 'pageFlip') gsap.fromTo(el, { rotationY: -100, autoAlpha: 0.5 }, { rotationY: 0, autoAlpha: 1, duration: 0.6, ease: 'power2.out', transformOrigin: 'left center', transformPerspective: 1400 });
+    // Page flip: pivots on the LEFT edge (the spine), not the center - and
+    // unlike a flat rigid rotation, it curls. A single rotationY tween reads
+    // as a stiff card spinning in place; a real turning page also narrows
+    // (scaleX) as it's seen edge-on, skews (the curl), and darkens mid-turn
+    // (it's angled away from the light) before brightening back up as it
+    // lays flat. Two tweens - lift-and-arc, then settle - with an overshoot
+    // ease on the way in gives it a little give instead of snapping flat.
+    else if (kind === 'pageFlip') {
+      gsap.set(el, { transformOrigin: 'left center', transformPerspective: 1600 });
+      gsap.timeline()
+        .fromTo(el,
+          { rotationY: -150, scaleX: 0.78, skewY: 5, autoAlpha: 0.3, filter: 'brightness(0.6)' },
+          { rotationY: -35, scaleX: 0.92, skewY: 2, autoAlpha: 0.9, filter: 'brightness(0.85)', duration: 0.32, ease: 'power2.out' }
+        )
+        .to(el, { rotationY: 0, scaleX: 1, skewY: 0, autoAlpha: 1, filter: 'brightness(1)', duration: 0.32, ease: 'back.out(1.6)' })
+        .set(el, { clearProps: 'transform,filter' });
+    }
   }, [slide.id, effectiveTransition]);
 
   const settings = project.player ?? defaultPlayerSettings();

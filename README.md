@@ -1054,7 +1054,11 @@ next to it in Player settings:
 A new **Page flip** option joins the slide transitions - it pivots on the
 left edge (like turning a page from its spine) rather than the existing
 **Flip**'s symmetric center rotation, so it reads as a page turn instead of a
-card flip.
+card flip. The motion is a two-phase curl rather than a single rigid
+rotation: as it lifts it narrows (scaleX) and skews like a curling sheet,
+darkens partway through (it's angled away from the light), then settles
+flat with a slight overshoot instead of snapping into place - closer to an
+actual page turning than a flat card spinning.
 
 ## Global vs. per-slide settings: transition
 Slide transitions are now split into a **course-wide default** (Course theme
