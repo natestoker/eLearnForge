@@ -25,7 +25,11 @@ export function textStyle(props: TextProps): CSSProperties {
     overflowX: props.scroll ? 'hidden' : 'visible',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center'
+    // `safe` keeps the START of the text visible when the content is taller
+    // than the box: without it, flex centering/end-alignment pushes the first
+    // line up out of view (top "pushed down", bottom "pushed up") once the
+    // box is too short. safe falls back to flex-start in that overflow case.
+    justifyContent: valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'safe flex-end' : 'safe center'
   };
 }
 
