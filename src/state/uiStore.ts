@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // Editor-only state. Deliberately separate from the project store: nothing in
 // here is part of the document, so it never touches undo history or saves.
 
-export type RightTab = 'properties' | 'animate' | 'triggers' | 'variables';
+export type RightTab = 'properties' | 'effects' | 'animate' | 'triggers' | 'variables';
 
 interface UiStore {
   hiddenLayerIds: Record<string, boolean>; // editor-only eye toggle

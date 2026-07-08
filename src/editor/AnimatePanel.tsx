@@ -38,7 +38,7 @@ const EMPHASES = [
 ];
 const ENTRANCES: { value: AnimType | 'none'; label: string }[] = [
   { value: 'none', label: 'None' }, { value: 'fade', label: 'Fade' }, { value: 'slide', label: 'Slide' },
-  { value: 'rise', label: 'Rise' }, { value: 'wipe', label: 'Wipe' }, { value: 'zoom', label: 'Zoom in' },
+  { value: 'rise', label: 'Rise' }, { value: 'wipe', label: 'Wipe' }, { value: 'blur', label: 'Blur' }, { value: 'zoom', label: 'Zoom in' },
   { value: 'grow', label: 'Grow' }, { value: 'flip', label: 'Flip' }, { value: 'bounceIn', label: 'Bounce in' },
   { value: 'spin', label: 'Spin in' }, { value: 'swivel', label: 'Swivel' }, { value: 'whipIn', label: 'Whip in' }
 ];

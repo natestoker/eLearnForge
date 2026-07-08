@@ -1,4 +1,21 @@
-import type { Block, ShadowSpec } from '../schema/types';
+import type { Block, ReflectionSpec, ShadowSpec } from '../schema/types';
+
+// PowerPoint-style reflection: a mirrored copy below the block that fades out.
+// Implemented with -webkit-box-reflect (Chromium/WebKit); the gradient is a
+// mask - opaque near the block, fading to transparent at `size` down the
+// reflection. `distance` is the gap in px.
+export function reflectionCss(r: ReflectionSpec | undefined): string | undefined {
+  if (!r || r.opacity <= 0) return undefined;
+  const op = Math.max(0, Math.min(1, r.opacity)).toFixed(2);
+  const fade = Math.max(1, Math.min(100, (r.size || 0.5) * 100)).toFixed(0);
+  return `below ${Math.max(0, r.distance)}px linear-gradient(to bottom, rgba(255,255,255,${op}) 0%, transparent ${fade}%)`;
+}
+
+export const REFLECTION_PRESETS: { label: string; spec: ReflectionSpec }[] = [
+  { label: 'Tight', spec: { opacity: 0.5, size: 0.5, distance: 2 } },
+  { label: 'Half', spec: { opacity: 0.5, size: 0.6, distance: 4 } },
+  { label: 'Full', spec: { opacity: 0.45, size: 1, distance: 6 } }
+];
 
 // PowerPoint-style shadows, one implementation for every block type.
 // Outer shadows render as a CSS drop-shadow filter on the block's content
@@ -55,6 +72,9 @@ export function shadowStyle(block: Block): React.CSSProperties {
     if (!s.inner) out.filter = outerShadowFilter(s);
     else if (block.type !== 'shape') out.boxShadow = innerShadowBoxCss(s);
   }
+  const refl = reflectionCss(block.reflection);
+  // WebkitBoxReflect isn't in the CSSProperties type; set it through an index.
+  if (refl) (out as Record<string, string>).WebkitBoxReflect = refl;
   return out;
 }
 

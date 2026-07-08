@@ -1040,6 +1040,17 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Effects tab, reflection, and blur animation
+- The right panel gains an **Effects** tab that gathers a block's **Shadow**,
+  the new **Reflection**, and **States** in one place (moved out of the long
+  Properties panel).
+- **Reflection** — a PowerPoint-style mirrored, fading copy below a block,
+  with strength, size (fade distance), and gap controls plus presets. Renders
+  in Chromium/WebKit browsers.
+- **Blur** is now an entrance/exit animation (with a Blur-radius control) — the
+  block resolves from a blur, and it composites with the stacking system so
+  you can do e.g. *blur + zoom in*.
+
 ## Stacked entrance / exit animations
 Any block can now layer **multiple** entrance (and exit) effects that play
 together — e.g. *fade + spin + zoom in*. In the Animate tab, use **+ Stack

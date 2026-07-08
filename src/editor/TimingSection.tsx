@@ -16,6 +16,7 @@ const ANIMS: { value: AnimType; label: string }[] = [
   { value: 'wipe', label: 'Wipe' },
   { value: 'zoom', label: 'Zoom in' },
   { value: 'zoomOut', label: 'Zoom out' },
+  { value: 'blur', label: 'Blur' },
   { value: 'spin', label: 'Spin in' },
   { value: 'flip', label: 'Flip' },
   { value: 'bounceIn', label: 'Bounce in' },
@@ -29,7 +30,7 @@ const ANIMS: { value: AnimType; label: string }[] = [
 ];
 
 const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip', 'whipIn'];
-const DISTANCED: AnimType[] = ['slide', 'rise', 'drop', 'whipIn'];
+const DISTANCED: AnimType[] = ['slide', 'rise', 'drop', 'whipIn', 'blur'];
 const DIRECTIONS: { value: AnimDirection; label: string }[] = [
   { value: 'up', label: 'Up' },
   { value: 'down', label: 'Down' },
@@ -92,10 +93,10 @@ function AnimEditor(props: {
             </Field>
           )}
           {DISTANCED.includes(type as AnimType) && (
-            <Field label="Distance (px)">
+            <Field label={type === 'blur' ? 'Blur radius (px)' : 'Distance (px)'}>
               <NumberInput
-                value={spec.distance ?? (type === 'rise' ? 160 : 40)}
-                step={10}
+                value={spec.distance ?? (type === 'rise' ? 160 : type === 'blur' ? 12 : 40)}
+                step={type === 'blur' ? 2 : 10}
                 onChange={(v) => props.onChange({ ...spec, distance: Math.max(0, v) })}
               />
             </Field>

@@ -19,6 +19,7 @@ export interface BlockVisualState {
   rotate: number;     // deg (spin/pop)
   rotateX: number;    // deg (flip up/down)
   rotateY: number;    // deg (flip left/right)
+  blur: number;       // px gaussian blur (blur in/out)
   // Wipe reveal: fraction hidden from each side (0..1). Rendered as a
   // clip-path inset; non-wiped sides get a negative inset so overflowing
   // geometry (callout tails, line arrowheads) is never chopped.
@@ -88,6 +89,7 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
     }
     case 'zoom': return { opacity: 1 - k, scale: 1 - 0.35 * k };
     case 'zoomOut': return { opacity: 1 - k, scale: 1 + 0.4 * k };
+    case 'blur': return { opacity: 1 - Math.min(1, k * 1.3), blur: (spec.distance ?? 12) * k };
     case 'spin': return { opacity: 1 - k, rotate: -180 * k, scale: 1 - 0.3 * k };
     case 'flip':
       return dir === 'left' || dir === 'right'
@@ -113,7 +115,7 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
   }
 }
 
-const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, scaleX: 1, scaleY: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
+const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, scaleX: 1, scaleY: 1, rotate: 0, rotateX: 0, rotateY: 0, blur: 0, clip: null };
 
 // Fold one animation's contribution INTO the running state so several effects
 // stack: opacity/scale multiply, translate/rotate add, clip takes the largest
@@ -129,6 +131,7 @@ function composeInto(state: BlockVisualState, o: Partial<BlockVisualState>): voi
   if (o.rotate !== undefined) state.rotate += o.rotate;
   if (o.rotateX !== undefined) state.rotateX += o.rotateX;
   if (o.rotateY !== undefined) state.rotateY += o.rotateY;
+  if (o.blur !== undefined) state.blur += o.blur;
   if (o.clip) {
     state.clip = state.clip
       ? { top: Math.max(state.clip.top, o.clip.top), right: Math.max(state.clip.right, o.clip.right), bottom: Math.max(state.clip.bottom, o.clip.bottom), left: Math.max(state.clip.left, o.clip.left) }
@@ -213,6 +216,7 @@ export function styleFor(state: BlockVisualState): React.CSSProperties {
       (state.rotate ? ` rotate(${state.rotate}deg)` : '') +
       (state.rotateX ? ` rotateX(${state.rotateX}deg)` : '') +
       (state.rotateY ? ` rotateY(${state.rotateY}deg)` : ''),
+    filter: state.blur > 0.05 ? `blur(${state.blur.toFixed(1)}px)` : undefined,
     perspective: 600,
     // Non-wiped sides inset by -100% so geometry that legitimately overflows
     // the block (callout tails, arrowheads) stays visible during the wipe.

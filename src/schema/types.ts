@@ -259,6 +259,7 @@ export type AnimType =
   | 'wipe'    // directional reveal (direction)
   | 'flip'    // 3D flip (direction picks the axis: up/down = X, left/right = Y)
   | 'zoom' | 'zoomOut'
+  | 'blur'    // resolves from a blur (distance = max blur radius in px)
   | 'spin' | 'bounceIn' | 'popRotate'
   | 'grow'     // scales up from nothing
   | 'stretch'  // unfolds horizontally
@@ -346,8 +347,17 @@ export interface Block {
   // PowerPoint-style shadow (outer or inner). Replaces the old boolean
   // ShapeProps.shadow, which migrates to a default spec on read.
   shadow?: ShadowSpec;
+  // PowerPoint-style reflection: a mirrored, fading copy below the block.
+  reflection?: ReflectionSpec;
   // Travels along a curve over the slide timeline (see MotionPath).
   motion?: MotionPath;
+}
+
+// A mirrored reflection under the block (CSS -webkit-box-reflect).
+export interface ReflectionSpec {
+  opacity: number;  // 0..1 strength nearest the block
+  size: number;     // 0..1 fraction of the reflection that is visible before fading out
+  distance: number; // px gap between the block and its reflection
 }
 
 // PowerPoint shadow model: dir/dist polar offset, blur, color+alpha.
