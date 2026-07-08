@@ -1102,6 +1102,17 @@ getting capped in place, only the **start** moves - the end holds at the
 boundary either way, so you can still lengthen or shorten it from the left
 without it feeling stuck.
 
+## Bake narration: two options, not three
+After baking narration, the panel now only offers **Download .mp3** and
+**Set as narration** - the middle "Add to timeline" option (a visible,
+controllable audio clip that didn't write captions or set slide length) was
+dropped. It existed from when narration and plain audio shared one bake
+flow, but in practice it was just a second, less-useful way to place the
+same clip and had been a source of confusion (its similar-looking button
+sitting right next to "Set as narration" was the root cause of an earlier
+"some slides are missing captions" bug). Plain background audio still goes
+through the normal Insert menu.
+
 Fixed a related bug: the cap and the pin above are anchored to that
 **declared** duration, not the extended one the timeline grows to whenever
 something already overflows it. If several blocks already share the same
