@@ -76,6 +76,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     blockId: string; mode: GestureMode;
     startX: number; origStart: number; origEnd: number | undefined;
     origIn: number; origOut: number;
+    // For a 'move' on a multi-selection: every selected bar's original span,
+    // so they all slide by the same delta.
+    moveTargets?: { id: string; origStart: number; origEnd: number | undefined }[];
   } | null>(null);
 
   if (!slide.timeline) {
@@ -118,34 +121,60 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     e.stopPropagation();
     const b = blocks.find((x) => x.id === blockId);
     if (!b) return;
-    select({ blockId, blockIds: [] });
+    // A plain drag on a bar that's part of the current multi-selection keeps
+    // that selection (so a move slides them all); otherwise it selects just
+    // this block. Trims are always single-block.
+    const curSel = selectedIds(useProjectStore.getState().selection);
+    const inMulti = mode === 'move' && curSel.length > 1 && curSel.includes(blockId);
+    if (!inMulti) select({ blockId, blockIds: [] });
     if (rowLocked(b)) return; // locked rows select but never retime
     record();
     if (!b.timing) {
       updateBlock(blockId, (blk) => { blk.timing = { start: 0, end: duration }; }, false);
     }
     const t = b.timing;
+    // Build the set of bars that move together (only for a multi move).
+    const moveTargets = inMulti
+      ? curSel.map((id) => {
+          const bb = blocks.find((x) => x.id === id);
+          const tt = bb?.timing;
+          return { id, origStart: tt?.start ?? 0, origEnd: tt?.end ?? (tt ? undefined : duration) };
+        }).filter((m) => { const bb = blocks.find((x) => x.id === m.id); return bb && !rowLocked(bb); })
+      : undefined;
     gesture.current = {
       blockId, mode,
       startX: e.clientX,
       origStart: t?.start ?? 0,
       origEnd: t?.end ?? (t ? undefined : duration),
       origIn: t?.animIn?.duration ?? 0,
-      origOut: t?.animOut?.duration ?? 0
+      origOut: t?.animOut?.duration ?? 0,
+      moveTargets
+    };
+    // Slide one bar by dSec, preserving its length and clamping to [0,dur].
+    const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number) => {
+      if (!blk.timing) return;
+      const len = (origEnd ?? duration) - origStart;
+      const ns = Math.max(0, Math.min(q(origStart + dSec), duration - 0.2));
+      blk.timing.start = ns;
+      if (origEnd !== undefined) blk.timing.end = Math.min(q(ns + len), duration);
     };
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current;
       if (!g) return;
       const dSec = (ev.clientX - g.startX) / pxPerSec();
+      if (g.mode === 'move' && g.moveTargets) {
+        // Move the whole selection by the same delta.
+        for (const mt of g.moveTargets) {
+          updateBlock(mt.id, (blk) => slideBar(blk, mt.origStart, mt.origEnd, dSec), false);
+        }
+        return;
+      }
       updateBlock(g.blockId, (blk) => {
         if (!blk.timing) return;
         const end = blk.timing.end ?? duration;
         const span = end - blk.timing.start;
         if (g.mode === 'move') {
-          const len = (g.origEnd ?? duration) - g.origStart;
-          const ns = Math.max(0, Math.min(q(g.origStart + dSec), duration - 0.2));
-          blk.timing.start = ns;
-          if (g.origEnd !== undefined) blk.timing.end = Math.min(q(ns + len), duration);
+          slideBar(blk, g.origStart, g.origEnd, dSec);
         } else if (g.mode === 'trim') {
           const base = g.origEnd ?? duration;
           blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(base + dSec), duration));
