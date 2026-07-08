@@ -1032,3 +1032,34 @@ The multi-selection panel now edits more at once: for text blocks —
 for any selection — **width and height** applied to every selected block.
 These join the existing shared fill, border, font size/color, rotation,
 lock, emphasis, and shadow controls.
+
+## Video & narration captions
+The video block takes a **poster frame** and a **WebVTT/SRT caption track**
+(SRT is converted automatically). **Bake narration** now also generates a
+time-aligned caption track from the spoken sentences and stores it on the
+slide; the player shows a caption overlay synced to the slide clock with a
+**CC** toggle. Captions can also be pasted/edited per slide.
+
+## Slide templates
+Save any slide as a reusable **template** (the ▢ action in the Slides panel),
+then insert new slides from it. Inserting regenerates every id and remaps
+trigger/action and interaction-variable references, so duplicated logic keeps
+working. Templates travel inside the project file.
+
+## Player Resources & Glossary
+Course settings gain **Resources** (downloadable handouts — link or embedded
+file) and a **Glossary** (term/definition). Both surface as panels in the
+player via Resources / Glossary buttons.
+
+## Timeline & text polish
+- **Multi-select bar drag**: dragging one selected bar on the timeline slides
+  every selected bar together.
+- **Text style dropdown** in the Properties panel (Normal / Paragraph /
+  Heading 1-6) so semantic tags are reachable without the in-place editor.
+- **Sticky ruler**: the timeline's second marks stay pinned at the top while
+  you scroll down through many rows (single scroll container).
+- **Letter animations fixed**: *Letters rise* and *Typewriter* no longer split
+  a word across a line break — each word's letters stay together while still
+  animating individually.
+- Reminder: drag a row's **⋮⋮ grip** (or its name) to restack z-order live —
+  no need for the up/down arrows.
