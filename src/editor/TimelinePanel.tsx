@@ -150,13 +150,17 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       origOut: t?.animOut?.duration ?? 0,
       moveTargets
     };
-    // Slide one bar by dSec, preserving its length and clamping to [0,dur].
+    // Slide one bar by dSec, always PRESERVING its length. Moving a bar toward
+    // the end must not squish it against the timeline's edge - a clip keeps
+    // its real length and is allowed to extend past the current end (the
+    // timeline duration then grows to include it). Only the start is floored
+    // at 0.
     const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number) => {
       if (!blk.timing) return;
       const len = (origEnd ?? duration) - origStart;
-      const ns = Math.max(0, Math.min(q(origStart + dSec), duration - 0.2));
+      const ns = Math.max(0, q(origStart + dSec));
       blk.timing.start = ns;
-      if (origEnd !== undefined) blk.timing.end = Math.min(q(ns + len), duration);
+      if (origEnd !== undefined) blk.timing.end = q(ns + len);
     };
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current;
@@ -373,12 +377,14 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
         <div
           className={`timeline-header-row ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
           style={{ height: ROW_H, paddingLeft: depth * 16 + 8 }}
+          // The WHOLE row is a drag handle for z-order: press anywhere that
+          // isn't one of the action buttons / expander and drag up or down.
+          onPointerDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            startRowDrag(e, b, parent, idx, layerBlocks.length);
+          }}
         >
-          <span
-            className="tl-grip"
-            title="Drag to reorder (restacks immediately; selected rows move together)"
-            onPointerDown={(e) => startRowDrag(e, b, parent, idx, layerBlocks.length)}
-          >
+          <span className="tl-grip" title="Drag the row up or down to restack (selected rows move together)">
             {'\u22EE\u22EE'}
           </span>
           {b.type === 'group' ? (
@@ -393,7 +399,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <span className="tl-expand-spacer" />
           )}
 
-          <span className="tl-block-name" title={blockDisplayName(b)} onPointerDown={(e) => { if (!multiSelectRow(e, b.id)) { select({ blockId: b.id, blockIds: [] }); startRowDrag(e, b, parent, idx, layerBlocks.length); } }}>
+          <span className="tl-block-name" title={blockDisplayName(b)}>
             {blockDisplayName(b)}
           </span>
 

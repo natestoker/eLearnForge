@@ -2061,7 +2061,12 @@ select.input { appearance: auto; }
   color: var(--text);
   font-family: var(--mono);
   font-size: 11px;
+  /* The whole row is a drag handle for restacking z-order. */
+  cursor: grab;
 }
+.timeline-header-row:active { cursor: grabbing; }
+.timeline-header-row .tl-row-actions button,
+.timeline-header-row .tl-expand-btn { cursor: pointer; }
 .timeline-header-row.selected {
   background: var(--accent-dim);
 }
