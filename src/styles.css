@@ -1663,6 +1663,12 @@ select.input { appearance: auto; }
 .text-content h6 { font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
 .text-content p { margin: 0 0 0.4em; }
 .text-content p:last-child { margin-bottom: 0; }
+/* Collapse the outer margins so a heading/paragraph hugs the top and bottom
+   of its text box. Otherwise a heading's top margin (0.2em - big at a large
+   font) offsets the text down from the box's top edge and top-alignment
+   looks broken. */
+.text-content > :first-child { margin-top: 0; }
+.text-content > :last-child { margin-bottom: 0; }
 
 /* ---- timeline set-length indicator ---- */
 .timeline-overflow {
