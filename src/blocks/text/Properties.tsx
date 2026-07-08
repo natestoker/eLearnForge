@@ -1,10 +1,15 @@
 import type { PropertiesRendererProps } from '../blockApi';
 import type { TextProps } from '../../schema/types';
-import { CheckboxInput, ColorInput, Field, NumberInput, SelectInput, TextArea } from '../../editor/fields';
+import { CheckboxInput, ColorInput, Field, NumberInput, RangeInput, SelectInput, TextArea } from '../../editor/fields';
 import { GOOGLE_FONTS, SYSTEM_FONTS, ensureFont } from '../../shared/fonts';
 import { useProjectStore } from '../../state/projectStore';
 
 const warningStyle = { color: '#d97706', fontSize: '11px', marginTop: '4px', fontStyle: 'italic', display: 'block' };
+
+const WEIGHT_NAMES: Record<number, string> = {
+  100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium',
+  600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black'
+};
 
 export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps) {
   const props = block.props as TextProps;
@@ -134,17 +139,25 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
           <span style={warningStyle}>⚠ Controlled by inline HTML styling</span>
         )}
       </Field>
-      <div style={{ position: 'relative' }}>
-        <CheckboxInput
-          label="Bold"
-          checked={props.bold ?? false}
+      <Field label="Weight">
+        <RangeInput
+          value={props.fontWeight ?? (props.bold ? 700 : 400)}
+          min={100}
+          max={900}
+          step={100}
           disabled={overridesBold}
-          onChange={(v) => onUpdateProps((p: TextProps) => { p.bold = v; })}
+          format={(v) => `${v}${WEIGHT_NAMES[v] ? ` · ${WEIGHT_NAMES[v]}` : ''}`}
+          onChange={(v) => onUpdateProps((p: TextProps) => {
+            // Store an explicit weight; keep `bold` in sync for any legacy
+            // consumer and so 700 still reads as "bold".
+            p.fontWeight = v === 400 ? undefined : v;
+            p.bold = v >= 700 ? true : undefined;
+          })}
         />
         {overridesBold && (
-          <span style={{ ...warningStyle, marginTop: '2px', paddingLeft: '22px' }}>⚠ Controlled by inline HTML styling</span>
+          <span style={warningStyle}>⚠ Controlled by inline HTML styling</span>
         )}
-      </div>
+      </Field>
       <CheckboxInput label="Scroll overflow (show scrollbar when text is too tall)" checked={props.scroll ?? false} onChange={(v) => onUpdateProps((p: TextProps) => { p.scroll = v || undefined; })} />
     </>
   );

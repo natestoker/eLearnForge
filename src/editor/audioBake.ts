@@ -27,6 +27,7 @@ export interface BakeResult {
   blob: Blob;
   dataUrl: string;
   seconds: number;
+  voiceId: string;
 }
 
 // The COMPLETE Kokoro-82M v1.0 English voice set (ids are the model's own:
@@ -67,6 +68,28 @@ export const BAKE_VOICES: { id: string; label: string }[] = [
   { id: 'bm_lewis', label: 'Lewis — UK male' },
   { id: 'bm_daniel', label: 'Daniel — UK male' }
 ];
+
+// The friendly first name of a voice (the part before the em-dash in its
+// label), e.g. 'af_heart' -> 'Heart'. Used to name baked tracks.
+export function voiceName(id: string): string {
+  const v = BAKE_VOICES.find((x) => x.id === id);
+  if (!v) return id;
+  return v.label.split('—')[0].trim();
+}
+
+// Remember the last voice the author baked/previewed with, across sessions,
+// so the picker defaults to it instead of resetting to the top of the list.
+const LAST_VOICE_KEY = 'elearnforge:lastVoice';
+export function lastUsedVoice(): string {
+  try {
+    const v = localStorage.getItem(LAST_VOICE_KEY);
+    if (v && BAKE_VOICES.some((x) => x.id === v)) return v;
+  } catch { /* ignore */ }
+  return BAKE_VOICES[0].id;
+}
+export function rememberVoice(id: string): void {
+  try { localStorage.setItem(LAST_VOICE_KEY, id); } catch { /* ignore */ }
+}
 
 const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 let ttsPromise: Promise<KokoroTTSType> | null = null;
@@ -236,7 +259,7 @@ export async function bakeSpeech(opts: {
   const trimmed = trimSilence(data, sampleRate);
   const blob = encodeMp3(trimmed.data, sampleRate);
   const dataUrl = await blobToDataUrl(blob);
-  return { blob, dataUrl, seconds: trimmed.seconds };
+  return { blob, dataUrl, seconds: trimmed.seconds, voiceId: opts.voiceId };
 }
 
 export function downloadBake(result: BakeResult, baseName: string): void {

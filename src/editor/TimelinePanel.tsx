@@ -242,6 +242,35 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       const s = p.slides.find((sl) => sl.id === slide.id);
       if (s?.timeline?.cues) s.timeline.cues = s.timeline.cues.filter((c) => c.id !== id);
     });
+  const renameCue = (id: string, name: string) =>
+    mutate((p) => {
+      const c = p.slides.find((sl) => sl.id === slide.id)?.timeline?.cues?.find((x) => x.id === id);
+      if (c) c.name = name;
+    });
+  // Drag a cue flag along the ruler to retime it (px -> seconds).
+  const startCueDrag = (e: React.PointerEvent, id: string) => {
+    e.stopPropagation();
+    const content = trackRef.current?.querySelector('.timeline-grid-scroll-content') as HTMLElement | null;
+    if (!content) return;
+    let recorded = false;
+    const onMove = (ev: PointerEvent) => {
+      const r = content.getBoundingClientRect();
+      const t = Math.max(0, Math.min(duration, ((ev.clientX - r.left) / r.width) * duration));
+      if (!recorded) { record(); recorded = true; }
+      mutate((p) => {
+        const c = p.slides.find((sl) => sl.id === slide.id)?.timeline?.cues?.find((x) => x.id === id);
+        if (c) c.time = Math.round(t * 100) / 100;
+      }, false);
+    };
+    const onUp = () => {
+      // Keep cues sorted after a move.
+      mutate((p) => { const tl = p.slides.find((sl) => sl.id === slide.id)?.timeline; if (tl?.cues) tl.cues.sort((a, b) => a.time - b.time); }, false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   // Shift/Cmd/Ctrl-click a row to add it to (or remove it from) the timeline
   // selection - the same multi-selection the canvas and property panels use.
@@ -532,8 +561,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
                   key={c.id}
                   className="timeline-cue-flag"
                   style={{ left: pct(Math.min(c.time, duration)) }}
-                  title={`${c.name} @ ${c.time.toFixed(1)}s — click to seek, right-click to delete`}
-                  onPointerDown={(e) => { e.stopPropagation(); setScrubT(c.time); }}
+                  title={`${c.name} @ ${c.time.toFixed(1)}s — drag to move, double-click to rename, right-click to delete`}
+                  onPointerDown={(e) => { setScrubT(c.time); startCueDrag(e, c.id); }}
+                  onDoubleClick={(e) => { e.stopPropagation(); const n = window.prompt('Cue name', c.name); if (n !== null) renameCue(c.id, n || c.name); }}
                   onContextMenu={(e) => { e.preventDefault(); if (confirm(`Delete cue "${c.name}"?`)) removeCue(c.id); }}
                 >
                   ◇ {c.name}

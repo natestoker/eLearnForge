@@ -61,6 +61,31 @@ export function NumberInput(props: {
   );
 }
 
+// A slider with a live numeric readout. Used where a value lives on a
+// continuous scale (font weight, opacity) and a spinner would be fiddlier
+// than dragging. `format` labels the current value.
+export function RangeInput(props: {
+  value: number; onChange: (v: number) => void;
+  min: number; max: number; step?: number; disabled?: boolean;
+  format?: (v: number) => string;
+}) {
+  return (
+    <div className="range-input">
+      <input
+        className="range-slider"
+        type="range"
+        value={props.value}
+        min={props.min}
+        max={props.max}
+        step={props.step ?? 1}
+        disabled={props.disabled}
+        onChange={(e) => props.onChange(Number(e.target.value))}
+      />
+      <span className="range-value">{props.format ? props.format(props.value) : props.value}</span>
+    </div>
+  );
+}
+
 export function TextArea(props: {
   value: string; onChange: (v: string) => void; rows?: number; placeholder?: string; disabled?: boolean;
 }) {

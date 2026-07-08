@@ -15,7 +15,8 @@ export interface TextProps {
   fontSize: number;
   align: 'left' | 'center' | 'right';
   color?: string; // absent = stage default
-  bold?: boolean;
+  bold?: boolean; // legacy; superseded by fontWeight (bold = 700)
+  fontWeight?: number; // 100..900; absent = 400 (or 700 if bold is set)
   fontFamily?: string; // Google font family name; absent = JetBrains Mono
   textAnim?: TextAnim;  // GSAP entrance animation for the text itself
   valign?: 'top' | 'center' | 'bottom'; // vertical alignment in the box
