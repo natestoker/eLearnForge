@@ -140,6 +140,9 @@ export function Player({ project, adapter, startSlideId }: {
   const [navOpen, setNavOpen] = useState(false);
   const [ccOn, setCcOn] = useState(true);
   const [infoPanel, setInfoPanel] = useState<'resources' | 'glossary' | null>(null);
+  // For buttonEmphasisTrigger === 'timelineEnd': a slide with no timeline has
+  // nothing to wait for, so it counts as already "ended".
+  const [timelineEnded, setTimelineEnded] = useState(!hasTimeline);
   const resources = project.resources ?? [];
   const glossary = project.glossary ?? [];
 
@@ -151,6 +154,7 @@ export function Player({ project, adapter, startSlideId }: {
     setT(0);
     prevTRef.current = 0;
     setAudioDuration(null);
+    setTimelineEnded(!hasTimeline);
     clockRef.current?.dispose();
     clockRef.current = null;
     if (!hasTimeline) return;
@@ -189,6 +193,7 @@ export function Player({ project, adapter, startSlideId }: {
       },
       onEnd: () => {
         runtime.timelineEnded();
+        setTimelineEnded(true);
         if (slide.timeline?.autoAdvance) {
           const next = project.slides[slideIndex + 1];
           if (next) runtime.enterSlide(next.id);
@@ -202,9 +207,13 @@ export function Player({ project, adapter, startSlideId }: {
   }, [slide.id, hasTimeline]);
 
   // GSAP slide transition: animate the stage in whenever the slide changes.
+  // A slide's own `transition` overrides the course-wide default when set -
+  // the general slide-overrides-global pattern (same as slideTransition
+  // itself being the fallback for everything else).
+  const effectiveTransition = slide.transition ?? project.slideTransition ?? 'none';
   useEffect(() => {
     const el = stageAnimRef.current;
-    const kind = project.slideTransition ?? 'none';
+    const kind = effectiveTransition;
     if (!el || kind === 'none') return;
     if (kind === 'fade') gsap.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4, ease: 'power2.out' });
     else if (kind === 'slide') gsap.fromTo(el, { xPercent: 4, autoAlpha: 0 }, { xPercent: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out' });
@@ -214,13 +223,27 @@ export function Player({ project, adapter, startSlideId }: {
     else if (kind === 'zoom') gsap.fromTo(el, { scale: 0.96, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'zoomOut') gsap.fromTo(el, { scale: 1.06, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'flip') gsap.fromTo(el, { rotationY: 90, autoAlpha: 0 }, { rotationY: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out', transformOrigin: 'center', transformPerspective: 900 });
-  }, [slide.id, project.slideTransition]);
+    // Page flip: pivots on the LEFT edge (like turning a page from its
+    // spine), not the center - that asymmetry is what reads as a page turn
+    // rather than the symmetric card-flip of `flip` above.
+    else if (kind === 'pageFlip') gsap.fromTo(el, { rotationY: -100, autoAlpha: 0.5 }, { rotationY: 0, autoAlpha: 1, duration: 0.6, ease: 'power2.out', transformOrigin: 'left center', transformPerspective: 1400 });
+  }, [slide.id, effectiveTransition]);
 
   const settings = project.player ?? defaultPlayerSettings();
   const playerAccent = settings.accent ?? project.theme?.accent ?? '#3ddc97';
+  // Whether the Next/Submit emphasis animation is actually allowed to run
+  // right now. 'always' (or unset) matches the old always-on behavior;
+  // 'timelineEnd' waits for this slide's clock to finish; 'variable' checks
+  // a course-variable condition live (re-evaluated on every runtime change,
+  // since useSyncExternalStore above already re-renders this component then).
+  const emphasisTrigger = settings.buttonEmphasisTrigger ?? 'always';
+  const emphasisActive =
+    emphasisTrigger === 'timelineEnd' ? timelineEnded
+    : emphasisTrigger === 'variable' ? Boolean(settings.buttonEmphasisCondition && runtime.checkCondition(settings.buttonEmphasisCondition))
+    : true;
   const chromeClass =
     `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}` +
-    ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${settings.buttonEmphasis ?? 'none'}`;
+    ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${emphasisActive ? (settings.buttonEmphasis ?? 'none') : 'none'}`;
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>

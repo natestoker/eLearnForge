@@ -344,6 +344,13 @@ export class Runtime {
     }
   }
 
+  // Public single-condition check, shared with UI that needs to react to a
+  // variable outside the trigger system (e.g. conditional player-button
+  // emphasis).
+  checkCondition(c: Condition): boolean {
+    return this.conditionsPass([c]);
+  }
+
   setVariableByName(name: string, value: VariableValue): void {
     const v = this.project.variables.find((vr) => vr.name === name);
     if (v) this.setVariable(v.id, value);

@@ -1,5 +1,5 @@
 import { selectedIds, useCurrentSlide, useProjectStore, useSelectedBlock, walkBlocks } from '../state/projectStore';
-import type { Block, ButtonProps, ShapeProps, TextProps } from '../schema/types';
+import type { Block, ButtonProps, ConditionOperator, PlayerSettings, Project, ShapeProps, Slide, TextProps } from '../schema/types';
 import { BLOCKS } from '../blocks/registry';
 import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, RangeInput, Row, SelectInput, TextInput } from './fields';
 import { GOOGLE_FONTS, SYSTEM_FONTS, ensureFont } from '../shared/fonts';
@@ -8,7 +8,91 @@ import { ShadowSection } from './ShadowSection';
 import { BakeNarration } from './BakeNarration';
 import { BlockAudioSection } from './BlockAudioSection';
 import { defaultPlayerSettings, uid } from '../schema/factory';
+import { defaultVariableValue, ValueInput } from './TriggersPanel';
 import { useState } from 'react';
+
+const TRANSITION_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'fade', label: 'Fade' },
+  { value: 'slide', label: 'Slide (subtle)' },
+  { value: 'slideLeft', label: 'Slide from right' },
+  { value: 'slideRight', label: 'Slide from left' },
+  { value: 'slideUp', label: 'Slide up' },
+  { value: 'zoom', label: 'Zoom in' },
+  { value: 'zoomOut', label: 'Zoom out' },
+  { value: 'flip', label: 'Flip' },
+  { value: 'pageFlip', label: 'Page flip' }
+];
+
+const EMPHASIS_OPERATORS: { value: ConditionOperator; label: string }[] = [
+  { value: 'eq', label: 'equals' },
+  { value: 'ne', label: 'does not equal' },
+  { value: 'gt', label: 'is greater than' },
+  { value: 'gte', label: 'is at least' },
+  { value: 'lt', label: 'is less than' },
+  { value: 'lte', label: 'is at most' },
+  { value: 'contains', label: 'contains' },
+  { value: 'isEmpty', label: 'is empty' },
+  { value: 'notEmpty', label: 'is not empty' }
+];
+
+// When to turn ON the Next/Submit emphasis: always, once the slide's
+// timeline finishes, or once a course variable meets a condition.
+function EmphasisTriggerSection({ player, mutate }: {
+  player: PlayerSettings;
+  mutate: (fn: (p: Project) => void, history?: boolean) => void;
+}) {
+  const variables = useProjectStore((s) => s.project.variables);
+  const trigger = player.buttonEmphasisTrigger ?? 'always';
+  const cond = player.buttonEmphasisCondition;
+  const variable = variables.find((v) => v.id === cond?.variableId);
+  return (
+    <>
+      <Field label="Turn emphasis on">
+        <SelectInput
+          value={trigger}
+          options={[
+            { value: 'always', label: 'Always (while enabled)' },
+            { value: 'timelineEnd', label: "When the slide's timeline ends" },
+            { value: 'variable', label: 'When a variable matches' }
+          ]}
+          onChange={(v) => mutate((p) => {
+            p.player = p.player ?? defaultPlayerSettings();
+            p.player.buttonEmphasisTrigger = v === 'always' ? undefined : (v as 'timelineEnd');
+            if (v === 'variable' && !p.player.buttonEmphasisCondition && variables[0]) {
+              p.player.buttonEmphasisCondition = { variableId: variables[0].id, operator: 'eq', value: defaultVariableValue(variables[0]) };
+            }
+          })}
+        />
+      </Field>
+      {trigger === 'variable' && (
+        <div className="trigger-row">
+          <SelectInput
+            value={cond?.variableId ?? ''}
+            options={variables.map((v) => ({ value: v.id, label: v.name }))}
+            onChange={(raw) => mutate((p) => {
+              p.player = p.player ?? defaultPlayerSettings();
+              const nv = variables.find((v) => v.id === raw);
+              p.player.buttonEmphasisCondition = { variableId: raw, operator: cond?.operator ?? 'eq', value: defaultVariableValue(nv) };
+            })}
+          />
+          <SelectInput
+            value={cond?.operator ?? 'eq'}
+            options={EMPHASIS_OPERATORS}
+            onChange={(v) => mutate((p) => { if (p.player?.buttonEmphasisCondition) p.player.buttonEmphasisCondition.operator = v as ConditionOperator; })}
+          />
+          {cond?.operator !== 'isEmpty' && cond?.operator !== 'notEmpty' && (
+            <ValueInput
+              variable={variable}
+              value={cond?.value ?? ''}
+              onChange={(v) => mutate((p) => { if (p.player?.buttonEmphasisCondition) p.player.buttonEmphasisCondition.value = v; })}
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
 // Panel design note (open question #2 from the brief): hand-built panels per
 // block type for v1's four blocks, sharing field primitives. A schema-driven
@@ -69,6 +153,18 @@ export function PropertyPanel() {
             />
           </Field>
         </Row>
+        <Field label="Transition (this slide)">
+          <SelectInput
+            value={slide.transition ?? ''}
+            options={[{ value: '', label: 'Use course default' }, ...TRANSITION_OPTIONS]}
+            onChange={(v) =>
+              mutate((p) => {
+                const s = p.slides.find((sl) => sl.id === slide.id);
+                if (s) s.transition = v === '' ? undefined : (v as Slide['transition']);
+              })
+            }
+          />
+        </Field>
         <div className="divider" />
         <h3 className="panel-title">Timeline</h3>
         {!slide.timeline ? (
@@ -171,23 +267,14 @@ export function PropertyPanel() {
             onChange={(v) => mutate((p) => { p.theme = { accent: v }; })}
           />
         </Field>
-        <Field label="Slide transition (GSAP)">
+        <Field label="Slide transition (course default)">
           <SelectInput
             value={useProjectStore.getState().project.slideTransition ?? 'none'}
-            options={[
-              { value: 'none', label: 'None' },
-              { value: 'fade', label: 'Fade' },
-              { value: 'slide', label: 'Slide (subtle)' },
-              { value: 'slideLeft', label: 'Slide from right' },
-              { value: 'slideRight', label: 'Slide from left' },
-              { value: 'slideUp', label: 'Slide up' },
-              { value: 'zoom', label: 'Zoom in' },
-              { value: 'zoomOut', label: 'Zoom out' },
-              { value: 'flip', label: 'Flip' }
-            ]}
+            options={TRANSITION_OPTIONS}
             onChange={(v) => mutate((p) => { p.slideTransition = v === 'none' ? undefined : (v as 'fade'); })}
           />
         </Field>
+        <p className="hint">Slides can override this individually - see Transition above, next to Width/Height.</p>
         <div className="divider" />
         <h3 className="panel-title">Player</h3>
         <PlayerSettingsSection />
@@ -701,6 +788,9 @@ function PlayerSettingsSection() {
           />
         </Field>
       </Row>
+      {player.buttonEmphasis && player.buttonEmphasis !== 'none' && (
+        <EmphasisTriggerSection player={player} mutate={mutate} />
+      )}
       <Field label="Nav buttons (Back/Next/Submit) position">
         <SelectInput
           value={player.navPosition ?? 'right'}

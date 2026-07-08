@@ -483,7 +483,16 @@ export interface Slide {
   // line at `pos` (slide px) that blocks snap to while dragging/resizing.
   // Never rendered in the player.
   guides?: GuideLine[];
+  // Per-slide override of the GSAP entrance transition (Project.slideTransition
+  // is the course-wide default). Absent = inherit the course default; this
+  // is the general pattern for slide-level settings that can override a
+  // global one without needing to be set everywhere.
+  transition?: SlideTransition;
 }
+
+export type SlideTransition =
+  | 'none' | 'fade' | 'slide' | 'slideLeft' | 'slideRight' | 'slideUp'
+  | 'zoom' | 'zoomOut' | 'flip' | 'pageFlip';
 
 export interface GuideLine {
   id: string;
@@ -529,6 +538,13 @@ export interface PlayerSettings {
   buttonHover?: 'none' | 'lift' | 'glow' | 'scale' | 'brightness';
   // Looping attention animation on the ENABLED accent buttons (Next/Submit).
   buttonEmphasis?: 'none' | 'pulse' | 'glow';
+  // When the emphasis above actually turns on. Absent/'always' = on the
+  // whole time the button is enabled (today's behavior). 'timelineEnd' waits
+  // for the current slide's timeline to finish playing (slides with no
+  // timeline count as already "ended"). 'variable' waits for a condition on
+  // one course variable.
+  buttonEmphasisTrigger?: 'always' | 'timelineEnd' | 'variable';
+  buttonEmphasisCondition?: Condition; // used when buttonEmphasisTrigger === 'variable'
   // Chrome styling.
   accent?: string;        // player accent (buttons, progress) - defaults to theme
   chrome?: 'dark' | 'light' | 'minimal';
@@ -563,8 +579,9 @@ export interface Project {
   // font file, emitted as @font-face so the deck's own typeface renders even
   // if it isn't a Google font.
   embeddedFonts?: { family: string; dataUrl: string; weight?: number; italic?: boolean }[];
-  // GSAP transition when entering a slide.
-  slideTransition?: 'none' | 'fade' | 'slide' | 'slideLeft' | 'slideRight' | 'slideUp' | 'zoom' | 'zoomOut' | 'flip';
+  // GSAP transition when entering a slide - the course-wide default. A
+  // slide's own `transition` (Slide.transition) overrides this if set.
+  slideTransition?: SlideTransition;
   // Reusable slide layouts saved by the author. Inserting one clones the
   // stored slide with fresh ids. Travels inside the project file.
   templates?: SlideTemplate[];
