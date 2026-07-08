@@ -24,6 +24,24 @@ export function isBlockLocked(block: Block, layer?: Layer): boolean {
 
 const snap = (v: number, disable: boolean) => (disable ? Math.round(v) : Math.round(v / GRID) * GRID);
 
+// Alignment guides: a fixed number of slide px (not screen px, so the
+// magnetism feels the same at any zoom) - checks a block's leading edge,
+// center, and trailing edge against every guide on that axis and returns
+// whichever correction is closest, or the position unchanged if nothing is
+// within range.
+const GUIDE_SNAP = 6;
+function snapToGuides(pos: number, size: number, guidePositions: number[], threshold = GUIDE_SNAP): number {
+  let best = pos;
+  let bestAbs = threshold;
+  for (const gp of guidePositions) {
+    for (const edge of [pos, pos + size / 2, pos + size]) {
+      const d = gp - edge;
+      if (Math.abs(d) < bestAbs) { bestAbs = Math.abs(d); best = pos + d; }
+    }
+  }
+  return best;
+}
+
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 export const HANDLES: { id: HandleId; l: number; t: number; r: number; b: number }[] = [
   { id: 'nw', l: 1, t: 1, r: 0, b: 0 },
@@ -194,6 +212,17 @@ export function EditorCanvas() {
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
+  const addGuide = useProjectStore((s) => s.addGuide);
+  const removeGuide = useProjectStore((s) => s.removeGuide);
+  const moveGuide = useProjectStore((s) => s.moveGuide);
+  const [canvasMenu, setCanvasMenu] = useState<{ x: number; y: number; slideX: number; slideY: number } | null>(null);
+
+  useEffect(() => {
+    if (!canvasMenu) return;
+    const close = () => setCanvasMenu(null);
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [canvasMenu]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -292,12 +321,25 @@ export function EditorCanvas() {
         return;
       }
 
+      // Guide-snap only the block being dragged; the rest of a multi-move
+      // follows in lockstep below (its exact delta, not each member
+      // re-snapping independently - that's what made multi-drags feel "off",
+      // per the align-to-key-object request this pairs with).
+      let movedNX = 0, movedNY = 0;
       updateBlock(
         g.blockId,
         (b) => {
           if (g.kind === 'move') {
-            b.x = snap(g.start.x + dx, noSnap);
-            b.y = snap(g.start.y + dy, noSnap);
+            let nx = snap(g.start.x + dx, noSnap);
+            let ny = snap(g.start.y + dy, noSnap);
+            if (!noSnap && slide.guides?.length) {
+              const vGuides = slide.guides.filter((gd) => gd.axis === 'v').map((gd) => gd.pos);
+              const hGuides = slide.guides.filter((gd) => gd.axis === 'h').map((gd) => gd.pos);
+              nx = snapToGuides(nx, g.start.w, vGuides);
+              ny = snapToGuides(ny, g.start.h, hGuides);
+            }
+            b.x = nx; b.y = ny;
+            movedNX = nx; movedNY = ny;
           } else if (g.kind === 'tail' && g.tail) {
             // Callout tail: deltas map into the shape's 0..100 space; the
             // tip may go well past the block bounds, Storyline-style.
@@ -345,13 +387,18 @@ export function EditorCanvas() {
         false
       );
 
-      // Multi-move: shift every other selected block by the same delta.
+      // Multi-move: shift every other selected block by the SAME effective
+      // delta the dragged block ended up with (post grid/guide snap), so the
+      // whole selection travels together instead of each member rounding on
+      // its own.
       if (g.kind === 'move' && g.group) {
+        const effDx = movedNX - g.start.x;
+        const effDy = movedNY - g.start.y;
         for (const [id, p0] of Object.entries(g.group)) {
           if (id === g.blockId) continue;
           updateBlock(id, (b) => {
-            b.x = snap(p0.x + dx, noSnap);
-            b.y = snap(p0.y + dy, noSnap);
+            b.x = p0.x + effDx;
+            b.y = p0.y + effDy;
           }, false);
         }
       }
@@ -596,6 +643,37 @@ export function EditorCanvas() {
     return css;
   };
 
+  // Right-click the stage (not a block) to drop an alignment guide at that
+  // position. Guides are author-only - never read by the player.
+  const onStageContextMenu = (e: React.MouseEvent) => {
+    if (e.target !== e.currentTarget) return; // a block/handle handles its own menu
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const slideX = (e.clientX - rect.left) / activeScale;
+    const slideY = (e.clientY - rect.top) / activeScale;
+    setCanvasMenu({ x: e.clientX, y: e.clientY, slideX, slideY });
+  };
+
+  const startGuideDrag = (e: React.PointerEvent, guideId: string, axis: 'h' | 'v') => {
+    e.stopPropagation();
+    e.preventDefault();
+    const stageEl = containerRef.current?.querySelector('.stage') as HTMLElement | null;
+    if (!stageEl) return;
+    record();
+    const onMove = (ev: PointerEvent) => {
+      const rect = stageEl.getBoundingClientRect();
+      const pos = axis === 'v' ? (ev.clientX - rect.left) / activeScale : (ev.clientY - rect.top) / activeScale;
+      moveGuide(guideId, Math.max(0, pos));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   return (
     // Two layers: the scroller (.canvas-area) and, OUTSIDE it, the pinned
     // overlays (zoom, size/snap). Anything inside the scroller travels with
@@ -634,6 +712,7 @@ export function EditorCanvas() {
             left: PASTEBOARD * activeScale
           }}
           onPointerDown={startMarquee}
+          onContextMenu={onStageContextMenu}
       >
         {marquee && (marquee.w > 2 || marquee.h > 2) && (
           <div
@@ -641,6 +720,18 @@ export function EditorCanvas() {
             style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
           />
         )}
+        {(slide.guides ?? []).map((g) => (
+          <div
+            key={g.id}
+            className={`stage-guide ${g.axis}`}
+            style={g.axis === 'v'
+              ? { left: g.pos - 4, top: 0, width: 8, height: slide.height }
+              : { top: g.pos - 4, left: 0, height: 8, width: slide.width }}
+            onPointerDown={(e) => startGuideDrag(e, g.id, g.axis)}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); removeGuide(g.id); }}
+            title="Drag to move - right-click to remove"
+          />
+        ))}
         {slide.layers.map((layer, layerIndex) => {
           if (hiddenLayerIds[layer.id]) return null;
           const dimmed = selectedLayerIndex > 0 && layerIndex !== selectedLayerIndex;
@@ -697,6 +788,12 @@ export function EditorCanvas() {
           snap {GRID}px (Alt inverts)
         </label>
       </div>
+      {canvasMenu && (
+        <div className="ctx-menu" style={{ left: canvasMenu.x, top: canvasMenu.y }} onPointerDown={(e) => e.stopPropagation()}>
+          <button onClick={() => { addGuide('v', canvasMenu.slideX); setCanvasMenu(null); }}>Add vertical guide here</button>
+          <button onClick={() => { addGuide('h', canvasMenu.slideY); setCanvasMenu(null); }}>Add horizontal guide here</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -730,11 +730,11 @@ function AlignControls() {
   const distributeBlocks = useProjectStore((s) => s.distributeBlocks);
   const selection = useProjectStore((s) => s.selection);
   const multi = (selection.blockIds ?? []).length + (selection.blockId ? 1 : 0) >= 2;
-  const [override, setOverride] = useState<'stage' | 'selection' | null>(null);
+  const [override, setOverride] = useState<'stage' | 'selection' | 'key' | null>(null);
   // Default: align to the stage when one block is selected, to each other
-  // when several are. An explicit click on either chip overrides that.
+  // when several are. An explicit click on any chip overrides that.
   const target = override ?? (multi ? 'selection' : 'stage');
-  const setTo = (t: 'stage' | 'selection') => setOverride(t);
+  const setTo = (t: 'stage' | 'selection' | 'key') => setOverride(t);
   return (
     <div className="align-controls">
       <div className="align-target">
@@ -746,6 +746,14 @@ function AlignControls() {
           title={multi ? 'Align to the selection bounds' : 'Shift-click 2+ blocks first'}
         >
           To each other
+        </button>
+        <button
+          className={`chip ${target === 'key' ? 'on' : ''}`}
+          onClick={() => setTo('key')}
+          disabled={!multi}
+          title={multi ? 'Align every other selected block to the last one you clicked (it stays put)' : 'Shift-click 2+ blocks first'}
+        >
+          To key object
         </button>
       </div>
       <div className="align-grid">
@@ -760,7 +768,12 @@ function AlignControls() {
         <button className="btn" onClick={() => distributeBlocks('h')} disabled={!multi} title="Distribute horizontally (3+)">Distribute H</button>
         <button className="btn" onClick={() => distributeBlocks('v')} disabled={!multi} title="Distribute vertically (3+)">Distribute V</button>
       </div>
-      <p className="hint"><strong>Shift-click</strong> two or more blocks on the stage, then use “To each other.”</p>
+      <p className="hint">
+        <strong>Shift-click</strong> two or more blocks on the stage, then use
+        "To each other" (aligns to the group's bounds) or "To key object" -
+        the last block you clicked (solid outline) stays put; the rest align
+        to it.
+      </p>
     </div>
   );
 }

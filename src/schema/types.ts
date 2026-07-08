@@ -479,6 +479,16 @@ export interface Slide {
   triggers: Trigger[];
   timeline?: SlideTimeline; // absent = static slide, no clock or controls
   notes?: string;           // speaker notes (PPTX import lands here)
+  // Author-only alignment guides (Illustrator/PowerPoint style): a fixed
+  // line at `pos` (slide px) that blocks snap to while dragging/resizing.
+  // Never rendered in the player.
+  guides?: GuideLine[];
+}
+
+export interface GuideLine {
+  id: string;
+  axis: 'h' | 'v'; // 'h' = horizontal line at y=pos; 'v' = vertical line at x=pos
+  pos: number;
 }
 
 export interface CuePoint {

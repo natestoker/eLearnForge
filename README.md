@@ -1040,6 +1040,32 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Timeline: "Show until end" + a real end boundary
+Right-click a timing bar for a **Show until end** action - it clears the
+block's fixed end so it plays through to wherever the slide's timeline
+actually ends (following it if the length ever changes), the same as typing
+`-1` in the End field but without leaving the timeline. Paired with a fix to
+a rough edge: dragging or trimming a regular block bar can no longer push
+it past the timeline's current end - only **audio** blocks may still extend
+(or effectively define) the slide's length, since narration naturally runs
+long and that's the intended way it drives duration.
+
+## Canvas alignment guides
+Right-click empty space on the stage to drop a **vertical or horizontal
+guide line** at that spot; right-click a guide to remove it, or drag it to
+reposition. Dragging a block snaps its edges/center to any guide within a
+small radius (respects the same snap toggle/Alt-invert as the grid). Guides
+are author-only - the player never renders them - and live per-slide, so
+they travel with the project file.
+
+## Align to key object
+Multi-selection alignment gets a third target next to "To stage" and "To
+each other": **"To key object"** - the last block you shift-clicked (shown
+with the solid selection outline, vs. the others' dashed one) stays put, and
+every other selected block aligns to it. Multi-block drags also now move in
+lockstep off that same reference block's snap, instead of each member
+rounding to the grid independently.
+
 ## Timeline: shift-drag snaps to cue points
 Hold **Shift** while dragging a block's bar (move, or either trim handle) on
 the timeline and it snaps to the nearest cue point within a small pixel
