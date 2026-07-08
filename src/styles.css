@@ -194,6 +194,10 @@ select.input { appearance: auto; }
 .field-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; }
 .field-row { display: flex; gap: 8px; align-items: center; }
 
+.range-input { display: flex; align-items: center; gap: 10px; }
+.range-slider { flex: 1; accent-color: var(--accent); cursor: pointer; }
+.range-value { min-width: 88px; text-align: right; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
 .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer; }
 .checkbox input { accent-color: var(--accent); }
 .checkbox.tiny { margin: 0; font-size: 11px; color: var(--muted); gap: 4px; }
@@ -1157,6 +1161,18 @@ select.input { appearance: auto; }
 }
 .tail-handle:active { cursor: grabbing; }
 
+.motion-handle {
+  position: absolute;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: #f0b429;
+  border: 2px solid #0d1015;
+  box-shadow: 0 0 0 1.5px #f0b429;
+  cursor: grab; z-index: 7;
+}
+.motion-handle:active { cursor: grabbing; }
+
 /* Editor timeline playhead */
 .timeline-ruler.scrubbable { cursor: col-resize; }
 .timeline-playhead {
@@ -1519,7 +1535,31 @@ select.input { appearance: auto; }
 }
 .rte-toolbar button:hover { background: rgba(61, 220, 151, 0.15); color: var(--accent); }
 .rte-sep { width: 1px; height: 18px; background: #2c3648; margin: 0 3px; }
+.rte-select {
+  height: 26px;
+  border: 1px solid #2c3648;
+  background: #10141b;
+  color: #d7dee9;
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 0 4px;
+  cursor: pointer;
+}
 .text-block.editing { outline: 2px solid var(--accent); border-radius: 4px; }
+
+/* Semantic headings authored via the RTE style dropdown. Sized relative to
+   the block's own font-size so the panel's Font size still scales everything,
+   and margins collapsed so a single heading fills the box like plain text. */
+.text-content h1, .text-content h2, .text-content h3,
+.text-content h4, .text-content h5, .text-content h6 { font-weight: 700; line-height: 1.2; margin: 0.2em 0; }
+.text-content h1 { font-size: 2em; }
+.text-content h2 { font-size: 1.6em; }
+.text-content h3 { font-size: 1.3em; }
+.text-content h4 { font-size: 1.1em; }
+.text-content h5 { font-size: 1em; }
+.text-content h6 { font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
+.text-content p { margin: 0 0 0.4em; }
+.text-content p:last-child { margin-bottom: 0; }
 
 /* ---- timeline set-length indicator ---- */
 .timeline-overflow {

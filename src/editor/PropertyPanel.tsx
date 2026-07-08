@@ -1,7 +1,8 @@
 import { selectedIds, useCurrentSlide, useProjectStore, useSelectedBlock, walkBlocks } from '../state/projectStore';
 import type { Block, ButtonProps, ShapeProps, TextProps } from '../schema/types';
 import { BLOCKS } from '../blocks/registry';
-import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, Row, SelectInput, TextInput } from './fields';
+import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, RangeInput, Row, SelectInput, TextInput } from './fields';
+import { GOOGLE_FONTS, SYSTEM_FONTS, ensureFont } from '../shared/fonts';
 import { VoiceRecorder } from './VoiceRecorder';
 import { StatesSection } from './StatesSection';
 import { ShadowSection } from './ShadowSection';
@@ -367,6 +368,8 @@ function MultiPropertyPanel({ ids }: { ids: string[] }) {
   const shapes = blocks.filter((b) => b.type === 'shape');
   const texts = blocks.filter((b) => b.type === 'text');
   const anyLocked = blocks.some((b) => b.locked);
+  const firstText = texts[0]?.props as TextProps | undefined;
+  const firstShape = shapes[0]?.props as ShapeProps | undefined;
 
   return (
     <div className="panel-scroll">
@@ -382,40 +385,95 @@ function MultiPropertyPanel({ ids }: { ids: string[] }) {
           />
         </Field>
       )}
-      {shapes.length > 0 && (
-        <Row>
-          <Field label="Border">
-            <ColorInput
-              value={(shapes[0].props as ShapeProps).borderColor}
-              onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderColor = v; })}
-            />
-          </Field>
-          <Field label="Border width">
+      {shapes.length > 0 && firstShape && (
+        <>
+          <Row>
+            <Field label="Border">
+              <ColorInput
+                value={firstShape.borderColor}
+                onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderColor = v; })}
+              />
+            </Field>
+            <Field label="Border width">
+              <NumberInput
+                value={firstShape.borderWidth}
+                min={0}
+                onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderWidth = Math.max(0, v); })}
+              />
+            </Field>
+          </Row>
+          <Field label={`Corner radius (${shapes.length})`}>
             <NumberInput
-              value={(shapes[0].props as ShapeProps).borderWidth}
+              value={firstShape.cornerRadius}
               min={0}
-              onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).borderWidth = Math.max(0, v); })}
+              onChange={(v) => each((b) => { if (b.type === 'shape') (b.props as ShapeProps).cornerRadius = Math.max(0, v); })}
             />
           </Field>
-        </Row>
+        </>
       )}
-      {texts.length > 0 && (
-        <Row>
-          <Field label={`Font size (${texts.length})`}>
-            <NumberInput
-              value={(texts[0].props as TextProps).fontSize}
-              min={6}
-              onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).fontSize = Math.max(6, v); })}
+      {texts.length > 0 && firstText && (
+        <>
+          <Row>
+            <Field label={`Font size (${texts.length})`}>
+              <NumberInput
+                value={firstText.fontSize}
+                min={6}
+                onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).fontSize = Math.max(6, v); })}
+              />
+            </Field>
+            <Field label="Text color">
+              <ColorInput
+                value={firstText.color ?? '#e7e9ec'}
+                onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).color = v; })}
+              />
+            </Field>
+          </Row>
+          <Field label="Font (text)">
+            <SelectInput
+              value={firstText.fontFamily ?? ''}
+              options={[
+                { value: '', label: 'JetBrains Mono (default)' },
+                ...SYSTEM_FONTS.map((f) => ({ value: f.family, label: `${f.family} (System)` })),
+                ...GOOGLE_FONTS.map((f) => ({ value: f.family, label: `${f.family} (${f.category})` }))
+              ]}
+              onChange={(v) => {
+                if (v) { ensureFont(v); mutate((p) => { p.fonts = [...new Set([...(p.fonts ?? []), v])]; }); }
+                each((b) => { if (b.type === 'text') (b.props as TextProps).fontFamily = v || undefined; });
+              }}
             />
           </Field>
-          <Field label="Text color">
-            <ColorInput
-              value={(texts[0].props as TextProps).color ?? '#e7e9ec'}
-              onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).color = v; })}
-            />
-          </Field>
-        </Row>
+          <Row>
+            <Field label="Align">
+              <SelectInput
+                value={firstText.align}
+                options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]}
+                onChange={(v) => each((b) => { if (b.type === 'text') (b.props as TextProps).align = v as TextProps['align']; })}
+              />
+            </Field>
+            <Field label="Weight">
+              <RangeInput
+                value={firstText.fontWeight ?? (firstText.bold ? 700 : 400)}
+                min={100} max={900} step={100}
+                onChange={(v) => each((b) => {
+                  if (b.type === 'text') {
+                    const tp = b.props as TextProps;
+                    tp.fontWeight = v === 400 ? undefined : v;
+                    tp.bold = v >= 700 ? true : undefined;
+                  }
+                })}
+              />
+            </Field>
+          </Row>
+        </>
       )}
+      <Row>
+        <Field label="Width (all)">
+          <NumberInput value={Math.round(first.w)} min={20} onChange={(v) => each((b) => { b.w = Math.max(20, v); })} />
+        </Field>
+        <Field label="Height (all)">
+          <NumberInput value={Math.round(first.h)} min={20} onChange={(v) => each((b) => { b.h = Math.max(20, v); })} />
+        </Field>
+      </Row>
       <Row>
         <Field label="Rotation (deg)">
           <NumberInput

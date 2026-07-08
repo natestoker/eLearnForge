@@ -2,22 +2,22 @@ import { useRef } from 'react';
 import { selectedIds, useCurrentSlide, useProjectStore, useSelectedBlock } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { TimingSection } from './TimingSection';
-import { Field, SelectInput } from './fields';
+import { CheckboxInput, Field, NumberInput, Row, SelectInput } from './fields';
 import { blockDisplayName } from '../shared/blockName';
 import type { AnimType, Block } from '../schema/types';
 
-// Sweep the editor playhead across a block's entrance window so its
-// animation (and its direction/distance options) plays on the canvas -
-// otherwise entrance effects are invisible on the static stage.
-function useAnimationPreview() {
+// Sweep the editor playhead across a time window so the effect plays on the
+// canvas - entrance effects and motion paths are invisible on the static
+// stage otherwise. `windowOf` returns [start, duration] for the block.
+function useScrubPreview(windowOf: (b: Block) => [number, number]) {
   const setScrubT = useUiStore((s) => s.setScrubT);
   const raf = useRef<number | null>(null);
   return (block: Block) => {
     if (raf.current) cancelAnimationFrame(raf.current);
-    const start = block.timing?.start ?? 0;
-    const dur = Math.max(block.timing?.animIn?.duration ?? 0.6, 0.4);
+    const [start, dur0] = windowOf(block);
+    const dur = Math.max(dur0, 0.4);
     const t0 = performance.now();
-    const pad = 0.4; // linger briefly at rest so the end state is visible
+    const pad = 0.4;
     const tick = () => {
       const el = (performance.now() - t0) / 1000;
       if (el >= dur + pad) { setScrubT(null); raf.current = null; return; }
@@ -27,6 +27,8 @@ function useAnimationPreview() {
     raf.current = requestAnimationFrame(tick);
   };
 }
+const useAnimationPreview = () => useScrubPreview((b) => [b.timing?.start ?? 0, b.timing?.animIn?.duration ?? 0.6]);
+const useMotionPreview = () => useScrubPreview((b) => [b.motion?.start ?? 0, b.motion?.duration ?? 2]);
 
 const EMPHASES = [
   { value: 'none', label: 'None' }, { value: 'pulse', label: 'Pulse' },
@@ -51,6 +53,7 @@ export function AnimatePanel() {
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const mutate = useProjectStore((s) => s.mutate);
   const previewAnim = useAnimationPreview();
+  const previewMotion = useMotionPreview();
 
   // 2+ selected: apply one emphasis / entrance to the whole selection.
   const ids = selectedIds(selection);
@@ -158,8 +161,66 @@ export function AnimatePanel() {
               ▶ Preview animation
             </button>
           )}
+          <div className="divider" />
+          <MotionSection block={block} updateBlock={updateBlock} onPreview={previewMotion} />
         </>
       )}
     </div>
+  );
+}
+
+function MotionSection({ block, updateBlock, onPreview }: {
+  block: Block;
+  updateBlock: (id: string, fn: (b: Block) => void, history?: boolean) => void;
+  onPreview: (block: Block) => void;
+}) {
+  const m = block.motion;
+  const set = (fn: (mm: NonNullable<Block['motion']>) => void) =>
+    updateBlock(block.id, (b) => { if (b.motion) fn(b.motion); });
+  return (
+    <>
+      <h4 className="panel-subtitle">Motion path</h4>
+      <Field label="Path">
+        <SelectInput
+          value={m?.preset ?? 'none'}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'line', label: 'Line' },
+            { value: 'arc', label: 'Arc' },
+            { value: 'circle', label: 'Circle' }
+          ]}
+          onChange={(v) => updateBlock(block.id, (b) => {
+            if (v === 'none') { b.motion = undefined; return; }
+            const prev = b.motion;
+            b.motion = {
+              preset: v as 'line' | 'arc' | 'circle',
+              vector: prev?.vector ?? { x: 200, y: 0 },
+              start: prev?.start ?? 0,
+              duration: prev?.duration ?? 2,
+              ease: prev?.ease ?? 'power1.inOut',
+              loop: v === 'circle' ? (prev?.loop ?? true) : prev?.loop
+            };
+          })}
+        />
+      </Field>
+      {m && (
+        <>
+          <p className="hint">Drag the orange handle on the canvas to shape the path.</p>
+          <Row>
+            <Field label="Start (s)"><NumberInput value={m.start} step={0.1} onChange={(v) => set((mm) => { mm.start = Math.max(0, v); })} /></Field>
+            <Field label="Duration (s)"><NumberInput value={m.duration} step={0.1} onChange={(v) => set((mm) => { mm.duration = Math.max(0.1, v); })} /></Field>
+          </Row>
+          <Field label="Ease">
+            <SelectInput
+              value={m.ease}
+              options={['none', 'power1.inOut', 'power2.out', 'power2.inOut', 'back.out(1.7)', 'elastic.out(1, 0.5)'].map((e) => ({ value: e, label: e }))}
+              onChange={(v) => set((mm) => { mm.ease = v; })}
+            />
+          </Field>
+          <CheckboxInput label="Loop" checked={m.loop ?? false} onChange={(v) => set((mm) => { mm.loop = v || undefined; })} />
+          <button className="btn btn-accent" style={{ marginTop: 8 }} onClick={() => onPreview(block)}>▶ Preview motion</button>
+        </>
+      )}
+    </>
   );
 }

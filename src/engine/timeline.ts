@@ -1,5 +1,6 @@
 import gsap from 'gsap';
-import type { AnimDirection, AnimSpec, AnimType, Block, BlockTiming, SlideTimeline } from '../schema/types';
+import type { AnimDirection, AnimSpec, AnimType, Block, BlockTiming, MotionPath, SlideTimeline } from '../schema/types';
+import { motionOffsetAt } from './motionPath';
 
 // Stateless timeline math. The visual state of every block is a pure
 // function of the current time t - the same discipline as the proven
@@ -114,8 +115,15 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
 
 const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, scaleX: 1, scaleY: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
 
-export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number): BlockVisualState {
-  if (!timing) return REST;
+export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number, motion?: MotionPath): BlockVisualState {
+  if (!timing) {
+    // No entrance/exit, but a motion path still drives position on the clock.
+    if (motion) {
+      const off = motionOffsetAt(motion, t, easeFn(motion.ease));
+      return { ...REST, translateX: off.x, translateY: off.y };
+    }
+    return REST;
+  }
   const start = timing.start ?? 0;
   const end = timing.end ?? timelineEnd;
 
@@ -138,6 +146,14 @@ export function blockStateAt(t: number, timing: BlockTiming | undefined, timelin
       const p = Math.min(1, (t - outStart) / aOut.duration);
       Object.assign(state, animOffsets(aOut, easeFn(aOut.ease)(p), false));
     }
+  }
+
+  // Motion path adds to whatever the entrance/exit produced, so a block can
+  // slide in AND then travel along a path.
+  if (motion) {
+    const off = motionOffsetAt(motion, t, easeFn(motion.ease));
+    state.translateX += off.x;
+    state.translateY += off.y;
   }
 
   return state;

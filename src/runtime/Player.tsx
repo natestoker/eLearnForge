@@ -263,7 +263,7 @@ export function Player({ project, adapter, startSlideId }: {
                 const disabled = pState === 'disabled';
                 const acc = accessibilityFor(block);
                 const clickable = !disabled && (runtime.blockHasInteractionTrigger(block.id) || Boolean(block.stateStyles?.selected || block.stateStyles?.visited));
-                const tState = hasTimeline ? blockStateAt(t, block.timing, duration) : null;
+                const tState = hasTimeline ? blockStateAt(t, block.timing, duration, block.motion) : null;
                 const attachedAudio = block.audio?.src;
                 const timedMedia = hasTimeline && block.timing &&
                   (block.type === 'audio' || block.type === 'video' || Boolean(attachedAudio));

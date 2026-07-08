@@ -998,3 +998,37 @@ of labeled panels of HTML content. A "Tabs" layout shows a tab strip with
 one panel visible at a time; an "Accordion" layout stacks expandable
 sections (multiple can be open). Accent color and font size are
 configurable. Same rendering in the editor, Preview, and published courses.
+
+## Movable + renamable cue points
+Cue flags on the timeline ruler are now interactive: **drag** a flag along
+the ruler to retime the cue, **double-click** to rename it, and
+**right-click** to delete it. Cue "When the timeline reaches a cue" triggers
+follow the new time automatically, and flags re-sort after a move.
+
+## Font-weight slider
+The text panel's Bold checkbox is now a **Weight** slider (100-900) with a
+live named readout (Thin … Regular … Bold … Black). It writes an explicit
+`fontWeight`, and keeps the legacy `bold` flag in sync (700+ still reads as
+bold) so older projects and inline-HTML detection keep working.
+
+## Semantic text tags
+The in-place editor's toolbar gained a **style dropdown** (Paragraph,
+Heading 1-6) that wraps the current block in the correct element, and
+Bold/Italic now commit as semantic `<strong>`/`<em>` rather than `<b>`/`<i>`.
+Headings are sized relative to the block's font size so the panel's Font
+size still scales everything. Same markup renders in Preview and published
+courses.
+
+## Baked narration remembers the voice
+The bake picker now **defaults to the voice you last used** (persisted
+across sessions) instead of resetting to the top of the list, and baked
+narration tracks are **named after the voice** — e.g. "Narration (Heart)" on
+the timeline and in the layers list — so it's obvious which narrator a clip
+belongs to.
+
+## More mass-editable properties
+The multi-selection panel now edits more at once: for text blocks —
+**font family, alignment, and weight**; for shapes — **corner radius**; and
+for any selection — **width and height** applied to every selected block.
+These join the existing shared fill, border, font size/color, rotation,
+lock, emphasis, and shadow controls.

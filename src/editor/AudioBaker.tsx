@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   bakeSpeech, isModelLoaded, previewVoice, loadTts,
-  BAKE_VOICES, type BakeResult
+  BAKE_VOICES, lastUsedVoice, rememberVoice, voiceName, type BakeResult
 } from './audioBake';
 import { Field, SelectInput } from './fields';
 
@@ -19,7 +19,9 @@ export function AudioBaker({ text, bakeLabel = 'Bake audio', emptyHint, onBaked,
   onBaked?: (r: BakeResult) => void;      // e.g. attach to the block
   resultActions?: (r: BakeResult) => ReactNode; // extra buttons under the result
 }) {
-  const [voice, setVoice] = useState(BAKE_VOICES[0].id);
+  // Default to the voice the author last used (persisted), not the top of the
+  // list, so a chosen voice stays selected across bakes and sessions.
+  const [voice, setVoice] = useState(lastUsedVoice);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<BakeResult | null>(null);
@@ -78,7 +80,7 @@ export function AudioBaker({ text, bakeLabel = 'Bake audio', emptyHint, onBaked,
       });
       setResult(r);
       setModelReady(true);
-      setMessage(`Baked ${r.seconds.toFixed(1)}s of audio.`);
+      setMessage(`Baked ${r.seconds.toFixed(1)}s in ${voiceName(r.voiceId)}'s voice.`);
       onBaked?.(r);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Bake failed.');
@@ -93,7 +95,7 @@ export function AudioBaker({ text, bakeLabel = 'Bake audio', emptyHint, onBaked,
         <SelectInput
           value={voice}
           options={BAKE_VOICES.map((v) => ({ value: v.id, label: v.label }))}
-          onChange={(v) => setVoice(v)}
+          onChange={(v) => { setVoice(v); rememberVoice(v); }}
         />
       </Field>
       <div className="field-row">

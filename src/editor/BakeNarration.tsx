@@ -1,7 +1,7 @@
 import { useProjectStore } from '../state/projectStore';
 import { createBlock } from '../schema/factory';
 import type { AudioProps } from '../schema/types';
-import { downloadBake, type BakeResult } from './audioBake';
+import { downloadBake, voiceName, type BakeResult } from './audioBake';
 import { AudioBaker } from './AudioBaker';
 
 // Slide-level narration: bake the speaker notes with the shared AudioBaker,
@@ -20,13 +20,16 @@ export function BakeNarration({ slideId }: { slideId: string }) {
       const s = p.slides.find((sl) => sl.id === slideId);
       if (!s) return;
       const seconds = Math.round(result.seconds * 10) / 10;
+      const vName = voiceName(result.voiceId);
       s.timeline = s.timeline ?? { duration: Math.max(1, seconds), autoAdvance: false };
       if (asNarration) s.timeline.duration = Math.max(s.timeline.duration, seconds);
       const block = createBlock('audio', 40, s.height - 96);
-      block.name = asNarration ? 'Narration' : 'Audio';
+      // Name the track after the voice it was baked with, so the timeline and
+      // layers list show which narrator this clip is.
+      block.name = `${asNarration ? 'Narration' : 'Audio'} (${vName})`;
       const ap = block.props as AudioProps;
       ap.src = result.dataUrl;
-      ap.label = asNarration ? 'Narration' : 'Audio clip';
+      ap.label = asNarration ? `Narration — ${vName}` : `Audio — ${vName}`;
       ap.controls = !asNarration;
       ap.hideInPlayer = asNarration;
       block.timing = { start: 0, end: seconds };

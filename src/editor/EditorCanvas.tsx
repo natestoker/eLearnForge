@@ -5,6 +5,7 @@ import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
 import { CALLOUT_BODY, DEFAULT_TAIL } from '../blocks/shape/geometry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
+import { motionPoints } from '../engine/motionPath';
 import { shadowStyle } from '../shared/shadow';
 
 const GRID = 8;
@@ -43,6 +44,7 @@ export function BlockNode({
   startMove,
   startResize,
   startTail,
+  startMotion,
   previewStyle
 }: {
   block: Block;
@@ -52,6 +54,7 @@ export function BlockNode({
   startMove: (e: React.PointerEvent, block: Block, layer?: Layer) => void;
   startResize: (e: React.PointerEvent, block: Block, h: any) => void;
   startTail?: (e: React.PointerEvent, block: Block) => void;
+  startMotion?: (e: React.PointerEvent, block: Block) => void;
   previewStyle?: React.CSSProperties;
 }) {
   const openPen = useUiStore((s) => s.openPenEditor);
@@ -129,6 +132,25 @@ export function BlockNode({
               onPointerDown={(e) => startTail(e, block)}
             />
           )}
+          {block.motion && startMotion && (() => {
+            const pts = motionPoints(block.motion);
+            const cx = block.w / 2, cy = block.h / 2;
+            const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${cx + p.x},${cy + p.y}`).join(' ');
+            const hv = block.motion.vector;
+            return (
+              <>
+                <svg className="motion-overlay" style={{ position: 'absolute', left: 0, top: 0, width: block.w, height: block.h, overflow: 'visible', pointerEvents: 'none' }}>
+                  <path d={d} fill="none" stroke="#f0b429" strokeWidth={1.5} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+                </svg>
+                <div
+                  className="motion-handle"
+                  style={{ left: cx + hv.x, top: cy + hv.y }}
+                  title="Drag to set the motion path endpoint"
+                  onPointerDown={(e) => startMotion(e, block)}
+                />
+              </>
+            );
+          })()}
           <div className="block-badge">{def.label}</div>
         </>
       )}
@@ -139,12 +161,14 @@ export function BlockNode({
 }
 
 interface Gesture {
-  kind: 'move' | 'resize' | 'tail' | 'groupResize';
+  kind: 'move' | 'resize' | 'tail' | 'groupResize' | 'motion';
   blockId: string;
   startClientX: number;
   startClientY: number;
   start: { x: number; y: number; w: number; h: number };
   handle?: { l: number; t: number; r: number; b: number };
+  // For motion drags: the path's control vector at gesture start (px).
+  motionVec?: { x: number; y: number };
   // For multi-move: every selected block's starting position, keyed by id.
   group?: Record<string, { x: number; y: number }>;
   // For tail drags: the callout tail's starting point (0..100 space).
@@ -282,6 +306,9 @@ export function EditorCanvas() {
               x: Math.round(Math.max(-100, Math.min(200, g.tail.x + (dx / g.start.w) * 100)) * 10) / 10,
               y: Math.round(Math.max(-100, Math.min(200, g.tail.y + (dy / g.start.h) * 100)) * 10) / 10
             };
+          } else if (g.kind === 'motion' && g.motionVec && b.motion) {
+            // Motion path endpoint: px offset from the block's position.
+            b.motion.vector = { x: Math.round(g.motionVec.x + dx), y: Math.round(g.motionVec.y + dy) };
           } else if (g.handle) {
             let { x, y, w, h } = g.start;
             if (g.handle.r) w = Math.max(MIN_SIZE, snap(g.start.w + dx, noSnap));
@@ -483,6 +510,20 @@ export function EditorCanvas() {
     };
   };
 
+  const startMotion = (e: React.PointerEvent, block: Block) => {
+    e.stopPropagation();
+    if (!block.motion) return;
+    record();
+    gestureRef.current = {
+      kind: 'motion',
+      blockId: block.id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      start: { x: block.x, y: block.y, w: block.w, h: block.h },
+      motionVec: { ...block.motion.vector }
+    };
+  };
+
   // Marquee can start ANYWHERE that isn't a block: the stage, the pasteboard
   // around it, or the outer canvas area. Coordinates are stage-relative and
   // may be negative - off-stage (pasteboard) objects select the same way.
@@ -541,7 +582,7 @@ export function EditorCanvas() {
   const scrubDuration = timelineDuration(slide.timeline, slide.layers.flatMap((l) => walkBlocks(l.blocks)));
   const previewFor = (block: Block): React.CSSProperties | undefined => {
     if (scrubT === null || !slide.timeline) return undefined;
-    const st = blockStateAt(scrubT, block.timing, scrubDuration);
+    const st = blockStateAt(scrubT, block.timing, scrubDuration, block.motion);
     if (!st.present) return { opacity: 0.15, filter: 'grayscale(0.8)' };
     const css = styleFor(st);
     delete css.pointerEvents; // authoring: everything stays selectable
@@ -609,6 +650,7 @@ export function EditorCanvas() {
                   startMove={startMove}
                   startResize={startResize}
                   startTail={startTail}
+                  startMotion={startMotion}
                   previewStyle={previewFor(block)}
                 />
               ))}
