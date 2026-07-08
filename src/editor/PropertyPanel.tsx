@@ -8,7 +8,7 @@ import { StatesSection } from './StatesSection';
 import { ShadowSection } from './ShadowSection';
 import { BakeNarration } from './BakeNarration';
 import { BlockAudioSection } from './BlockAudioSection';
-import { defaultPlayerSettings } from '../schema/factory';
+import { defaultPlayerSettings, uid } from '../schema/factory';
 import { useState } from 'react';
 
 // Panel design note (open question #2 from the brief): hand-built panels per
@@ -127,6 +127,20 @@ export function PropertyPanel() {
                 })
               }
             />
+            <Field label="Captions (WebVTT) — auto-filled by Bake narration">
+              <textarea
+                className="input code-area"
+                rows={4}
+                placeholder={'Baking narration fills this in. You can also paste WEBVTT cues here.'}
+                value={slide.timeline.captionsVtt ?? ''}
+                onChange={(e) =>
+                  mutate((p) => {
+                    const s = p.slides.find((sl) => sl.id === slide.id);
+                    if (s?.timeline) s.timeline.captionsVtt = e.target.value || undefined;
+                  })
+                }
+              />
+            </Field>
             <CheckboxInput
               label="Auto-advance to the next slide at the end"
               checked={slide.timeline.autoAdvance}
@@ -178,6 +192,12 @@ export function PropertyPanel() {
         <div className="divider" />
         <h3 className="panel-title">Player</h3>
         <PlayerSettingsSection />
+        <div className="divider" />
+        <h3 className="panel-title">Resources</h3>
+        <ResourcesEditor />
+        <div className="divider" />
+        <h3 className="panel-title">Glossary</h3>
+        <GlossaryEditor />
         <div className="divider" />
         <h3 className="panel-title">Speaker notes</h3>
         <textarea
@@ -537,6 +557,69 @@ function MultiPropertyPanel({ ids }: { ids: string[] }) {
         Delete {blocks.length} blocks
       </button>
     </div>
+  );
+}
+
+// Course-level downloadable resources shown in the player's Resources panel.
+function ResourcesEditor() {
+  const resources = useProjectStore((s) => s.project.resources) ?? [];
+  const mutate = useProjectStore((s) => s.mutate);
+  const add = () => mutate((p) => { p.resources = [...(p.resources ?? []), { id: uid('res'), title: 'New resource', url: '' }]; });
+  const update = (id: string, patch: Partial<{ title: string; url: string; description: string }>) =>
+    mutate((p) => { const r = p.resources?.find((x) => x.id === id); if (r) Object.assign(r, patch); });
+  const remove = (id: string) => mutate((p) => { if (p.resources) p.resources = p.resources.filter((x) => x.id !== id); });
+  const onFile = (id: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => update(id, { url: String(reader.result), title: file.name });
+    reader.readAsDataURL(file);
+  };
+  return (
+    <>
+      {resources.map((r) => (
+        <div key={r.id} className="mini-card">
+          <Row>
+            <Field label="Title"><TextInput value={r.title} onChange={(v) => update(r.id, { title: v })} /></Field>
+            <button className="btn btn-ghost btn-icon btn-danger" title="Remove" onClick={() => remove(r.id)}>x</button>
+          </Row>
+          <Field label="Link (URL) or upload a file">
+            <ImagePicker accept="*/*" src={r.url} onChange={(v) => update(r.id, { url: v })} />
+          </Field>
+          <input
+            type="file"
+            className="input"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(r.id, f); e.target.value = ''; }}
+          />
+        </div>
+      ))}
+      <button className="btn" onClick={add}>+ Add resource</button>
+      <p className="hint">Learners open these from the Resources button in the player. Uploaded files embed in the course.</p>
+    </>
+  );
+}
+
+// Course-level glossary shown in the player's Glossary panel.
+function GlossaryEditor() {
+  const glossary = useProjectStore((s) => s.project.glossary) ?? [];
+  const mutate = useProjectStore((s) => s.mutate);
+  const add = () => mutate((p) => { p.glossary = [...(p.glossary ?? []), { id: uid('gls'), term: 'Term', definition: '' }]; });
+  const update = (id: string, patch: Partial<{ term: string; definition: string }>) =>
+    mutate((p) => { const g = p.glossary?.find((x) => x.id === id); if (g) Object.assign(g, patch); });
+  const remove = (id: string) => mutate((p) => { if (p.glossary) p.glossary = p.glossary.filter((x) => x.id !== id); });
+  return (
+    <>
+      {glossary.map((g) => (
+        <div key={g.id} className="mini-card">
+          <Row>
+            <Field label="Term"><TextInput value={g.term} onChange={(v) => update(g.id, { term: v })} /></Field>
+            <button className="btn btn-ghost btn-icon btn-danger" title="Remove" onClick={() => remove(g.id)}>x</button>
+          </Row>
+          <Field label="Definition">
+            <textarea className="input" rows={2} value={g.definition} onChange={(e) => update(g.id, { definition: e.target.value })} />
+          </Field>
+        </div>
+      ))}
+      <button className="btn" onClick={add}>+ Add term</button>
+    </>
   );
 }
 

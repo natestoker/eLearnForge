@@ -21,6 +21,17 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
   const overridesColor = /color[:=]/i.test(html);
   const overridesBold = /font-weight:\s*bold|<strong>|<b>/i.test(html);
 
+  // Whole-block semantic tag: reflect and set the element wrapping the text.
+  // (For finer control, the in-place editor's Style dropdown tags per
+  // paragraph.) A value of '' means plain content (no wrapping heading/p).
+  const outerMatch = html.trim().match(/^<(h[1-6]|p)>([\s\S]*)<\/\1>$/i);
+  const outerTag = outerMatch ? outerMatch[1].toLowerCase() : '';
+  const setOuterTag = (tag: string) => onUpdateProps((p: TextProps) => {
+    const m = p.html.trim().match(/^<(h[1-6]|p)>([\s\S]*)<\/\1>$/i);
+    const inner = m ? m[2] : p.html;
+    p.html = tag ? `<${tag}>${inner}</${tag}>` : inner;
+  });
+
   return (
     <>
       <Field label="Content (HTML allowed)">
@@ -28,6 +39,22 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
           value={props.html}
           rows={6}
           onChange={(v) => onUpdateProps((p: TextProps) => { p.html = v; })}
+        />
+      </Field>
+      <Field label="Text style (whole block)">
+        <SelectInput
+          value={outerTag}
+          options={[
+            { value: '', label: 'Normal text' },
+            { value: 'p', label: 'Paragraph' },
+            { value: 'h1', label: 'Heading 1' },
+            { value: 'h2', label: 'Heading 2' },
+            { value: 'h3', label: 'Heading 3' },
+            { value: 'h4', label: 'Heading 4' },
+            { value: 'h5', label: 'Heading 5' },
+            { value: 'h6', label: 'Heading 6' }
+          ]}
+          onChange={setOuterTag}
         />
       </Field>
       <Field label="Font">

@@ -1,9 +1,67 @@
 import type {
-  Block, BlockProps, BlockType, Layer, PlayerSettings, Project, Slide, Variable
+  Block, BlockProps, BlockType, Condition, Layer, PlayerSettings, Project, Slide, Trigger, Variable
 } from './types';
 
 export function uid(prefix = 'id'): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-3)}`;
+}
+
+// Recursively give a block (and any group children) a fresh id, recording the
+// old->new mapping so references elsewhere can be remapped.
+function reassignBlockIds(blocks: Block[], map: Map<string, string>): void {
+  for (const b of blocks) {
+    const nid = uid('blk');
+    map.set(b.id, nid);
+    b.id = nid;
+    if (b.type === 'group') reassignBlockIds((b.props as { blocks: Block[] }).blocks, map);
+  }
+}
+
+// Clone a slide with entirely fresh ids so it can be inserted more than once
+// without id collisions. Remaps trigger/action block references, and clones
+// the interaction result-variables the slide's blocks own (their names embed
+// the block id) into new variables, remapping condition/action references so
+// the copied logic keeps working. Returns the new slide plus any new
+// project-level variables to append.
+export function cloneSlideFresh(slide: Slide, variables: Variable[]): { slide: Slide; newVariables: Variable[] } {
+  const s: Slide = structuredClone(slide);
+  s.id = uid('sld');
+  const blockMap = new Map<string, string>();
+  const layerMap = new Map<string, string>();
+  for (const layer of s.layers) {
+    const nid = uid('lyr');
+    layerMap.set(layer.id, nid);
+    layer.id = nid;
+    reassignBlockIds(layer.blocks, blockMap);
+  }
+
+  // Clone variables whose name embeds one of this slide's (old) block ids -
+  // these are the auto-registered interaction results (mc_/fb_/dd_/timer_...).
+  const varMap = new Map<string, string>();
+  const newVariables: Variable[] = [];
+  for (const v of variables) {
+    const oldBlockId = [...blockMap.keys()].find((oid) => v.name.includes(oid));
+    if (!oldBlockId) continue;
+    const nid = uid('var');
+    varMap.set(v.id, nid);
+    newVariables.push({ ...structuredClone(v), id: nid, name: v.name.split(oldBlockId).join(blockMap.get(oldBlockId)!) });
+  }
+
+  const remapCond = (c: Condition) => { if (varMap.has(c.variableId)) c.variableId = varMap.get(c.variableId)!; };
+  const remapTrigger = (tr: Trigger) => {
+    if (tr.sourceBlockId && blockMap.has(tr.sourceBlockId)) tr.sourceBlockId = blockMap.get(tr.sourceBlockId)!;
+    if (tr.watchBlockIds) tr.watchBlockIds = tr.watchBlockIds.map((id) => blockMap.get(id) ?? id);
+    tr.conditions?.forEach(remapCond);
+    for (const a of tr.actions) {
+      const anyA = a as { blockId?: string; layerId?: string; variableId?: string };
+      if (anyA.blockId && blockMap.has(anyA.blockId)) anyA.blockId = blockMap.get(anyA.blockId)!;
+      if (anyA.layerId && layerMap.has(anyA.layerId)) anyA.layerId = layerMap.get(anyA.layerId)!;
+      if (anyA.variableId && varMap.has(anyA.variableId)) anyA.variableId = varMap.get(anyA.variableId)!;
+    }
+  };
+  s.triggers.forEach(remapTrigger);
+
+  return { slide: s, newVariables };
 }
 
 export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {

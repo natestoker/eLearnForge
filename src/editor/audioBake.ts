@@ -28,6 +28,9 @@ export interface BakeResult {
   dataUrl: string;
   seconds: number;
   voiceId: string;
+  // WebVTT captions derived from the spoken sentences, time-aligned to the
+  // baked audio. Empty string when there was nothing to caption.
+  captionsVtt: string;
 }
 
 // The COMPLETE Kokoro-82M v1.0 English voice set (ids are the model's own:
@@ -125,7 +128,7 @@ function floatToInt16(f: Float32Array): Int16Array {
 }
 
 // Trim leading/trailing near-silence so the clip starts on the voice.
-export function trimSilence(mono: Float32Array, sampleRate: number, threshold = 0.008): { data: Float32Array; seconds: number } {
+export function trimSilence(mono: Float32Array, sampleRate: number, threshold = 0.008): { data: Float32Array; seconds: number; startSeconds: number } {
   const win = Math.max(1, Math.floor(sampleRate * 0.02));
   const loud = (start: number) => {
     let sum = 0;
@@ -140,7 +143,7 @@ export function trimSilence(mono: Float32Array, sampleRate: number, threshold = 
   const from = Math.max(0, head - pad);
   const to = Math.min(mono.length, tail + win + pad);
   const data = mono.subarray(from, to);
-  return { data: data.length ? data : mono, seconds: (data.length || mono.length) / sampleRate };
+  return { data: data.length ? data : mono, seconds: (data.length || mono.length) / sampleRate, startSeconds: data.length ? from / sampleRate : 0 };
 }
 
 function writeString(view: DataView, offset: number, str: string): void {
@@ -205,19 +208,27 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-// Synthesize speech to a mono Float32 buffer with Kokoro.
+// A spoken sentence with its position (in seconds) inside the synthesized
+// buffer - the raw material for caption cues.
+export interface SentenceTiming { text: string; start: number; end: number; }
+
+// Synthesize speech to a mono Float32 buffer with Kokoro. Also returns each
+// sentence's start/end in seconds (relative to the untrimmed buffer) so the
+// caller can build caption cues.
 export async function synthesize(text: string, voiceId: string, onProgress?: (pct: number) => void):
-  Promise<{ data: Float32Array; sampleRate: number }> {
+  Promise<{ data: Float32Array; sampleRate: number; sentences: SentenceTiming[] }> {
   const tts = await loadTts(onProgress);
-  
+
   // Split into sentences, keeping punctuation
   const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
   if (sentences.length === 0) {
-    return { data: new Float32Array(0), sampleRate: 24000 };
+    return { data: new Float32Array(0), sampleRate: 24000, sentences: [] };
   }
 
   const chunks: Float32Array[] = [];
+  const timings: SentenceTiming[] = [];
   let sampleRate = 24000;
+  let cursor = 0; // running sample count for sentence boundaries
 
   for (let i = 0; i < sentences.length; i++) {
     // Kokoro's WASM inference blocks the main thread for the whole sentence,
@@ -228,11 +239,15 @@ export async function synthesize(text: string, voiceId: string, onProgress?: (pc
     await nextPaint();
     const s = sentences[i];
     const out = await tts.generate(s, { voice: voiceId as never });
-    if (out.audio) {
-      chunks.push(out.audio as Float32Array);
-    }
     if (out.sampling_rate) {
       sampleRate = out.sampling_rate as number;
+    }
+    if (out.audio) {
+      const audio = out.audio as Float32Array;
+      chunks.push(audio);
+      const start = cursor / sampleRate;
+      cursor += audio.length;
+      timings.push({ text: s.trim(), start, end: cursor / sampleRate });
     }
     onProgress?.(Math.round(((i + 1) / sentences.length) * 100));
   }
@@ -245,7 +260,26 @@ export async function synthesize(text: string, voiceId: string, onProgress?: (pc
     offset += c.length;
   }
 
-  return { data: merged, sampleRate };
+  return { data: merged, sampleRate, sentences: timings };
+}
+
+function vttTime(t: number): string {
+  const clamped = Math.max(0, t);
+  const h = Math.floor(clamped / 3600);
+  const m = Math.floor((clamped % 3600) / 60);
+  const s = clamped % 60;
+  const hh = h > 0 ? `${String(h).padStart(2, '0')}:` : '';
+  return `${hh}${String(m).padStart(2, '0')}:${s.toFixed(3).padStart(6, '0')}`;
+}
+
+// Build a WebVTT document from sentence timings, shifting every cue earlier by
+// `shift` seconds to compensate for the silence trimmed off the front.
+export function buildVtt(sentences: SentenceTiming[], shift = 0): string {
+  if (!sentences.length) return '';
+  const cues = sentences
+    .map((s) => `${vttTime(s.start - shift)} --> ${vttTime(s.end - shift)}\n${s.text}`)
+    .join('\n\n');
+  return `WEBVTT\n\n${cues}\n`;
 }
 
 // All bakes land in one format: MP3. It embeds an order of magnitude
@@ -255,11 +289,14 @@ export async function bakeSpeech(opts: {
   voiceId: string;
   onProgress?: (pct: number) => void;
 }): Promise<BakeResult> {
-  const { data, sampleRate } = await synthesize(opts.text, opts.voiceId, opts.onProgress);
+  const { data, sampleRate, sentences } = await synthesize(opts.text, opts.voiceId, opts.onProgress);
   const trimmed = trimSilence(data, sampleRate);
   const blob = encodeMp3(trimmed.data, sampleRate);
   const dataUrl = await blobToDataUrl(blob);
-  return { blob, dataUrl, seconds: trimmed.seconds, voiceId: opts.voiceId };
+  return {
+    blob, dataUrl, seconds: trimmed.seconds, voiceId: opts.voiceId,
+    captionsVtt: buildVtt(sentences, trimmed.startSeconds)
+  };
 }
 
 export function downloadBake(result: BakeResult, baseName: string): void {

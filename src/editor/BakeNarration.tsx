@@ -35,6 +35,9 @@ export function BakeNarration({ slideId }: { slideId: string }) {
       block.timing = { start: 0, end: seconds };
       s.layers[0].blocks.push(block);
       s.timeline.narrationSrc = undefined;
+      // Narration mode also drops in time-aligned captions so the player can
+      // show them over the stage (toggle in Player settings).
+      if (asNarration && result.captionsVtt) s.timeline.captionsVtt = result.captionsVtt;
     });
   };
 

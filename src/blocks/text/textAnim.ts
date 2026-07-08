@@ -29,22 +29,42 @@ export function buildUnits(root: HTMLElement, anim: TextAnim): TextUnit[] | null
     const text = tn.nodeValue ?? '';
     if (!text.trim()) continue;
     const frag = document.createDocumentFragment();
-    const parts = unit === 'word' ? text.split(/(\s+)/) : Array.from(text);
-    for (const part of parts) {
-      // Whitespace stays a plain text node in BOTH modes. Wrapping a space
-      // in an inline-block span collapses it, which is what made the
-      // typewriter eat spaces. Only real glyphs become animatable spans.
-      if (/^\s+$/.test(part) || part === ' ') {
-        frag.appendChild(document.createTextNode(part));
+    // Split on whitespace in BOTH modes so line breaks only ever happen
+    // between words. Whitespace stays a plain text node (wrapping a space in
+    // an inline-block collapses it - that's what ate the typewriter's
+    // spaces).
+    const tokens = text.split(/(\s+)/);
+    for (const token of tokens) {
+      if (token === '') continue;
+      if (/^\s+$/.test(token)) {
+        frag.appendChild(document.createTextNode(token));
         continue;
       }
-      if (part === '') continue;
-      const span = document.createElement('span');
-      span.textContent = part;
-      span.style.display = 'inline-block';
-      span.style.willChange = 'transform, opacity';
-      frag.appendChild(span);
-      spans.push(span);
+      if (unit === 'word') {
+        // One animatable span per word.
+        const span = document.createElement('span');
+        span.textContent = token;
+        span.style.display = 'inline-block';
+        span.style.willChange = 'transform, opacity';
+        frag.appendChild(span);
+        spans.push(span);
+      } else {
+        // Letter mode: a word wrapper keeps the word's letters together at a
+        // line wrap (inline-block is atomic, so it never breaks internally),
+        // while each letter is its own animatable inline-block span.
+        const word = document.createElement('span');
+        word.style.display = 'inline-block';
+        word.style.whiteSpace = 'nowrap';
+        for (const ch of Array.from(token)) {
+          const span = document.createElement('span');
+          span.textContent = ch;
+          span.style.display = 'inline-block';
+          span.style.willChange = 'transform, opacity';
+          word.appendChild(span);
+          spans.push(span);
+        }
+        frag.appendChild(word);
+      }
     }
     tn.parentNode?.replaceChild(frag, tn);
   }
