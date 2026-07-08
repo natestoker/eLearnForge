@@ -10,6 +10,7 @@ import { TimelinePanel } from './TimelinePanel';
 import { PropertyPanel } from './PropertyPanel';
 import { TriggersPanel } from './TriggersPanel';
 import { AnimatePanel } from './AnimatePanel';
+import { EffectsPanel } from './EffectsPanel';
 import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
@@ -112,18 +113,19 @@ export function App() {
             <Splitter target="right" />
             <aside className="sidebar-right" style={{ width: panelSizes.right }}>
               <nav className="tabs">
-                {(['properties', 'animate', 'triggers', 'variables'] as const).map((tab) => (
+                {(['properties', 'effects', 'animate', 'triggers', 'variables'] as const).map((tab) => (
                   <button
                     key={tab}
                     className={`tab ${rightTab === tab ? 'active' : ''}`}
                     onClick={() => setRightTab(tab)}
                   >
-                    {tab === 'properties' ? 'Properties' : tab === 'animate' ? 'Animate' : tab === 'triggers' ? 'Triggers' : 'Variables'}
+                    {tab === 'properties' ? 'Properties' : tab === 'effects' ? 'Effects' : tab === 'animate' ? 'Animate' : tab === 'triggers' ? 'Triggers' : 'Variables'}
                   </button>
                 ))}
                 <button className="panel-collapse-btn right" onClick={() => toggleCollapsed('right')} title="Hide this panel">{'\u203A'}</button>
               </nav>
               {rightTab === 'properties' && <PropertyPanel />}
+              {rightTab === 'effects' && <EffectsPanel />}
               {rightTab === 'animate' && <AnimatePanel />}
               {rightTab === 'triggers' && <TriggersPanel />}
               {rightTab === 'variables' && <VariablesPanel />}

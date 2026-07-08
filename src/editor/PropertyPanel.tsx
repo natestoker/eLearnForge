@@ -4,7 +4,6 @@ import { BLOCKS } from '../blocks/registry';
 import { CheckboxInput, ColorInput, Field, ImagePicker, NumberInput, RangeInput, Row, SelectInput, TextInput } from './fields';
 import { GOOGLE_FONTS, SYSTEM_FONTS, ensureFont } from '../shared/fonts';
 import { VoiceRecorder } from './VoiceRecorder';
-import { StatesSection } from './StatesSection';
 import { ShadowSection } from './ShadowSection';
 import { BakeNarration } from './BakeNarration';
 import { BlockAudioSection } from './BlockAudioSection';
@@ -300,23 +299,8 @@ export function PropertyPanel() {
           <BlockAudioSection block={block} />
         </>
       )}
-      {(block.type === 'shape' || block.type === 'button' || block.type === 'image' || block.type === 'text' || block.type === 'group') && (
-        <>
-          <div className="divider" />
-          <h3 className="panel-title">Shadow</h3>
-          <ShadowSection block={block} onUpdate={(fn) => updateBlock(block.id, (b) => fn(b))} />
-        </>
-      )}
-      {(block.type === 'shape' || block.type === 'button' || block.type === 'image' || block.type === 'text' || block.type === 'hotspot') && (
-        <>
-          <div className="divider" />
-          <h3 className="panel-title">States</h3>
-          <StatesSection
-            block={block}
-            onUpdate={(fn) => updateBlock(block.id, (b) => fn(b))}
-          />
-        </>
-      )}
+      <div className="divider" />
+      <p className="hint">Shadow, reflection, and interactive states now live on the <strong>Effects</strong> tab.</p>
       <Field label="Emphasis (looping attention animation)">
         <SelectInput
           value={block.emphasis ?? 'none'}
