@@ -1040,6 +1040,14 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Stacked entrance / exit animations
+Any block can now layer **multiple** entrance (and exit) effects that play
+together — e.g. *fade + spin + zoom in*. In the Animate tab, use **+ Stack
+another entrance / exit** to add effects under the base one; each keeps its
+own duration, direction, distance, and ease. The timeline composites them
+(opacity and scale multiply, translate and rotate add, wipes take the largest
+reveal), and scrubbing stays exact because it's all recomputed per frame.
+
 ## Editable text margins
 Headings and paragraphs no longer carry a default **top** margin, so text
 always hugs the top of its box. Instead, each text block has explicit

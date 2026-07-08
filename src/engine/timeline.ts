@@ -115,6 +115,27 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
 
 const REST: BlockVisualState = { present: true, opacity: 1, translateX: 0, translateY: 0, scale: 1, scaleX: 1, scaleY: 1, rotate: 0, rotateX: 0, rotateY: 0, clip: null };
 
+// Fold one animation's contribution INTO the running state so several effects
+// stack: opacity/scale multiply, translate/rotate add, clip takes the largest
+// hidden fraction per side. (A single effect composed from REST is identical
+// to overwriting, so this is a safe generalization of the old behavior.)
+function composeInto(state: BlockVisualState, o: Partial<BlockVisualState>): void {
+  if (o.opacity !== undefined) state.opacity *= o.opacity;
+  if (o.translateX !== undefined) state.translateX += o.translateX;
+  if (o.translateY !== undefined) state.translateY += o.translateY;
+  if (o.scale !== undefined) state.scale *= o.scale;
+  if (o.scaleX !== undefined) state.scaleX *= o.scaleX;
+  if (o.scaleY !== undefined) state.scaleY *= o.scaleY;
+  if (o.rotate !== undefined) state.rotate += o.rotate;
+  if (o.rotateX !== undefined) state.rotateX += o.rotateX;
+  if (o.rotateY !== undefined) state.rotateY += o.rotateY;
+  if (o.clip) {
+    state.clip = state.clip
+      ? { top: Math.max(state.clip.top, o.clip.top), right: Math.max(state.clip.right, o.clip.right), bottom: Math.max(state.clip.bottom, o.clip.bottom), left: Math.max(state.clip.left, o.clip.left) }
+      : o.clip;
+  }
+}
+
 export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number, motion?: MotionPath): BlockVisualState {
   if (!timing) {
     // No entrance/exit, but a motion path still drives position on the clock.
@@ -133,18 +154,28 @@ export function blockStateAt(t: number, timing: BlockTiming | undefined, timelin
 
   let state = { ...REST };
 
-  const aIn = timing.animIn;
-  if (aIn && aIn.type !== 'none' && aIn.duration > 0) {
-    const p = Math.min(1, (t - start) / aIn.duration);
-    Object.assign(state, animOffsets(aIn, easeFn(aIn.ease)(p), true));
+  // Entrances (animIn + any stacked entrances) all anchor to `start` and
+  // compose together.
+  const entrances = [timing.animIn, ...(timing.animInStack ?? [])];
+  for (const aIn of entrances) {
+    if (aIn && aIn.type !== 'none' && aIn.duration > 0) {
+      const p = Math.min(1, (t - start) / aIn.duration);
+      composeInto(state, animOffsets(aIn, easeFn(aIn.ease)(p), true));
+    }
   }
 
-  const aOut = timing.animOut;
-  if (aOut && aOut.type !== 'none' && aOut.duration > 0 && timing.end !== undefined) {
-    const outStart = end - aOut.duration;
-    if (t >= outStart) {
-      const p = Math.min(1, (t - outStart) / aOut.duration);
-      Object.assign(state, animOffsets(aOut, easeFn(aOut.ease)(p), false));
+  // Exits (animOut + any stacked exits) all end at `end`; each has its own
+  // lead-in length.
+  if (timing.end !== undefined) {
+    const exits = [timing.animOut, ...(timing.animOutStack ?? [])];
+    for (const aOut of exits) {
+      if (aOut && aOut.type !== 'none' && aOut.duration > 0) {
+        const outStart = end - aOut.duration;
+        if (t >= outStart) {
+          const p = Math.min(1, (t - outStart) / aOut.duration);
+          composeInto(state, animOffsets(aOut, easeFn(aOut.ease)(p), false));
+        }
+      }
     }
   }
 

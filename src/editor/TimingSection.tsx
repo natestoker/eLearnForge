@@ -167,12 +167,54 @@ export function TimingSection({ block, onUpdate }: { block: Block; onUpdate: Upd
         spec={timing.animIn}
         onChange={(spec) => write((b) => { b.timing!.animIn = spec; })}
       />
+      {(timing.animInStack ?? []).map((s, i) => (
+        <div key={`in${i}`} className="stack-anim">
+          <AnimEditor
+            label={`+ Entrance ${i + 2}`}
+            spec={s}
+            onChange={(spec) => write((b) => {
+              const arr = [...(b.timing!.animInStack ?? [])];
+              if (!spec) arr.splice(i, 1); else arr[i] = spec;
+              b.timing!.animInStack = arr.length ? arr : undefined;
+            })}
+          />
+        </div>
+      ))}
+      <button
+        className="btn btn-ghost tl-add-anim"
+        title="Stack another entrance effect that plays together with the one above (e.g. fade + spin)"
+        onClick={() => write((b) => { b.timing!.animInStack = [...(b.timing!.animInStack ?? []), defaultAnim()]; })}
+      >
+        + Stack another entrance
+      </button>
+
       <AnimEditor
         label="Animate out"
         spec={timing.animOut}
         onChange={(spec) => write((b) => { b.timing!.animOut = spec; })}
       />
-      <button className="btn btn-ghost btn-danger" onClick={() => write((b) => { b.timing = undefined; })}>
+      {(timing.animOutStack ?? []).map((s, i) => (
+        <div key={`out${i}`} className="stack-anim">
+          <AnimEditor
+            label={`+ Exit ${i + 2}`}
+            spec={s}
+            onChange={(spec) => write((b) => {
+              const arr = [...(b.timing!.animOutStack ?? [])];
+              if (!spec) arr.splice(i, 1); else arr[i] = spec;
+              b.timing!.animOutStack = arr.length ? arr : undefined;
+            })}
+          />
+        </div>
+      ))}
+      <button
+        className="btn btn-ghost tl-add-anim"
+        title="Stack another exit effect that plays together with the one above"
+        onClick={() => write((b) => { b.timing!.animOutStack = [...(b.timing!.animOutStack ?? []), { ...defaultAnim(), ease: 'power2.in' }] })}
+      >
+        + Stack another exit
+      </button>
+
+      <button className="btn btn-ghost btn-danger" style={{ marginTop: 8 }} onClick={() => write((b) => { b.timing = undefined; })}>
         Remove from timeline
       </button>
     </div>

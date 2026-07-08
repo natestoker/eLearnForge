@@ -287,6 +287,11 @@ export interface BlockTiming {
   end?: number;       // absent = stays until the timeline ends
   animIn?: AnimSpec;
   animOut?: AnimSpec;
+  // Additional entrance/exit effects that play TOGETHER with animIn/animOut
+  // (e.g. fade + spin + zoom). Each has its own duration/ease, all anchored to
+  // the block's start (entrances) or end (exits). Composited by the timeline.
+  animInStack?: AnimSpec[];
+  animOutStack?: AnimSpec[];
 }
 
 // A block travelling along a curve over the slide timeline. Stored as a
