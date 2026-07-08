@@ -535,6 +535,11 @@ export interface PlayerSettings {
   buttonShape?: 'rounded' | 'pill' | 'square';
   buttonStyle?: 'solid' | 'outline';
   progressBar?: boolean;  // show a course progress bar in the chrome
+  // Show the CC (closed-captions) toggle in the player controls when the
+  // current slide has captions. Absent = true (shown whenever captions
+  // exist); set false to hide the button and always show captions on, or to
+  // keep the transport bar minimal.
+  captionsButton?: boolean;
 }
 
 export type CompletionMode = 'allSlides' | 'explicit';
