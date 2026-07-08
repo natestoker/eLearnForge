@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Block, Layer, ShapeProps } from '../schema/types';
-import { useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
+import { selectedIds, useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
 import { CALLOUT_BODY, DEFAULT_TAIL } from '../blocks/shape/geometry';
@@ -383,15 +383,19 @@ export function EditorCanvas() {
         if (e.key === 'g') { e.preventDefault(); if (e.shiftKey) store.ungroupBlocks(); else store.groupBlocks(); return; }
       }
 
-      const blockId = store.selection.blockId;
-      if (!blockId) return;
+      // Arrows/Delete act on the WHOLE selection, not just the primary block.
+      const ids = selectedIds(store.selection);
+      if (!ids.length) return;
 
-      // Locked blocks ignore nudges and Delete.
+      // Only unlocked blocks are movable/deletable; a locked block in the
+      // selection is simply skipped (the rest still move).
       const slideNow = store.project.slides.find((sl) => sl.id === store.selection.slideId);
+      const lockedSet = new Set<string>();
       for (const l of slideNow?.layers ?? []) {
-        const b = walkBlocks(l.blocks).find((bl) => bl.id === blockId);
-        if (b && isBlockLocked(b, l)) return;
+        for (const b of walkBlocks(l.blocks)) if (isBlockLocked(b, l)) lockedSet.add(b.id);
       }
+      const movable = ids.filter((id) => !lockedSet.has(id));
+      if (!movable.length) return;
 
       const step = e.shiftKey ? GRID * 2 : 1;
       const nudge = (dx: number, dy: number) => {
@@ -400,7 +404,9 @@ export function EditorCanvas() {
         const now = Date.now();
         if (now - lastNudgeRef.current > 600) record();
         lastNudgeRef.current = now;
-        updateBlock(blockId, (b) => { b.x += dx; b.y += dy; }, false);
+        // First mutation carries no history (record() above owns the step),
+        // and every selected block moves by the same delta.
+        movable.forEach((id) => updateBlock(id, (b) => { b.x += dx; b.y += dy; }, false));
       };
 
       switch (e.key) {
@@ -411,7 +417,7 @@ export function EditorCanvas() {
         case 'Delete':
         case 'Backspace':
           e.preventDefault();
-          deleteBlock(blockId);
+          movable.forEach((id) => deleteBlock(id));
           break;
       }
     };
