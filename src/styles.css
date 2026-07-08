@@ -1694,6 +1694,48 @@ select.input { appearance: auto; }
   background: repeating-linear-gradient(45deg, rgba(233,75,90,0.06), rgba(233,75,90,0.06) 6px, rgba(233,75,90,0.12) 6px, rgba(233,75,90,0.12) 12px);
   z-index: 0; pointer-events: none;
 }
+/* Small floating right-click menu, reused by the timeline bar and the canvas
+   (guides). Always fixed-positioned at a clientX/clientY the caller supplies. */
+.ctx-menu {
+  position: fixed;
+  z-index: 200;
+  background: #10141b;
+  border: 1px solid #2c3648;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 140px;
+}
+.ctx-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: #d7dee9;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.ctx-menu button:hover { background: rgba(61, 220, 151, 0.15); color: var(--accent); }
+
+.stage-guide {
+  position: absolute;
+  z-index: 6;
+}
+.stage-guide.v { cursor: ew-resize; }
+.stage-guide.h { cursor: ns-resize; }
+.stage-guide::before {
+  content: '';
+  position: absolute;
+  background: #ff3d9a;
+  opacity: 0.85;
+}
+.stage-guide.v::before { left: 4px; top: 0; bottom: 0; width: 1px; }
+.stage-guide.h::before { top: 4px; left: 0; right: 0; height: 1px; }
+.stage-guide:hover::before { opacity: 1; box-shadow: 0 0 0 1px #ff3d9a; }
 .timeline-setmark {
   position: absolute; top: 0; bottom: 0; width: 0;
   border-left: 2px dashed #e94b5a; z-index: 5; pointer-events: none;

@@ -29,6 +29,15 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [timelineZoom, setTimelineZoom] = useState(1);
+  const [barMenu, setBarMenu] = useState<{ x: number; y: number; blockId: string } | null>(null);
+
+  // Dismiss the bar context menu on any click elsewhere.
+  useEffect(() => {
+    if (!barMenu) return;
+    const close = () => setBarMenu(null);
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [barMenu]);
 
   const toggleGroup = (e: React.PointerEvent | React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -166,17 +175,19 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       }
       return bestDelta;
     };
-    // Slide one bar by dSec, always PRESERVING its length. Moving a bar toward
-    // the end must not squish it against the timeline's edge - a clip keeps
-    // its real length and is allowed to extend past the current end (the
-    // timeline duration then grows to include it). Only the start is floored
-    // at 0. When snapping, either edge (start or end) may catch a cue.
+    // Slide one bar by dSec, always PRESERVING its length. Audio is allowed to
+    // push past the current end - narration naturally runs long, and that's
+    // how it's meant to extend (or define) the slide's length. Every other
+    // block type is capped at the current end instead: nudging a shape/text
+    // bar while dragging shouldn't silently stretch the timeline out from
+    // under you. Only the start is floored at 0.
     const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number, snapActive: boolean) => {
       if (!blk.timing) return;
       const len = (origEnd ?? duration) - origStart;
       let ns = Math.max(0, origStart + dSec);
       ns += nearestCueDelta([ns, ns + len], snapActive);
       ns = Math.max(0, q(ns));
+      if (blk.type !== 'audio') ns = Math.min(ns, Math.max(0, duration - len));
       blk.timing.start = ns;
       if (origEnd !== undefined) blk.timing.end = q(ns + len);
     };
@@ -202,7 +213,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           const base = g.origEnd ?? duration;
           let ne = base + dSec;
           ne += nearestCueDelta([ne], snapActive);
-          blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(ne), duration));
+          const cap = blk.type === 'audio' ? Infinity : duration;
+          blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(ne), cap));
         } else if (g.mode === 'trimStart') {
           const endFixed = g.origEnd ?? duration;
           let ns = g.origStart + dSec;
@@ -470,6 +482,12 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             className={`timeline-bar ${selected ? 'selected' : ''} ${untimed ? 'untimed' : ''} ${locked ? 'locked' : ''}`}
             style={{ left: pct(start), width: pct(span) }}
             onPointerDown={(e) => onDown(e, b.id, 'move')}
+            onContextMenu={(e) => {
+              if (untimed || locked) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setBarMenu({ x: e.clientX, y: e.clientY, blockId: b.id });
+            }}
             title={locked ? 'Locked - unlock to retime' : untimed ? 'Whole slide - drag to add timing' : `${start.toFixed(1)}s - ${end.toFixed(1)}s`}
           >
             {!untimed && animIn > 0 && <div className="tl-ramp tl-ramp-in" style={{ width: `${(animIn / span) * 100}%` }} />}
@@ -666,6 +684,19 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           </div>
         </div>
       </div>
+      {barMenu && (
+        <div className="ctx-menu" style={{ left: barMenu.x, top: barMenu.y }} onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => {
+              record();
+              updateBlock(barMenu.blockId, (b) => { if (b.timing) b.timing.end = undefined; }, false);
+              setBarMenu(null);
+            }}
+          >
+            Show until end
+          </button>
+        </div>
+      )}
     </div>
   );
 }

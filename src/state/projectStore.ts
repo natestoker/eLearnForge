@@ -95,8 +95,11 @@ interface ProjectStore {
   addLayer: (slideId: string) => void;
   moveLayer: (layerId: string, dir: 1 | -1) => void;
   moveBlockZ: (blockId: string, dir: 'forward' | 'backward' | 'front' | 'back') => void;
-  alignBlocks: (edge: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom', to: 'stage' | 'selection') => void;
+  alignBlocks: (edge: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom', to: 'stage' | 'selection' | 'key') => void;
   distributeBlocks: (axis: 'h' | 'v') => void;
+  addGuide: (axis: 'h' | 'v', pos: number) => void;
+  removeGuide: (guideId: string) => void;
+  moveGuide: (guideId: string, pos: number) => void;
   deleteLayer: (slideId: string, layerId: string) => void;
   // init runs on the new block after defaults/theming, e.g. to set a
   // specific shape kind picked in the Insert menu.
@@ -347,9 +350,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const targets = all.filter((b) => ids.includes(b.id));
       if (targets.length === 0) return;
 
-      // Reference rectangle: the whole stage, or the bounding box of the
-      // selection (align-to-selection needs 2+ blocks to be meaningful).
+      // Reference rectangle: the whole stage, the bounding box of the
+      // selection, or a single "key" object the rest align to (align-to-
+      // selection/key both need 2+ blocks to be meaningful).
       let rx = 0, ry = 0, rw = slide.width, rh = slide.height;
+      let keyId: string | null = null;
       if (to === 'selection') {
         if (targets.length < 2) return;
         const minX = Math.min(...targets.map((b) => b.x));
@@ -357,8 +362,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const maxX = Math.max(...targets.map((b) => b.x + b.w));
         const maxY = Math.max(...targets.map((b) => b.y + b.h));
         rx = minX; ry = minY; rw = maxX - minX; rh = maxY - minY;
+      } else if (to === 'key') {
+        // The key object is the primary selection (the last one clicked/
+        // shift-added) - it stays put; every other selected block aligns to it.
+        if (targets.length < 2 || !selection.blockId) return;
+        const key = targets.find((b) => b.id === selection.blockId);
+        if (!key) return;
+        keyId = key.id;
+        rx = key.x; ry = key.y; rw = key.w; rh = key.h;
       }
       for (const b of targets) {
+        if (b.id === keyId) continue;
         if (edge === 'left') b.x = rx;
         else if (edge === 'right') b.x = rx + rw - b.w;
         else if (edge === 'hcenter') b.x = Math.round(rx + (rw - b.w) / 2);
@@ -389,6 +403,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         b[key] = Math.round(center - b[size] / 2);
       });
     }),
+
+  // Author-only alignment guides (never shown in the player). Stored per
+  // slide since layouts differ; a click on the canvas ruler/right-click drops
+  // one, dragging or deleting works the same as any other overlay handle.
+  addGuide: (axis, pos) =>
+    get().mutate((p) => {
+      const slide = p.slides.find((s) => s.id === get().selection.slideId);
+      if (!slide) return;
+      slide.guides = [...(slide.guides ?? []), { id: uid('gd'), axis, pos: Math.round(pos) }];
+    }),
+
+  removeGuide: (guideId) =>
+    get().mutate((p) => {
+      const slide = p.slides.find((s) => s.id === get().selection.slideId);
+      if (slide?.guides) slide.guides = slide.guides.filter((g) => g.id !== guideId);
+    }),
+
+  moveGuide: (guideId, pos) =>
+    get().mutate((p) => {
+      const slide = p.slides.find((s) => s.id === get().selection.slideId);
+      const g = slide?.guides?.find((x) => x.id === guideId);
+      if (g) g.pos = Math.round(pos);
+    }, false),
 
   deleteLayer: (slideId, layerId) => {
     const { selection } = get();
