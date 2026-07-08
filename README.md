@@ -1040,6 +1040,13 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## CC button is a skin setting
+Whether the closed-captions toggle appears in the player controls is now an
+explicit **Player** setting ("Closed captions (CC) button", on by default),
+alongside chrome/button-shape/progress-bar. It still only shows on slides
+that actually have captions - the setting controls whether the button is
+*allowed* to appear, not whether this particular slide has captions.
+
 ## Timeline: "Show until end" + a real end boundary
 Right-click a timing bar for a **Show until end** action - it clears the
 block's fixed end so it plays through to wherever the slide's timeline
@@ -1049,6 +1056,12 @@ a rough edge: dragging or trimming a regular block bar can no longer push
 it past the timeline's current end - only **audio** blocks may still extend
 (or effectively define) the slide's length, since narration naturally runs
 long and that's the intended way it drives duration.
+
+A bar that's already **pinned to the end** (its end already equals the
+timeline's duration) behaves specially when you drag its body: instead of
+sliding both edges and getting capped in place, only the **start** moves -
+the end holds at the boundary either way, so you can still lengthen or
+shorten it from the left without it feeling stuck.
 
 ## Canvas alignment guides
 Right-click empty space on the stage to drop a **vertical or horizontal

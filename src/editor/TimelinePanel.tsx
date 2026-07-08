@@ -175,14 +175,25 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       }
       return bestDelta;
     };
-    // Slide one bar by dSec, always PRESERVING its length. Audio is allowed to
-    // push past the current end - narration naturally runs long, and that's
-    // how it's meant to extend (or define) the slide's length. Every other
-    // block type is capped at the current end instead: nudging a shape/text
-    // bar while dragging shouldn't silently stretch the timeline out from
-    // under you. Only the start is floored at 0.
+    // Slide one bar by dSec, PRESERVING its length - EXCEPT a non-audio bar
+    // that's already pinned to the timeline's end (end === duration) stays
+    // pinned: dragging it only moves the start (like trimStart), so its end
+    // never lifts off the boundary. That reads better than a move that's
+    // simply capped in place, which used to make an end-anchored bar feel
+    // stuck - now you can still shorten/lengthen it from the left while the
+    // out-point holds. Audio is exempt everywhere: it may push the end past
+    // duration (narration naturally runs long, and that's how it's meant to
+    // extend/define the slide's length).
     const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number, snapActive: boolean) => {
       if (!blk.timing) return;
+      const pinnedToEnd = blk.type !== 'audio' && origEnd !== undefined && Math.abs(origEnd - duration) < 0.05;
+      if (pinnedToEnd) {
+        let ns = origStart + dSec;
+        ns += nearestCueDelta([ns], snapActive);
+        blk.timing.start = Math.max(0, Math.min(q(ns), duration - 0.2));
+        blk.timing.end = duration;
+        return;
+      }
       const len = (origEnd ?? duration) - origStart;
       let ns = Math.max(0, origStart + dSec);
       ns += nearestCueDelta([ns, ns + len], snapActive);

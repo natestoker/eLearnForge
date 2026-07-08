@@ -421,7 +421,7 @@ export function Player({ project, adapter, startSlideId }: {
                 <span className="player-time">
                   {t.toFixed(1)}s / {duration.toFixed(1)}s
                 </span>
-                {cues.length > 0 && (
+                {(settings.captionsButton ?? true) && cues.length > 0 && (
                   <button
                     className={`player-cc ${ccOn ? 'on' : ''}`}
                     onClick={() => setCcOn((c) => !c)}

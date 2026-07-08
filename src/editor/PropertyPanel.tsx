@@ -647,6 +647,12 @@ function PlayerSettingsSection() {
         checked={player.progressBar ?? false}
         onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.progressBar = v || undefined; })}
       />
+      <CheckboxInput
+        label="Closed captions (CC) button"
+        checked={player.captionsButton ?? true}
+        onChange={(v) => mutate((p) => { p.player = p.player ?? defaultPlayerSettings(); p.player.captionsButton = v; })}
+      />
+      <p className="hint">Only appears on slides that actually have captions (Bake narration, or pasted into the slide's Captions field).</p>
       <Field label="Player accent">
         <ColorInput
           value={player.accent ?? useProjectStore.getState().project.theme?.accent ?? '#3ddc97'}
