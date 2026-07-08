@@ -1040,13 +1040,28 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Timeline: shift-drag snaps to cue points
+Hold **Shift** while dragging a block's bar (move, or either trim handle) on
+the timeline and it snaps to the nearest cue point within a small pixel
+radius - Storyline/After Effects style. Multi-selected bars snap together as
+a group. Plain drags (no Shift) are unaffected.
+
+## Reflection: fixed hugging + mirror direction
+Reflection previously floated a visible gap away from the block instead of
+hugging it - `-webkit-box-reflect` mirrors the mask along with the element,
+so the mask's gradient axis had to run opposite to the naive direction for
+each side. Fixed for all four **Mirror side** options (below/above/left/right)
+and verified visually: the reflection now sits flush against the block and
+fades away from it.
+
 ## Effects tab, reflection, and blur animation
 - The right panel gains an **Effects** tab that gathers a block's **Shadow**,
   the new **Reflection**, and **States** in one place (moved out of the long
   Properties panel).
-- **Reflection** — a PowerPoint-style mirrored, fading copy below a block,
-  with strength, size (fade distance), and gap controls plus presets. Renders
-  in Chromium/WebKit browsers.
+- **Reflection** — a PowerPoint-style mirrored, fading copy hugging one edge of
+  a block, with strength, size (fade distance), and gap controls plus presets,
+  and a **Mirror side** option (below/above/left/right). Renders in
+  Chromium/WebKit browsers.
 - **Blur** is now an entrance/exit animation (with a Blur-radius control) — the
   block resolves from a blur, and it composites with the stacking system so
   you can do e.g. *blur + zoom in*.

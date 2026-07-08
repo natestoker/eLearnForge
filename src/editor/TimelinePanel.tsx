@@ -150,15 +150,33 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       origOut: t?.animOut?.duration ?? 0,
       moveTargets
     };
+    // Shift-drag snaps a bar's edge to the nearest cue point, Storyline/AE
+    // style - a forgiving pixel radius (not seconds) so it works at any zoom.
+    const SNAP_PX = 10;
+    const nearestCueDelta = (times: number[], active: boolean): number => {
+      if (!active || !cues.length) return 0;
+      const thresh = SNAP_PX / pxPerSec();
+      let bestDelta = 0;
+      let bestDist = thresh;
+      for (const target of times) {
+        for (const c of cues) {
+          const d = Math.abs(c.time - target);
+          if (d < bestDist) { bestDist = d; bestDelta = c.time - target; }
+        }
+      }
+      return bestDelta;
+    };
     // Slide one bar by dSec, always PRESERVING its length. Moving a bar toward
     // the end must not squish it against the timeline's edge - a clip keeps
     // its real length and is allowed to extend past the current end (the
     // timeline duration then grows to include it). Only the start is floored
-    // at 0.
-    const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number) => {
+    // at 0. When snapping, either edge (start or end) may catch a cue.
+    const slideBar = (blk: Block, origStart: number, origEnd: number | undefined, dSec: number, snapActive: boolean) => {
       if (!blk.timing) return;
       const len = (origEnd ?? duration) - origStart;
-      const ns = Math.max(0, q(origStart + dSec));
+      let ns = Math.max(0, origStart + dSec);
+      ns += nearestCueDelta([ns, ns + len], snapActive);
+      ns = Math.max(0, q(ns));
       blk.timing.start = ns;
       if (origEnd !== undefined) blk.timing.end = q(ns + len);
     };
@@ -166,10 +184,11 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
       const g = gesture.current;
       if (!g) return;
       const dSec = (ev.clientX - g.startX) / pxPerSec();
+      const snapActive = ev.shiftKey;
       if (g.mode === 'move' && g.moveTargets) {
         // Move the whole selection by the same delta.
         for (const mt of g.moveTargets) {
-          updateBlock(mt.id, (blk) => slideBar(blk, mt.origStart, mt.origEnd, dSec), false);
+          updateBlock(mt.id, (blk) => slideBar(blk, mt.origStart, mt.origEnd, dSec, snapActive), false);
         }
         return;
       }
@@ -178,13 +197,17 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
         const end = blk.timing.end ?? duration;
         const span = end - blk.timing.start;
         if (g.mode === 'move') {
-          slideBar(blk, g.origStart, g.origEnd, dSec);
+          slideBar(blk, g.origStart, g.origEnd, dSec, snapActive);
         } else if (g.mode === 'trim') {
           const base = g.origEnd ?? duration;
-          blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(base + dSec), duration));
+          let ne = base + dSec;
+          ne += nearestCueDelta([ne], snapActive);
+          blk.timing.end = Math.max(blk.timing.start + 0.2, Math.min(q(ne), duration));
         } else if (g.mode === 'trimStart') {
           const endFixed = g.origEnd ?? duration;
-          blk.timing.start = Math.max(0, Math.min(q(g.origStart + dSec), endFixed - 0.2));
+          let ns = g.origStart + dSec;
+          ns += nearestCueDelta([ns], snapActive);
+          blk.timing.start = Math.max(0, Math.min(q(ns), endFixed - 0.2));
           if (g.origEnd !== undefined) blk.timing.end = endFixed;
         } else if (g.mode === 'animIn') {
           const dur = Math.max(0, Math.min(q(g.origIn + dSec), span));
@@ -541,8 +564,11 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             {'⏱'} {scrubT.toFixed(1)}s {'✕'}
           </button>
         )}
-        <span className="hint">
-          {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out.'}
+        <span
+          className="hint"
+          title={driven ? undefined : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
+        >
+          {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
         </span>
       </div>
 
