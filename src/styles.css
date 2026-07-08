@@ -957,10 +957,18 @@ select.input { appearance: auto; }
   background: var(--panel);
   padding: 8px 14px 12px;
   max-height: 190px;
-  overflow-y: auto;
+  /* Column layout so the head stays fixed and the timeline-container becomes
+     the single bounded scroll area. The panel must NOT scroll itself, or the
+     whole thing (ruler included) would scroll and the sticky second-marks
+     would leave the viewport. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .timeline-head {
+  flex: none;
   display: flex;
   align-items: baseline;
   gap: 12px;
@@ -2053,7 +2061,12 @@ select.input { appearance: auto; }
   color: var(--text);
   font-family: var(--mono);
   font-size: 11px;
+  /* The whole row is a drag handle for restacking z-order. */
+  cursor: grab;
 }
+.timeline-header-row:active { cursor: grabbing; }
+.timeline-header-row .tl-row-actions button,
+.timeline-header-row .tl-expand-btn { cursor: pointer; }
 .timeline-header-row.selected {
   background: var(--accent-dim);
 }
