@@ -1040,6 +1040,30 @@ time-aligned caption track from the spoken sentences and stores it on the
 slide; the player shows a caption overlay synced to the slide clock with a
 **CC** toggle. Captions can also be pasted/edited per slide.
 
+## Conditional Next/Submit emphasis
+The Next/Submit pulse/glow emphasis now has a **"Turn emphasis on"** setting
+next to it in Player settings:
+- **Always** (the old behavior) - on the whole time the button is enabled.
+- **When the slide's timeline ends** - waits for the clock to finish (a slide
+  with no timeline counts as already ended).
+- **When a variable matches** - pick a course variable, an operator, and a
+  value; the emphasis turns on live the moment the condition becomes true
+  (e.g. after a quiz is answered correctly).
+
+## Page flip transition
+A new **Page flip** option joins the slide transitions - it pivots on the
+left edge (like turning a page from its spine) rather than the existing
+**Flip**'s symmetric center rotation, so it reads as a page turn instead of a
+card flip.
+
+## Global vs. per-slide settings: transition
+Slide transitions are now split into a **course-wide default** (Course theme
+▸ Slide transition) and an optional **per-slide override** (Slide properties
+▸ Transition, next to Width/Height) that takes precedence when set - "Use
+course default" inherits the global one. This is the general pattern for
+settings that can be global OR overridden per slide without needing to be
+set everywhere; more slide-level overrides can follow the same shape later.
+
 ## CC button is a skin setting
 Whether the closed-captions toggle appears in the player controls is now an
 explicit **Player** setting ("Closed captions (CC) button", on by default),
