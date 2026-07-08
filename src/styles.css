@@ -1157,6 +1157,18 @@ select.input { appearance: auto; }
 }
 .tail-handle:active { cursor: grabbing; }
 
+.motion-handle {
+  position: absolute;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: #f0b429;
+  border: 2px solid #0d1015;
+  box-shadow: 0 0 0 1.5px #f0b429;
+  cursor: grab; z-index: 7;
+}
+.motion-handle:active { cursor: grabbing; }
+
 /* Editor timeline playhead */
 .timeline-ruler.scrubbable { cursor: col-resize; }
 .timeline-playhead {

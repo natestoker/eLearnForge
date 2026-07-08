@@ -277,6 +277,18 @@ export interface BlockTiming {
   animOut?: AnimSpec;
 }
 
+// A block travelling along a curve over the slide timeline. Stored as a
+// preset + one control vector (px offset of the draggable handle from the
+// block's authored position); the polyline is generated on demand.
+export interface MotionPath {
+  preset: 'line' | 'arc' | 'circle';
+  vector: { x: number; y: number };
+  start: number;    // seconds into the slide timeline
+  duration: number; // seconds to traverse the path
+  ease: string;
+  loop?: boolean;
+}
+
 export interface Block {
   id: string;
   type: BlockType;
@@ -317,6 +329,8 @@ export interface Block {
   // PowerPoint-style shadow (outer or inner). Replaces the old boolean
   // ShapeProps.shadow, which migrates to a default spec on read.
   shadow?: ShadowSpec;
+  // Travels along a curve over the slide timeline (see MotionPath).
+  motion?: MotionPath;
 }
 
 // PowerPoint shadow model: dir/dist polar offset, blur, color+alpha.
