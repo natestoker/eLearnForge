@@ -796,6 +796,12 @@ Drag a row (its grip or name) up and down to restack - the z-order
 updates live as you drag, and multi-selected sibling rows travel
 together. Works for top-level rows and inside expanded groups.
 
+Row drags now capture the pointer explicitly and mark the row
+`touch-action: none`, so a fast trackpad drag can't get reinterpreted by
+the browser as a scroll/pan partway through (which fired a silent
+pointercancel and dropped the drag, making it look like only the
+forward/backward arrow buttons worked).
+
 ## Audio scrubbing
 Dragging the timeline playhead now plays synchronized snippets of
 everything audible at that moment - narration, audio blocks, block-attached
@@ -1054,11 +1060,15 @@ next to it in Player settings:
 A new **Page flip** option joins the slide transitions - it pivots on the
 left edge (like turning a page from its spine) rather than the existing
 **Flip**'s symmetric center rotation, so it reads as a page turn instead of a
-card flip. The motion is a two-phase curl rather than a single rigid
-rotation: as it lifts it narrows (scaleX) and skews like a curling sheet,
-darkens partway through (it's angled away from the light), then settles
-flat with a slight overshoot instead of snapping into place - closer to an
-actual page turning than a flat card spinning.
+card flip. It's a four-keyframe curl (not a single rotation): the page lifts
+off the spine narrow and dark (foreshortened, angled away from the light),
+arcs through its most extreme narrow/dark point, then opens back up and
+lays flat with a slight overshoot. A moving shadow rides along the curling
+edge during the turn (removed once it settles) - the transform alone still
+read as stiff plastic without that shading. The 3D perspective's vanishing
+point is anchored to the spine itself (not the slide's center, GSAP's
+default), which is what makes the curl actually bend instead of clipping
+away mid-turn on a wide slide.
 
 ## Global vs. per-slide settings: transition
 Slide transitions are now split into a **course-wide default** (Course theme

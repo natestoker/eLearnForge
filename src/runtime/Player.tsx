@@ -223,21 +223,40 @@ export function Player({ project, adapter, startSlideId }: {
     else if (kind === 'zoom') gsap.fromTo(el, { scale: 0.96, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'zoomOut') gsap.fromTo(el, { scale: 1.06, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4, ease: 'power2.out', transformOrigin: 'center' });
     else if (kind === 'flip') gsap.fromTo(el, { rotationY: 90, autoAlpha: 0 }, { rotationY: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out', transformOrigin: 'center', transformPerspective: 900 });
-    // Page flip: pivots on the LEFT edge (the spine), not the center - and
-    // unlike a flat rigid rotation, it curls. A single rotationY tween reads
-    // as a stiff card spinning in place; a real turning page also narrows
-    // (scaleX) as it's seen edge-on, skews (the curl), and darkens mid-turn
-    // (it's angled away from the light) before brightening back up as it
-    // lays flat. Two tweens - lift-and-arc, then settle - with an overshoot
-    // ease on the way in gives it a little give instead of snapping flat.
+    // Page flip: pivots on the LEFT edge (the spine), like a page turning.
+    // A tight perspective (vs. the ~900-1600 used elsewhere) is what makes
+    // the rotation actually foreshorten into a curl instead of reading as a
+    // flat card spinning - the closer the vanishing point, the more the far
+    // edge visibly narrows and bends as it rotates. Four keyframes trace the
+    // profile of a real page: it lifts off the spine (heavy skew, near
+    // edge-on, dark - angled away from the light), arcs through edge-on at
+    // its most extreme narrow/dark point, then opens back up and flattens
+    // with a little overshoot instead of snapping flat. A soft moving shadow
+    // riding along the curling edge (a temporary overlay, removed after) is
+    // what actually sells "paper" - the transform alone still reads as
+    // plastic without it.
     else if (kind === 'pageFlip') {
-      gsap.set(el, { transformOrigin: 'left center', transformPerspective: 1600 });
-      gsap.timeline()
-        .fromTo(el,
-          { rotationY: -150, scaleX: 0.78, skewY: 5, autoAlpha: 0.3, filter: 'brightness(0.6)' },
-          { rotationY: -35, scaleX: 0.92, skewY: 2, autoAlpha: 0.9, filter: 'brightness(0.85)', duration: 0.32, ease: 'power2.out' }
-        )
-        .to(el, { rotationY: 0, scaleX: 1, skewY: 0, autoAlpha: 1, filter: 'brightness(1)', duration: 0.32, ease: 'back.out(1.6)' })
+      // The vanishing point has to sit AT the spine (the same point the page
+      // rotates around), not at the element's own center - otherwise a wide
+      // slide rotating around its left edge swings its far (right) edge
+      // behind the camera's near plane and the whole thing clips to
+      // nothing mid-turn. GSAP's per-element transformPerspective always
+      // centers on the element, so the true CSS `perspective` +
+      // `perspective-origin` has to go on the parent stage area instead.
+      const area = stageAreaRef.current;
+      gsap.set(el, { transformOrigin: 'left center' });
+      if (area) gsap.set(area, { perspective: 900, perspectiveOrigin: '0% 50%' });
+      const shade = document.createElement('div');
+      shade.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:20;opacity:0;background:linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0) 65%);';
+      el.appendChild(shade);
+      gsap.timeline({
+        onComplete: () => { shade.remove(); if (area) gsap.set(area, { clearProps: 'perspective,perspectiveOrigin' }); },
+      })
+        .set(el, { rotationY: -78, scaleX: 0.5, skewY: 30, autoAlpha: 0.4, filter: 'brightness(0.45)' })
+        .to(shade, { opacity: 1, duration: 0.001 }, 0)
+        .to(el, { rotationY: -45, scaleX: 0.7, skewY: 18, autoAlpha: 0.7, filter: 'brightness(0.6)', duration: 0.22, ease: 'power1.in' })
+        .to(el, { rotationY: -15, scaleX: 0.9, skewY: 6, autoAlpha: 0.92, filter: 'brightness(0.85)', duration: 0.22, ease: 'power1.out' })
+        .to([el, shade], { rotationY: 0, scaleX: 1, skewY: 0, autoAlpha: 1, filter: 'brightness(1)', opacity: 0, duration: 0.26, ease: 'back.out(1.7)' })
         .set(el, { clearProps: 'transform,filter' });
     }
   }, [slide.id, effectiveTransition]);

@@ -401,6 +401,14 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     if (e.button !== 0) return;
     if (multiSelectRow(e, b.id)) return; // shift/cmd-click = select, not drag
     e.stopPropagation();
+    e.preventDefault();
+    // Without pointer capture, a trackpad drag that moves fast enough can be
+    // reinterpreted by the browser as a scroll/pan gesture partway through -
+    // it fires a pointercancel and the row silently stops following the
+    // cursor. Capturing the pointer on the row itself keeps every move/up
+    // event routed here regardless of what's under the cursor or how the
+    // browser wants to treat the gesture.
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     const sel = useProjectStore.getState().selection;
     const ids = selectedIds(sel).includes(b.id) ? selectedIds(sel) : [b.id];
     select({ blockId: b.id, blockIds: ids.filter((id) => id !== b.id) });

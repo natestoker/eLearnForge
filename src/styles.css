@@ -2135,8 +2135,11 @@ select.input { appearance: auto; }
   color: var(--text);
   font-family: var(--mono);
   font-size: 11px;
-  /* The whole row is a drag handle for restacking z-order. */
+  /* The whole row is a drag handle for restacking z-order. touch-action:
+     none stops the browser from claiming the gesture as a scroll/pan
+     before our own pointermove handler gets a chance to run it. */
   cursor: grab;
+  touch-action: none;
 }
 .timeline-header-row:active { cursor: grabbing; }
 .timeline-header-row .tl-row-actions button,
