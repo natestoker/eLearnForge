@@ -69,16 +69,16 @@ export function App() {
   }, [setPreviewOpen]);
 
   return (
-    <div className="app">
+    <div className="app bg-background text-on-surface font-body-sm overflow-hidden h-screen flex flex-col">
       <Ribbon saveState={saveState} />
-      <div className="workspace">
+      <div className="workspace flex-1 flex overflow-hidden">
         {collapsed.left ? (
           <button className="panel-rail left" onClick={() => toggleCollapsed('left')} title="Show slides & layers">
             <span className="rail-label">Slides / Layers</span>
           </button>
         ) : (
           <>
-            <aside className="sidebar-left" style={{ width: panelSizes.left }}>
+            <aside className="sidebar-left bg-surface-container-low border-r border-outline-variant" style={{ width: panelSizes.left }}>
               <button className="panel-collapse-btn" onClick={() => toggleCollapsed('left')} title="Hide this panel">{'\u2039'}</button>
               <SlidesPanel />
               <LayersPanel />
@@ -86,7 +86,7 @@ export function App() {
             <Splitter target="left" />
           </>
         )}
-        <main className="center">
+        <main className="center flex-1 bg-surface flex flex-col relative overflow-hidden technical-grid">
           <EditorCanvas />
           {!collapsed.timeline && <Splitter target="timeline" />}
           {collapsed.timeline ? (

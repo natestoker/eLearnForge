@@ -1,3 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass {
+    background: rgba(25, 27, 34, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .technical-grid {
+    background-image: radial-gradient(circle at 1px 1px, #3c4a41 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+}
+
 /* eLearnForge - editor chrome follows the house tool style:
    dark, JetBrains Mono, mint accent #3ddc97.
    The stage (learner-facing content) is a light surface with a neutral sans,

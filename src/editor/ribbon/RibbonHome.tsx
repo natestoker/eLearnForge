@@ -46,17 +46,17 @@ export function RibbonHome() {
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <button className="ribbon-btn" onClick={() => setActiveModal('player')}>
+          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('player')}>
             <Icon.settings />
-            <span>Player</span>
+            <span className="text-xs">Player</span>
           </button>
-          <button className="ribbon-btn" onClick={() => setActiveModal('resources')}>
+          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('resources')}>
             <Icon.document />
-            <span>Resources</span>
+            <span className="text-xs">Resources</span>
           </button>
-          <button className="ribbon-btn" onClick={() => setActiveModal('glossary')}>
+          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('glossary')}>
             <Icon.book />
-            <span>Glossary</span>
+            <span className="text-xs">Glossary</span>
           </button>
         </div>
         <span className="ribbon-group-title">Course Settings</span>
