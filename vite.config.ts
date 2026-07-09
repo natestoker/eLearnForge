@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { resolve } from 'path';
 import { existsSync, readFileSync } from 'fs';
-
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 // Single-file builds sidestep every server MIME-type quirk: all JS and CSS
 // are inlined, so index.html and player.html are fully self-contained.
 // The plugin supports one entry per build, so we build twice, switched by
@@ -35,6 +36,14 @@ function forgePlayerHtml(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [react(), viteSingleFile(), forgePlayerHtml()],
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        autoprefixer(),
+      ],
+    },
+  },
   build: {
     emptyOutDir: entry === 'player',
     rollupOptions: {

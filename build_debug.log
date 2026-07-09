@@ -1,0 +1,189 @@
+2026-07-09T04:29:56.148Z vite:config bundled config file loaded in 68.50ms
+2026-07-09T04:29:56.172Z vite:config using resolved config: {
+  base: './',
+  plugins: [
+    'vite:build-metadata',
+    'vite:watch-package-data',
+    'vite:pre-alias',
+    'alias',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'forge-player-html',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:build-html',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:force-systemjs-wrap-complete',
+    'commonjs',
+    'vite:data-uri',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'vite:singlefile',
+    'vite:build-import-analysis',
+    'vite:esbuild-transpile',
+    'vite:terser',
+    'vite:reporter',
+    'vite:load-fallback'
+  ],
+  build: {
+    target: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    cssTarget: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    outDir: 'dist',
+    assetsDir: '',
+    assetsInlineLimit: [Function (anonymous)],
+    cssCodeSplit: false,
+    sourcemap: false,
+    rollupOptions: {
+      input: 'C:\\Users\\nates\\.gemini\\antigravity\\worktrees\\eLearnForge\\frozen-cosmos-springs-18h20\\index.html',
+      external: [Array],
+      onwarn: [Function: onwarn],
+      output: [Object]
+    },
+    minify: 'esbuild',
+    terserOptions: {},
+    write: true,
+    emptyOutDir: false,
+    copyPublicDir: true,
+    manifest: false,
+    lib: false,
+    ssr: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 100000000,
+    watch: null,
+    commonjsOptions: { include: [Array], extensions: [Array] },
+    dynamicImportVarsOptions: { warnOnError: true, exclude: [Array] },
+    modulePreload: { polyfill: true },
+    cssMinify: true
+  },
+  esbuild: { jsxDev: false, jsx: 'automatic', jsxImportSource: undefined },
+  optimizeDeps: {
+    holdUntilCrawlEnd: true,
+    esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' },
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ]
+  },
+  resolve: {
+    mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+    conditions: [],
+    extensions: [
+      '.mjs',  '.js',
+      '.mts',  '.ts',
+      '.jsx',  '.tsx',
+      '.json'
+    ],
+    dedupe: [ 'react', 'react-dom' ],
+    preserveSymlinks: false,
+    alias: [ [Object], [Object] ]
+  },
+  configFile: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20/vite.config.ts',
+  configFileDependencies: [
+    'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20/vite.config.ts'
+  ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    build: {}
+  },
+  root: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20',
+  decodedBase: './',
+  rawBase: './',
+  publicDir: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20/public',
+  cacheDir: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20/node_modules/.vite',
+  command: 'build',
+  mode: 'production',
+  ssr: {
+    target: 'node',
+    optimizeDeps: { noDiscovery: true, esbuildOptions: [Object] }
+  },
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: true,
+  css: { lightningcss: undefined },
+  server: {
+    preTransformRequests: true,
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      allow: [Array],
+      deny: [Array],
+      cachedChecks: undefined
+    }
+  },
+  preview: {
+    port: undefined,
+    strictPort: undefined,
+    host: undefined,
+    allowedHosts: undefined,
+    https: undefined,
+    open: undefined,
+    proxy: undefined,
+    cors: undefined,
+    headers: undefined
+  },
+  envDir: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20',
+  env: { BASE_URL: './', MODE: 'production', DEV: false, PROD: true },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(1) {
+    'fnpd_C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20' => {
+      dir: 'C:/Users/nates/.gemini/antigravity/worktrees/eLearnForge/frozen-cosmos-springs-18h20',
+      data: [Object],
+      hasSideEffects: [Function: hasSideEffects],
+      webResolvedImports: {},
+      nodeResolvedImports: {},
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  createResolver: [Function: createResolver],
+  worker: { format: 'iife', plugins: '() => plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: { importGlobRestoreExtension: false, hmrPartialAccept: false },
+  webSocketToken: 'gFV0jWz8THpl',
+  additionalAllowedHosts: [],
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: getSortedPluginHooks]
+}
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 169 modules transformed.
+rendering chunks...
+[plugin vite:singlefile] 
+
+[plugin vite:singlefile] Inlining: index-CWlg2dLf.js
+[plugin vite:singlefile] Inlining: style-qFJOGLqM.css
+computing gzip size...
+[2mdist/[22m[32mindex.html  [39m[1m[2m1,257.21 kB[22m[1m[22m[2m │ gzip: 396.32 kB[22m
+[32m✓ built in 3.71s[39m
