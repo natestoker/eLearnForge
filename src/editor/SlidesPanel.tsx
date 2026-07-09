@@ -8,11 +8,11 @@ export function SlidesPanel() {
   const select = useProjectStore((s) => s.select);
   const addSlide = useProjectStore((s) => s.addSlide);
   const deleteSlide = useProjectStore((s) => s.deleteSlide);
-  const moveSlide = useProjectStore((s) => s.moveSlide);
   const saveSlideAsTemplate = useProjectStore((s) => s.saveSlideAsTemplate);
   const addSlideFromTemplate = useProjectStore((s) => s.addSlideFromTemplate);
   const deleteTemplate = useProjectStore((s) => s.deleteTemplate);
   const mutate = useProjectStore((s) => s.mutate);
+  const record = useProjectStore((s) => s.record);
 
   const saveTemplate = (slideId: string, fallback: string) => {
     const name = window.prompt('Template name', fallback);
@@ -21,6 +21,35 @@ export function SlidesPanel() {
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+
+  const startSlideDrag = (e: React.PointerEvent, id: string, startIdx: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const startY = e.clientY;
+    let cur = startIdx;
+    const ROW_H = 46; // Approximate height of a slide row
+    let recorded = false;
+    const onMove = (ev: PointerEvent) => {
+      const target = Math.max(0, Math.min(slides.length - 1, startIdx + Math.round((ev.clientY - startY) / ROW_H)));
+      if (target === cur) return;
+      if (!recorded) { record(); recorded = true; }
+      cur = target;
+      mutate((p) => {
+        const idx = p.slides.findIndex(s => s.id === id);
+        if (idx === -1) return;
+        const [s] = p.slides.splice(idx, 1);
+        p.slides.splice(target, 0, s);
+      }, false);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   return (
     <div className="panel">
@@ -39,7 +68,14 @@ export function SlidesPanel() {
                 select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: null })
               }
               onDoubleClick={() => { setRenamingId(slide.id); setDraft(slide.name); }}
+              onPointerDown={(e) => {
+                if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).tagName === 'INPUT') return;
+                startSlideDrag(e, slide.id, i);
+              }}
             >
+              <span className="tl-grip slide-grip" title="Drag to reorder slide">
+                {'\u22EE\u22EE'}
+              </span>
               <span className="slide-num">{i + 1}</span>
               {renamingId === slide.id ? (
                 <input
@@ -59,13 +95,8 @@ export function SlidesPanel() {
               ) : (
                 <span className="slide-name" title="Double-click to rename">{slide.name}</span>
               )}
-              <span className="slide-sub">{slide.layers.length} layer{slide.layers.length === 1 ? '' : 's'}</span>
               {active && (
                 <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-icon" title="Move up" disabled={i === 0}
-                    onClick={() => moveSlide(slide.id, -1)}>&uarr;</button>
-                  <button className="btn btn-ghost btn-icon" title="Move down" disabled={i === slides.length - 1}
-                    onClick={() => moveSlide(slide.id, 1)}>&darr;</button>
                   <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
                     onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
                   <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"

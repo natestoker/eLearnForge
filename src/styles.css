@@ -247,6 +247,72 @@ select.input { appearance: auto; }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab:hover { color: var(--text); }
 
+/* ---------- ribbon ---------- */
+
+.ribbon {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+}
+
+.ribbon-tabs {
+  display: flex;
+  gap: 16px;
+  padding: 0 16px;
+  background: #11151a;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.ribbon-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.ribbon-tab:hover { color: var(--text); }
+.ribbon-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.ribbon-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  min-height: 84px; /* to ensure it doesn't jump too much */
+}
+
+.ribbon-group {
+  display: flex;
+  gap: 12px;
+  padding-right: 16px;
+  border-right: 1px solid var(--border-soft);
+  height: 100%;
+}
+.ribbon-group:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.ribbon-group-title {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  text-align: center;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.ribbon-items {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* slides list */
 
 .slides-list { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
