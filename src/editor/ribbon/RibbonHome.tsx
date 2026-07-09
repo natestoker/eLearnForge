@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useProjectStore } from '../../state/projectStore';
 import { ColorInput, Field, SelectInput } from '../fields';
 import { PlayerSettingsSection, ResourcesEditor, GlossaryEditor } from '../GlobalSettings';
+import { Icon } from '../icons';
+import { Modal } from '../Modal';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -18,6 +21,7 @@ const TRANSITION_OPTIONS = [
 export function RibbonHome() {
   const mutate = useProjectStore((s) => s.mutate);
   const project = useProjectStore((s) => s.project);
+  const [activeModal, setActiveModal] = useState<'player' | 'resources' | 'glossary' | null>(null);
 
   return (
     <>
@@ -39,34 +43,40 @@ export function RibbonHome() {
         </div>
         <span className="ribbon-group-title">Course Theme</span>
       </div>
-      
-      {/* 
-        TODO STITCH:
-        The following groups (Player, Resources, Glossary) contain large legacy vertical components.
-        They currently take up a lot of horizontal space and disrupt the ribbon layout.
-        Please redesign these into modal popups, dialog boxes, or proper horizontal ribbon menus,
-        similar to advanced settings dialog launchers in PowerPoint. 
-      */}
+
       <div className="ribbon-group">
-        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
+        <div className="ribbon-items">
+          <button className="ribbon-btn" onClick={() => setActiveModal('player')}>
+            <Icon.settings />
+            <span>Player</span>
+          </button>
+          <button className="ribbon-btn" onClick={() => setActiveModal('resources')}>
+            <Icon.document />
+            <span>Resources</span>
+          </button>
+          <button className="ribbon-btn" onClick={() => setActiveModal('glossary')}>
+            <Icon.book />
+            <span>Glossary</span>
+          </button>
+        </div>
+        <span className="ribbon-group-title">Course Settings</span>
+      </div>
+
+      {activeModal === 'player' && (
+        <Modal title="Player Settings" onClose={() => setActiveModal(null)} width="500px">
           <PlayerSettingsSection />
-        </div>
-        <span className="ribbon-group-title">Player Settings</span>
-      </div>
-
-      <div className="ribbon-group">
-        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
-           <ResourcesEditor />
-        </div>
-        <span className="ribbon-group-title">Resources</span>
-      </div>
-
-      <div className="ribbon-group">
-        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
-           <GlossaryEditor />
-        </div>
-        <span className="ribbon-group-title">Glossary</span>
-      </div>
+        </Modal>
+      )}
+      {activeModal === 'resources' && (
+        <Modal title="Resources" onClose={() => setActiveModal(null)} width="600px">
+          <ResourcesEditor />
+        </Modal>
+      )}
+      {activeModal === 'glossary' && (
+        <Modal title="Glossary" onClose={() => setActiveModal(null)} width="600px">
+          <GlossaryEditor />
+        </Modal>
+      )}
     </>
   );
 }
