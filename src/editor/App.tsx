@@ -2,25 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { loadProject, restoreFileHandle, saveProject } from '../state/persistence';
-import { Toolbar } from './Toolbar';
+import { Ribbon } from './Ribbon';
 import { SlidesPanel } from './SlidesPanel';
 import { LayersPanel } from './LayersPanel';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
-import { PropertyPanel } from './PropertyPanel';
-import { TriggersPanel } from './TriggersPanel';
-import { AnimatePanel } from './AnimatePanel';
-import { EffectsPanel } from './EffectsPanel';
 import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
-import { VariablesPanel } from './VariablesPanel';
 import { Player } from '../runtime/Player';
 
 export function App() {
   const dirty = useProjectStore((s) => s.dirty);
-  const rightTab = useUiStore((s) => s.rightTab);
-  const setRightTab = useUiStore((s) => s.setRightTab);
   const previewOpen = useUiStore((s) => s.previewOpen);
   const previewStartSlideId = useUiStore((s) => s.previewStartSlideId);
   const panelSizes = useUiStore((s) => s.panelSizes);
@@ -77,7 +70,7 @@ export function App() {
 
   return (
     <div className="app">
-      <Toolbar saveState={saveState} />
+      <Ribbon saveState={saveState} />
       <div className="workspace">
         {collapsed.left ? (
           <button className="panel-rail left" onClick={() => toggleCollapsed('left')} title="Show slides & layers">
@@ -104,34 +97,6 @@ export function App() {
             <TimelinePanel maxHeight={panelSizes.timeline} onCollapse={() => toggleCollapsed('timeline')} />
           )}
         </main>
-        {collapsed.right ? (
-          <button className="panel-rail right" onClick={() => toggleCollapsed('right')} title="Show properties">
-            <span className="rail-label">Properties</span>
-          </button>
-        ) : (
-          <>
-            <Splitter target="right" />
-            <aside className="sidebar-right" style={{ width: panelSizes.right }}>
-              <nav className="tabs">
-                {(['properties', 'effects', 'animate', 'triggers', 'variables'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    className={`tab ${rightTab === tab ? 'active' : ''}`}
-                    onClick={() => setRightTab(tab)}
-                  >
-                    {tab === 'properties' ? 'Properties' : tab === 'effects' ? 'Effects' : tab === 'animate' ? 'Animate' : tab === 'triggers' ? 'Triggers' : 'Variables'}
-                  </button>
-                ))}
-                <button className="panel-collapse-btn right" onClick={() => toggleCollapsed('right')} title="Hide this panel">{'\u203A'}</button>
-              </nav>
-              {rightTab === 'properties' && <PropertyPanel />}
-              {rightTab === 'effects' && <EffectsPanel />}
-              {rightTab === 'animate' && <AnimatePanel />}
-              {rightTab === 'triggers' && <TriggersPanel />}
-              {rightTab === 'variables' && <VariablesPanel />}
-            </aside>
-          </>
-        )}
       </div>
 
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}

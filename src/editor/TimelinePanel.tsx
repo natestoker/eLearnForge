@@ -497,8 +497,6 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             </button>
             {/* Rows list top-most first (the lists are reversed), so index 0
                 is already frontmost - it can't come further forward. */}
-            <button className="tl-row-action-btn" title="Bring forward" disabled={idx <= 0} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'forward'); }}>{'\u25B2'}</button>
-            <button className="tl-row-action-btn" title="Send backward" disabled={idx >= layerBlocks.length - 1} onPointerDown={(e) => { e.stopPropagation(); moveBlockZ(b.id, 'backward'); }}>{'\u25BC'}</button>
           </div>
         </div>
         {b.type === 'group' && expandedGroups.has(b.id) && (

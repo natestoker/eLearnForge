@@ -3,11 +3,11 @@ import { create } from 'zustand';
 // Editor-only state. Deliberately separate from the project store: nothing in
 // here is part of the document, so it never touches undo history or saves.
 
-export type RightTab = 'properties' | 'effects' | 'animate' | 'triggers' | 'variables';
+export type RibbonTab = 'home' | 'slide' | 'insert' | 'format' | 'animations' | 'triggers' | 'variables';
 
 interface UiStore {
   hiddenLayerIds: Record<string, boolean>; // editor-only eye toggle
-  rightTab: RightTab;
+  ribbonTab: RibbonTab;
   snapEnabled: boolean;
   setSnapEnabled: (on: boolean) => void;
   timelineSnap: boolean;
@@ -23,7 +23,7 @@ interface UiStore {
   previewOpen: boolean;
   previewStartSlideId: string | null;
   toggleLayerHidden: (layerId: string) => void;
-  setRightTab: (tab: RightTab) => void;
+  setRibbonTab: (tab: RibbonTab) => void;
   setPreviewOpen: (open: boolean, startSlideId?: string | null) => void;
   // Editor timeline playhead (seconds). null = no scrub preview; the canvas
   // shows every block at rest. Transient, never saved.
@@ -33,7 +33,7 @@ interface UiStore {
 
 export const useUiStore = create<UiStore>((set) => ({
   hiddenLayerIds: {},
-  rightTab: 'properties',
+  ribbonTab: 'home',
   snapEnabled: true,
   timelineSnap: true,
   panelSizes: (() => {
@@ -50,7 +50,7 @@ export const useUiStore = create<UiStore>((set) => ({
     set((s) => ({
       hiddenLayerIds: { ...s.hiddenLayerIds, [layerId]: !s.hiddenLayerIds[layerId] }
     })),
-  setRightTab: (tab) => set({ rightTab: tab }),
+  setRibbonTab: (tab) => set({ ribbonTab: tab }),
   setSnapEnabled: (on) => set({ snapEnabled: on }),
   setTimelineSnap: (on) => set({ timelineSnap: on }),
   setPanelSize: (key, px) =>
