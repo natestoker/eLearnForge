@@ -632,7 +632,7 @@ function MultiPropertyPanel({ ids }: { ids: string[] }) {
 }
 
 // Course-level downloadable resources shown in the player's Resources panel.
-function ResourcesEditor() {
+export function ResourcesEditor() {
   const resources = useProjectStore((s) => s.project.resources) ?? [];
   const mutate = useProjectStore((s) => s.mutate);
   const add = () => mutate((p) => { p.resources = [...(p.resources ?? []), { id: uid('res'), title: 'New resource', url: '' }]; });
@@ -669,7 +669,7 @@ function ResourcesEditor() {
 }
 
 // Course-level glossary shown in the player's Glossary panel.
-function GlossaryEditor() {
+export function GlossaryEditor() {
   const glossary = useProjectStore((s) => s.project.glossary) ?? [];
   const mutate = useProjectStore((s) => s.mutate);
   const add = () => mutate((p) => { p.glossary = [...(p.glossary ?? []), { id: uid('gls'), term: 'Term', definition: '' }]; });
@@ -694,7 +694,7 @@ function GlossaryEditor() {
   );
 }
 
-function PlayerSettingsSection() {
+export function PlayerSettingsSection() {
   const mutate = useProjectStore((s) => s.mutate);
   const player = useProjectStore((s) => s.project.player) ?? defaultPlayerSettings();
   const setBtn = (key: 'next' | 'back' | 'submit', patch: Partial<{ show: boolean; label: string }>) =>

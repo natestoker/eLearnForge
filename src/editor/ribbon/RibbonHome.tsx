@@ -1,5 +1,6 @@
 import { useProjectStore } from '../../state/projectStore';
 import { ColorInput, Field, SelectInput } from '../fields';
+import { PlayerSettingsSection, ResourcesEditor, GlossaryEditor } from '../GlobalSettings';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -39,16 +40,32 @@ export function RibbonHome() {
         <span className="ribbon-group-title">Course Theme</span>
       </div>
       
-      {/* We can add Player Settings, Resources, and Glossary buttons here that open modals. 
-          Ribbons usually don't have massive scrolling lists inside them.
-          For now, just a placeholder or simple settings. */}
+      {/* 
+        TODO STITCH:
+        The following groups (Player, Resources, Glossary) contain large legacy vertical components.
+        They currently take up a lot of horizontal space and disrupt the ribbon layout.
+        Please redesign these into modal popups, dialog boxes, or proper horizontal ribbon menus,
+        similar to advanced settings dialog launchers in PowerPoint. 
+      */}
       <div className="ribbon-group">
-        <div className="ribbon-items">
-           <button className="btn" onClick={() => alert('Player settings modal coming soon')}>Player Settings</button>
-           <button className="btn" onClick={() => alert('Resources modal coming soon')}>Resources</button>
-           <button className="btn" onClick={() => alert('Glossary modal coming soon')}>Glossary</button>
+        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
+          <PlayerSettingsSection />
         </div>
-        <span className="ribbon-group-title">Global Settings</span>
+        <span className="ribbon-group-title">Player Settings</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
+           <ResourcesEditor />
+        </div>
+        <span className="ribbon-group-title">Resources</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', maxHeight: '120px' }}>
+           <GlossaryEditor />
+        </div>
+        <span className="ribbon-group-title">Glossary</span>
       </div>
     </>
   );
