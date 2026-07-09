@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lumina Forge | Animations</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Hanken+Grotesk:wght@500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#61f9b1",
+                    "inverse-primary": "#006c45",
+                    "on-tertiary-container": "#784300",
+                    "tertiary-container": "#ffb368",
+                    "surface-variant": "#353534",
+                    "on-secondary-fixed": "#00210c",
+                    "secondary-container": "#18a659",
+                    "on-secondary-container": "#003115",
+                    "surface-dim": "#131313",
+                    "secondary-fixed": "#7efba4",
+                    "surface-tint": "#42e09a",
+                    "on-primary-fixed": "#002112",
+                    "outline": "#859489",
+                    "on-tertiary-fixed-variant": "#6a3b00",
+                    "on-tertiary": "#4a2800",
+                    "surface-container-lowest": "#0e0e0e",
+                    "primary-fixed-dim": "#42e09a",
+                    "inverse-surface": "#e5e2e1",
+                    "tertiary-fixed": "#ffdcbf",
+                    "on-primary-container": "#005c3a",
+                    "error-container": "#93000a",
+                    "surface-container-low": "#1c1b1b",
+                    "primary-container": "#3ddc97",
+                    "on-secondary": "#00391a",
+                    "on-tertiary-fixed": "#2d1600",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#ffb873",
+                    "surface-container-highest": "#353534",
+                    "surface-container": "#201f1f",
+                    "on-secondary-fixed-variant": "#005228",
+                    "on-primary": "#003822",
+                    "outline-variant": "#3c4a41",
+                    "surface-container-high": "#2a2a2a",
+                    "primary-fixed": "#65fdb5",
+                    "background": "#131313",
+                    "on-background": "#e5e2e1",
+                    "on-primary-fixed-variant": "#005233",
+                    "surface": "#131313",
+                    "surface-bright": "#393939",
+                    "secondary": "#61de8a",
+                    "on-surface-variant": "#bbcabe",
+                    "on-error": "#690005",
+                    "secondary-fixed-dim": "#61de8a",
+                    "error": "#ffb4ab",
+                    "on-surface": "#e5e2e1",
+                    "inverse-on-surface": "#313030",
+                    "tertiary": "#ffd8b6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "stack-gap": "8px",
+                    "ribbon-height": "120px",
+                    "gutter": "1px",
+                    "sidebar-width": "260px",
+                    "unit": "4px",
+                    "panel-padding": "12px"
+            },
+            "fontFamily": {
+                    "body-sm": ["Inter"],
+                    "headline-sm": ["Hanken Grotesk"],
+                    "body-md": ["Inter"],
+                    "ribbon-tab": ["Hanken Grotesk"],
+                    "display-lg": ["Hanken Grotesk"],
+                    "label-code": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "body-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "ribbon-tab": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-code": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #131313; color: #e5e2e1; overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .ribbon-group-divider { width: 1px; height: 60px; background-color: #2d2d2d; margin: 0 12px; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .bezier-handle { width: 8px; height: 8px; background: #61f9b1; border: 1px solid #131313; cursor: grab; }
+        .timeline-track { background: repeating-linear-gradient(90deg, #252525, #252525 1px, transparent 1px, transparent 40px); }
+        .active-selection { outline: 2px solid #3ddc97; outline-offset: 2px; }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- TopNavBar (Shared Component) -->
+<header class="flex flex-col w-full bg-surface-container dark:bg-surface-container docked full-width top-0 h-[120px] border-b border-outline-variant flat no shadows">
+<!-- Top Title Bar -->
+<div class="flex items-center justify-between px-4 h-10 bg-surface-container-low">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary">Lumina Forge</span>
+<span class="text-on-surface-variant font-body-sm px-2 py-0.5 rounded bg-surface-container-highest">v2.4 Pro</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high transition-colors p-1 rounded">help</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high transition-colors p-1 rounded">settings</button>
+<div class="flex items-center gap-2 ml-4">
+<button class="px-4 py-1 text-on-surface border border-outline-variant rounded-sm font-body-sm hover:bg-surface-container-high transition-colors">Preview</button>
+<button class="px-4 py-1 bg-primary text-on-primary rounded-sm font-body-sm font-bold active:opacity-80 transition-all">Publish</button>
+</div>
+</div>
+</div>
+<!-- Ribbon Tabs & Shelf -->
+<div class="flex-1 flex flex-col">
+<nav class="flex items-center px-4 h-8 gap-6 overflow-x-auto scrollbar-hide">
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">Home</span>
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">Insert</span>
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">Slide</span>
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">Format</span>
+<span class="font-ribbon-tab text-ribbon-tab text-primary border-b-2 border-primary pb-1 cursor-pointer">Animations</span>
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">Triggers</span>
+<span class="font-ribbon-tab text-ribbon-tab text-on-surface-variant cursor-pointer hover:bg-surface-container-high transition-colors px-2 py-1">View</span>
+</nav>
+<!-- Animation Toolset Shelf -->
+<div class="flex items-center px-4 py-2 flex-1 gap-2 bg-surface-container">
+<!-- Group: Animation Gallery -->
+<div class="flex flex-col h-full justify-between items-center px-2 min-w-[340px]">
+<div class="flex gap-1">
+<div class="flex flex-col items-center gap-1 p-1 rounded border border-outline-variant bg-surface-container-highest cursor-pointer">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">blur_on</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Fade</span>
+</div>
+<div class="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-transparent">
+<span class="material-symbols-outlined text-on-surface-variant">flight_land</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Fly In</span>
+</div>
+<div class="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-transparent">
+<span class="material-symbols-outlined text-on-surface-variant">keyboard_double_arrow_up</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Float In</span>
+</div>
+<div class="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-transparent">
+<span class="material-symbols-outlined text-on-surface-variant">vertical_split</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Split</span>
+</div>
+<div class="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-transparent">
+<span class="material-symbols-outlined text-on-surface-variant">cleaning_services</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Wipe</span>
+</div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Animation Gallery</span>
+</div>
+<div class="ribbon-group-divider"></div>
+<!-- Group: Effect Options -->
+<div class="flex flex-col h-full justify-between items-center px-2">
+<button class="flex flex-col items-center gap-1 p-2 rounded hover:bg-surface-container-highest cursor-pointer border border-outline-variant h-14 justify-center">
+<span class="material-symbols-outlined text-on-surface">settings_voice</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Effect Options</span>
+</button>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Options</span>
+</div>
+<div class="ribbon-group-divider"></div>
+<!-- Group: Timing -->
+<div class="flex flex-col h-full justify-between items-center px-2 min-w-[280px]">
+<div class="grid grid-cols-2 gap-x-4 gap-y-1 w-full">
+<div class="flex items-center gap-2">
+<label class="font-label-code text-on-surface-variant">Start</label>
+<select class="bg-surface-container-lowest border border-outline-variant text-[11px] rounded px-1 py-0.5 focus:border-primary outline-none text-on-surface flex-1">
+<option>On Click</option>
+<option>With Previous</option>
+<option>After Previous</option>
+</select>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-code text-on-surface-variant">Delay</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-[11px] rounded px-1 py-0.5 focus:border-primary outline-none text-on-surface w-16 text-center" type="text" value="00.00"/>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-code text-on-surface-variant">Duration</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-[11px] rounded px-1 py-0.5 focus:border-primary outline-none text-on-surface w-16 text-center" type="text" value="00.50"/>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-code text-on-surface-variant">Repeat</label>
+<select class="bg-surface-container-lowest border border-outline-variant text-[11px] rounded px-1 py-0.5 focus:border-primary outline-none text-on-surface flex-1">
+<option>None</option>
+<option>2x</option>
+<option>Infinite</option>
+</select>
+</div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Timing</span>
+</div>
+<div class="ribbon-group-divider"></div>
+<!-- Group: Advanced -->
+<div class="flex flex-col h-full justify-between items-center px-2">
+<div class="flex gap-2">
+<button class="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface">brush</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Painter</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-1 rounded bg-secondary-container/20 border border-primary text-primary">
+<span class="material-symbols-outlined">view_sidebar</span>
+<span class="font-body-sm text-[10px] uppercase tracking-tighter">Pane</span>
+</button>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Advanced</span>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-1 flex overflow-hidden">
+<!-- SideNavBar (Shared Component - Left Slides) -->
+<aside class="w-sidebar-width flex flex-col h-full overflow-y-auto bg-surface-container-low border-r border-outline-variant transition-all duration-200">
+<div class="p-4 flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Slides</h2>
+<button class="p-1 hover:bg-surface-container-highest rounded transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">add</span>
+</button>
+</div>
+<div class="flex flex-col gap-3 px-3">
+<!-- Slide 1 -->
+<div class="flex flex-col gap-1 p-1 rounded border-l-2 border-primary bg-primary-container/10">
+<div class="aspect-video bg-surface-container-highest rounded overflow-hidden relative border border-outline-variant">
+<div class="bg-cover bg-center w-full h-full opacity-80" data-alt="A cinematic training slide showing a suspicious email inbox with glowing red warning icons. Professional dark corporate design with mint green accents, high contrast, minimalist typography, and sharp vector graphics. Technical and modern atmosphere." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAWIYIZxl5ca5pcRJpA148KVIdsXwvFv1Ggy6t6lpMCkfTrMZQDc2hZCtzWr-oc9CFz4Q9HLZIZUZx7M3xqq3LzNcJdVUmH5EKR8Uv6f-WLTc0F_IWUy37ucdNcC1Jcfo541cy-qXMCr1DJCeowiRm0CuX0hsitBs2rqMrM_7BjvIp_9OIVtyMRhEylYBgsG19bU7-BvKS_XifsvVd90sTYa_xxY_25BqqHclTBP13FB5i3Hb_FJb5gYg')"></div>
+<div class="absolute bottom-1 left-1 bg-background/80 text-[10px] px-1 rounded">1</div>
+</div>
+<span class="font-body-sm text-[11px] text-primary truncate">Phishing Awareness Intro</span>
+</div>
+<!-- Slide 2 -->
+<div class="flex flex-col gap-1 p-1 rounded hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<div class="aspect-video bg-surface-container-highest rounded overflow-hidden relative border border-outline-variant">
+<div class="bg-cover bg-center w-full h-full opacity-50 grayscale group-hover:grayscale-0 transition-all" data-alt="A clean infographic slide showing the structure of a malicious URL. Blue and dark charcoal aesthetic, with clear pointer lines and professional data visualization. Minimalist corporate styling, precise alignment, and subtle drop shadows." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCqnswyzCPyULww24_U5rxX_yXFsHN1Swex9dPSSa3JMHz4U1cnln6rUiSogTfK0cbDiAG1hu8RpdmeNb89DqXTA86x0hXLE_ERWx4rnfbLbNn89v23W4IE4bwtPdQcbhcVK5lzJKVsoccr24F4Wab7HWBFdG9MvlrbkPdvb0yLnEGYecIT-dRiAKYtXOsXNenk46uviTNMc5SPnh59Ptb0xyAVYij3WlefGGL-PO1dnMrDpUOsOnV7uQ')"></div>
+<div class="absolute bottom-1 left-1 bg-background/80 text-[10px] px-1 rounded">2</div>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant truncate">Identifying Red Flags</span>
+</div>
+<!-- Slide 3 -->
+<div class="flex flex-col gap-1 p-1 rounded hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<div class="aspect-video bg-surface-container-highest rounded overflow-hidden relative border border-outline-variant">
+<div class="bg-cover bg-center w-full h-full opacity-50 grayscale group-hover:grayscale-0 transition-all" data-alt="A quiz slide for a corporate training module with multiple choice options. Modern dark mode UI, mint green buttons, and sleek typography. Professional technical design for an e-learning platform." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCsPqPC_x5L8CQuv8P4GZB1iU7ddHj2FFUET6oxwfAPWKKIbQFKiI18fLLoXyCy4rVHum0znmuDLwBSmpV8v7zWnrdUA6xSJ7GlGrQwwyB-YEJ4zte_X1RjPS71iuQQ0RJ1a4_rA34K5k2AnSyqf1yCWysgwnz9Fdnm4QgY5LADyatfEKVh5lCf6gfD2-ua7VbUgQV1VofhA3BD5p73iiugRr_eki4uYK8_1sIP7jcOubInByHc_yIsJA')"></div>
+<div class="absolute bottom-1 left-1 bg-background/80 text-[10px] px-1 rounded">3</div>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant truncate">Knowledge Check</span>
+</div>
+</div>
+</aside>
+<!-- Central Workspace (The Stage) -->
+<section class="flex-1 flex flex-col bg-surface-container-lowest relative overflow-hidden">
+<!-- Canvas Toolbar -->
+<div class="flex items-center justify-between px-4 h-10 bg-surface-container/50 border-b border-outline-variant/30">
+<div class="flex items-center gap-4">
+<span class="text-[11px] font-label-code text-on-surface-variant">Zoom: 85%</span>
+<div class="flex items-center gap-1">
+<button class="p-1 hover:bg-surface-container-highest rounded"><span class="material-symbols-outlined text-[18px]">grid_on</span></button>
+<button class="p-1 hover:bg-surface-container-highest rounded"><span class="material-symbols-outlined text-[18px]">straighten</span></button>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1 px-3 py-1 bg-surface-container-highest border border-outline-variant rounded-sm text-[11px] hover:bg-surface-bright">
+<span class="material-symbols-outlined text-[14px]">play_arrow</span> Play from Slide
+                    </button>
+</div>
+</div>
+<!-- Stage Container -->
+<div class="flex-1 flex items-center justify-center p-12 bg-surface-dim overflow-auto relative">
+<!-- The Slide Canvas -->
+<div class="aspect-video w-full max-w-[900px] bg-background border border-outline shadow-2xl relative flex flex-col items-center justify-center overflow-hidden">
+<!-- Slide Content -->
+<div class="absolute top-12 left-12">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight">Phishing Awareness</h1>
+<p class="font-body-md text-on-surface-variant max-w-md mt-4">Module 1: Detecting deceptive digital signatures and social engineering tactics in enterprise communications.</p>
+</div>
+<!-- Selected Image Element -->
+<div class="w-64 h-64 relative active-selection animate-pulse-slow">
+<img class="w-full h-full object-cover" data-alt="A 3D stylized illustration of a computer security lock being intercepted by a digital fishing hook. Glowing neon green and deep charcoal colors, high-end octane render, smooth surfaces, and dramatic volumetric lighting. Professional cybersecurity concept art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSKHKK3WinzBiR91TZPqN7HVAdK6qmFOtsqBPtN1UV4u1nnq_ci61N3S4VGN4k30zJxl9ttz_dvoLcu0SQPf_0hljd7gBF3y4gS6Nc0Fydqr0CasDXTvl9NQQfmsaDyx75u_N273NywStBhS6XjPXmNguhBBLLo-ZeU3j8ZK-hkP69FiiDmGOrTOa1eNLfshwemDzYQ2vwQoYWHPdTmzelLoisJHpxhyyelMyIAUZPU724UWSdtmntQg"/>
+<!-- Selection Handles -->
+<div class="absolute -top-1 -left-1 w-2 h-2 bg-primary"></div>
+<div class="absolute -top-1 -right-1 w-2 h-2 bg-primary"></div>
+<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-primary"></div>
+<div class="absolute -bottom-1 -right-1 w-2 h-2 bg-primary"></div>
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 w-4 h-4 border border-primary rounded-full flex items-center justify-center bg-background">
+<span class="material-symbols-outlined text-[10px] text-primary">rotate_right</span>
+</div>
+</div>
+<!-- Animation Paths Overlay (Visualizing the Motion) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" viewbox="0 0 900 506">
+<path d="M 450 253 Q 600 100 750 253" fill="none" stroke="#61f9b1" stroke-dasharray="8,4" stroke-width="2"></path>
+<circle cx="750" cy="253" fill="#61f9b1" r="4"></circle>
+</svg>
+<!-- Animation Properties Pop-up (Bezier Editor) -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] bg-surface-container shadow-2xl border border-primary/40 rounded-lg p-4 z-50 animate-in fade-in zoom-in duration-300">
+<div class="flex items-center justify-between mb-4 border-b border-outline-variant pb-2">
+<h3 class="font-headline-sm text-[14px] flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">gesture</span>
+                                Custom Path Editor
+                            </h3>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">close</button>
+</div>
+<!-- Graph Editor -->
+<div class="h-48 bg-surface-container-lowest border border-outline-variant rounded relative overflow-hidden mb-4">
+<div class="absolute inset-0 timeline-track opacity-10"></div>
+<!-- Bezier Curve Visualization -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M 0 100 C 20 100 40 0 100 0" fill="none" stroke="#61f9b1" stroke-width="2"></path>
+</svg>
+<!-- Handles -->
+<div class="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 bezier-handle"></div>
+<div class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 bezier-handle"></div>
+<div class="absolute bottom-[20%] left-[30%] bezier-handle opacity-50"></div>
+<div class="absolute top-[20%] right-[30%] bezier-handle opacity-50"></div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<label class="font-label-code text-[10px] text-on-surface-variant uppercase">Easing</label>
+<select class="bg-surface-container-highest border border-outline-variant text-[11px] rounded px-2 py-1 outline-none text-on-surface">
+<option>Ease In Out (Cubic)</option>
+<option>Linear</option>
+<option>Elastic Bounce</option>
+<option>Custom Bezier</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-code text-[10px] text-on-surface-variant uppercase">Path Type</label>
+<div class="flex gap-1">
+<button class="flex-1 bg-primary text-on-primary text-[10px] py-1 rounded-sm">Curved</button>
+<button class="flex-1 bg-surface-container-highest border border-outline-variant text-[10px] py-1 rounded-sm">Angular</button>
+</div>
+</div>
+</div>
+<div class="mt-6 flex justify-end gap-2">
+<button class="px-3 py-1.5 text-[11px] text-on-surface-variant hover:bg-surface-container-high rounded transition-colors">Discard</button>
+<button class="px-4 py-1.5 text-[11px] bg-primary text-on-primary font-bold rounded">Apply Motion</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Timeline (Audio & Animations) -->
+<div class="h-48 bg-surface-container border-t border-outline-variant flex flex-col">
+<!-- Timeline Headers -->
+<div class="flex items-center px-4 h-8 bg-surface-container-high/50 border-b border-outline-variant/30 text-[10px] font-label-code text-on-surface-variant uppercase">
+<div class="w-sidebar-width shrink-0 border-r border-outline-variant/30 pr-4">Layers &amp; Elements</div>
+<div class="flex-1 flex px-4 justify-between">
+<span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span><span>00:20</span>
+</div>
+</div>
+<!-- Timeline Tracks -->
+<div class="flex-1 overflow-y-auto scrollbar-hide">
+<!-- Layer 1: Headline Animation -->
+<div class="flex items-center px-4 h-8 border-b border-outline-variant/10 group hover:bg-surface-container-high transition-colors">
+<div class="w-sidebar-width shrink-0 flex items-center gap-2 pr-4 border-r border-outline-variant/30">
+<span class="material-symbols-outlined text-[14px]">text_fields</span>
+<span class="font-body-sm text-[11px] truncate">Slide Title: Phishing Awareness</span>
+</div>
+<div class="flex-1 relative timeline-track h-full">
+<div class="absolute left-4 top-1.5 h-5 w-48 bg-primary/40 border border-primary/60 rounded-sm flex items-center px-2">
+<span class="text-[9px] font-bold text-primary">FADE IN</span>
+</div>
+</div>
+</div>
+<!-- Layer 2: Main Image Animation -->
+<div class="flex items-center px-4 h-8 border-b border-outline-variant/10 bg-primary-container/5 group hover:bg-surface-container-high transition-colors">
+<div class="w-sidebar-width shrink-0 flex items-center gap-2 pr-4 border-r border-outline-variant/30">
+<span class="material-symbols-outlined text-[14px] text-primary">image</span>
+<span class="font-body-sm text-[11px] text-primary truncate">SVG: Lock &amp; Hook Illustration</span>
+</div>
+<div class="flex-1 relative timeline-track h-full">
+<div class="absolute left-56 top-1.5 h-5 w-64 bg-primary border border-primary rounded-sm flex items-center px-2">
+<span class="text-[9px] font-bold text-on-primary">CUSTOM MOTION PATH</span>
+</div>
+</div>
+</div>
+<!-- Layer 3: Audio Voiceover -->
+<div class="flex items-center px-4 h-12 border-b border-outline-variant/10 group hover:bg-surface-container-high transition-colors">
+<div class="w-sidebar-width shrink-0 flex items-center gap-2 pr-4 border-r border-outline-variant/30">
+<span class="material-symbols-outlined text-[14px]">mic</span>
+<span class="font-body-sm text-[11px] truncate">Audio: Narrator_Intro.mp3</span>
+</div>
+<div class="flex-1 relative bg-surface-container-lowest/30 h-full flex items-center">
+<!-- Mock Waveform -->
+<div class="w-full h-6 flex items-center gap-[1px] px-4 opacity-40">
+<div class="w-1 bg-on-tertiary-container h-2"></div><div class="w-1 bg-on-tertiary-container h-4"></div>
+<div class="w-1 bg-on-tertiary-container h-5"></div><div class="w-1 bg-on-tertiary-container h-3"></div>
+<div class="w-1 bg-on-tertiary-container h-6"></div><div class="w-1 bg-on-tertiary-container h-4"></div>
+<div class="w-1 bg-on-tertiary-container h-5"></div><div class="w-1 bg-on-tertiary-container h-3"></div>
+<div class="w-1 bg-on-tertiary-container h-2"></div><div class="w-1 bg-on-tertiary-container h-5"></div>
+<div class="w-1 bg-on-tertiary-container h-7"></div><div class="w-1 bg-on-tertiary-container h-4"></div>
+<div class="w-1 bg-on-tertiary-container h-5"></div><div class="w-1 bg-on-tertiary-container h-3"></div>
+<div class="w-1 bg-on-tertiary-container h-6"></div><div class="w-1 bg-on-tertiary-container h-4"></div>
+<div class="w-1 bg-on-tertiary-container h-5"></div><div class="w-1 bg-on-tertiary-container h-3"></div>
+<div class="w-1 bg-on-tertiary-container h-2"></div><div class="w-1 bg-on-tertiary-container h-5"></div>
+<div class="w-1 bg-on-tertiary-container h-7"></div><div class="w-1 bg-on-tertiary-container h-4"></div>
+<div class="w-1 bg-on-tertiary-container h-5"></div><div class="w-1 bg-on-tertiary-container h-3"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeline Controls -->
+<div class="h-8 bg-surface-container-high border-t border-outline-variant flex items-center justify-between px-4">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[20px] text-on-surface-variant hover:text-primary">skip_previous</button>
+<button class="material-symbols-outlined text-[24px] text-primary">play_circle</button>
+<button class="material-symbols-outlined text-[20px] text-on-surface-variant hover:text-primary">skip_next</button>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">volume_up</span>
+<div class="w-24 h-1 bg-outline-variant rounded-full overflow-hidden">
+<div class="w-3/4 h-full bg-primary"></div>
+</div>
+</div>
+<span class="font-label-code text-[11px] text-primary">00:02.15 / 00:45.00</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Properties Panel (Right) -->
+<aside class="w-sidebar-width bg-surface-container-low border-l border-outline-variant flex flex-col h-full overflow-hidden">
+<div class="p-4 border-b border-outline-variant">
+<h2 class="font-headline-sm text-[14px] flex items-center justify-between">
+                    Animation Properties
+                    <span class="material-symbols-outlined text-on-surface-variant text-[18px]">info</span>
+</h2>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+<!-- Selection Header -->
+<div class="flex items-center gap-3 p-2 bg-surface-container-highest/50 rounded-sm">
+<div class="w-10 h-10 bg-surface-dim border border-outline-variant flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-primary text-[20px]">gesture</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm font-bold text-on-surface">Path 1</span>
+<span class="text-[10px] text-on-surface-variant uppercase">Custom Motion</span>
+</div>
+</div>
+<!-- Transform Properties -->
+<div class="flex flex-col gap-3">
+<h4 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Coordinates</h4>
+<div class="grid grid-cols-2 gap-2">
+<div class="bg-surface-container-lowest border border-outline-variant p-2 rounded flex flex-col gap-1">
+<label class="text-[9px] text-on-surface-variant">Start X</label>
+<input class="bg-transparent border-none text-[12px] p-0 focus:ring-0 outline-none w-full" type="text" value="450px"/>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-2 rounded flex flex-col gap-1">
+<label class="text-[9px] text-on-surface-variant">Start Y</label>
+<input class="bg-transparent border-none text-[12px] p-0 focus:ring-0 outline-none w-full" type="text" value="253px"/>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-2 rounded flex flex-col gap-1">
+<label class="text-[9px] text-on-surface-variant">End X</label>
+<input class="bg-transparent border-none text-[12px] p-0 focus:ring-0 outline-none w-full" type="text" value="750px"/>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-2 rounded flex flex-col gap-1">
+<label class="text-[9px] text-on-surface-variant">End Y</label>
+<input class="bg-transparent border-none text-[12px] p-0 focus:ring-0 outline-none w-full" type="text" value="253px"/>
+</div>
+</div>
+</div>
+<!-- Path Logic -->
+<div class="flex flex-col gap-3">
+<h4 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Path Interaction</h4>
+<div class="flex flex-col gap-2">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-surface-container-lowest" type="checkbox"/>
+<span class="text-[11px] text-on-surface group-hover:text-primary transition-colors">Orient to path</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-surface-container-lowest" type="checkbox"/>
+<span class="text-[11px] text-on-surface group-hover:text-primary transition-colors">Smooth start/end</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-surface-container-lowest" type="checkbox"/>
+<span class="text-[11px] text-on-surface group-hover:text-primary transition-colors">Auto-reverse</span>
+</label>
+</div>
+</div>
+<!-- Layer Order -->
+<div class="flex flex-col gap-3">
+<h4 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Z-Index Control</h4>
+<div class="flex items-center gap-2">
+<button class="flex-1 py-1.5 border border-outline-variant hover:bg-surface-container-high rounded text-[11px]">Bring Fwd</button>
+<button class="flex-1 py-1.5 border border-outline-variant hover:bg-surface-container-high rounded text-[11px]">Send Bwd</button>
+</div>
+</div>
+</div>
+<!-- Panel Footer Info -->
+<div class="p-4 bg-surface-container-high border-t border-outline-variant">
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span>Selected: Lock_SVG</span>
+<span class="text-primary font-bold">2 Keyframes</span>
+</div>
+</div>
+</aside>
+</main>
+<!-- Footer Stats -->
+<footer class="h-6 bg-surface-container-highest flex items-center px-4 justify-between border-t border-outline-variant z-10">
+<div class="flex items-center gap-4 text-[10px] text-on-surface-variant font-label-code">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> System Ready</span>
+<span>Slide 1 of 12</span>
+<span>Project: Phishing_Awareness_V1</span>
+</div>
+<div class="flex items-center gap-4 text-[10px] text-on-surface-variant font-label-code">
+<span>60 FPS Render</span>
+<span>Auto-save: 2 min ago</span>
+</div>
+</footer>
+<script>
+        // Simple micro-interactions for the Bezier Handles
+        const handles = document.querySelectorAll('.bezier-handle');
+        handles.forEach(handle => {
+            handle.addEventListener('mousedown', (e) => {
+                handle.classList.add('scale-125');
+                handle.style.backgroundColor = '#ffffff';
+                
+                const moveHandler = (moveEvent) => {
+                    // Logic would go here to update the SVG path
+                };
+                
+                const upHandler = () => {
+                    handle.classList.remove('scale-125');
+                    handle.style.backgroundColor = '#61f9b1';
+                    window.removeEventListener('mousemove', moveHandler);
+                    window.removeEventListener('mouseup', upHandler);
+                };
+                
+                window.addEventListener('mousemove', moveHandler);
+                window.addEventListener('mouseup', upHandler);
+            });
+        });
+
+        // Toggle Animation Pane Highlight
+        const paneBtn = document.querySelector('.bg-secondary-container\\/20');
+        paneBtn.addEventListener('click', () => {
+            const sidebar = document.querySelector('aside:last-of-type');
+            sidebar.classList.toggle('opacity-50');
+            setTimeout(() => sidebar.classList.toggle('opacity-50'), 300);
+        });
+    </script>
+</body></html>
