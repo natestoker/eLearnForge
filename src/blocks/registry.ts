@@ -54,6 +54,18 @@ import { DragDropRuntime } from './dragDrop/Runtime';
 import { TabsCanvas } from './tabs/Canvas';
 import { TabsProperties } from './tabs/Properties';
 import { TabsRuntime } from './tabs/Runtime';
+import { FlashcardsCanvas } from './flashcards/Canvas';
+import { FlashcardsProperties } from './flashcards/Properties';
+import { FlashcardsRuntime } from './flashcards/Runtime';
+import { SequenceCanvas } from './sequence/Canvas';
+import { SequenceProperties } from './sequence/Properties';
+import { SequenceRuntime } from './sequence/Runtime';
+import { SliderCanvas } from './slider/Canvas';
+import { SliderProperties } from './slider/Properties';
+import { SliderRuntime } from './slider/Runtime';
+import { ChecklistCanvas } from './checklist/Canvas';
+import { ChecklistProperties } from './checklist/Properties';
+import { ChecklistRuntime } from './checklist/Runtime';
 
 export const BLOCKS: Record<BlockType, BlockDefinition> = {
   text: {
@@ -101,7 +113,11 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
   progress: { type: 'progress', label: 'Progress bar', glyph: '\u2593', Canvas: ProgressCanvas, Properties: ProgressProperties, Runtime: ProgressRuntime },
   timer: { type: 'timer', label: 'Timer', glyph: '\u23f1', Canvas: TimerCanvas, Properties: TimerProperties, Runtime: TimerRuntime },
   dragDrop: { type: 'dragDrop', label: 'Drag and drop', glyph: 'DND', Canvas: DragDropCanvas, Properties: DragDropProperties, Runtime: DragDropRuntime },
-  tabs: { type: 'tabs', label: 'Tabs / accordion', glyph: '⊟', Canvas: TabsCanvas, Properties: TabsProperties, Runtime: TabsRuntime }
+  tabs: { type: 'tabs', label: 'Tabs / accordion', glyph: '⊟', Canvas: TabsCanvas, Properties: TabsProperties, Runtime: TabsRuntime },
+  flashcards: { type: 'flashcards', label: 'Flashcards', glyph: 'FC', Canvas: FlashcardsCanvas, Properties: FlashcardsProperties, Runtime: FlashcardsRuntime },
+  sequence: { type: 'sequence', label: 'Sequence', glyph: '123', Canvas: SequenceCanvas, Properties: SequenceProperties, Runtime: SequenceRuntime },
+  slider: { type: 'slider', label: 'Slider', glyph: 'SLD', Canvas: SliderCanvas, Properties: SliderProperties, Runtime: SliderRuntime },
+  checklist: { type: 'checklist', label: 'Checklist', glyph: 'CL', Canvas: ChecklistCanvas, Properties: ChecklistProperties, Runtime: ChecklistRuntime }
 };
 
 export const BLOCK_TYPES = Object.keys(BLOCKS) as BlockType[];

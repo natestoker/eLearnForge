@@ -96,7 +96,11 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   progress: { w: 360, h: 48 },
   timer: { w: 200, h: 80 },
   dragDrop: { w: 600, h: 380 },
-  tabs: { w: 520, h: 300 }
+  tabs: { w: 520, h: 300 },
+  flashcards: { w: 560, h: 320 },
+  sequence: { w: 480, h: 380 },
+  slider: { w: 420, h: 90 },
+  checklist: { w: 400, h: 280 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -197,6 +201,38 @@ export function defaultProps(type: BlockType): BlockProps {
         feedbackIncorrect: 'Some items are in the wrong group - try again.'
       };
     }
+    case 'flashcards':
+      return {
+        columns: 3,
+        cards: [
+          { id: uid('fc'), front: 'Term one', back: 'Definition of term one.' },
+          { id: uid('fc'), front: 'Term two', back: 'Definition of term two.' },
+          { id: uid('fc'), front: 'Term three', back: 'Definition of term three.' }
+        ]
+      };
+    case 'sequence':
+      return {
+        question: 'Put the steps in the correct order.',
+        items: [
+          { id: uid('seq'), text: 'First step' },
+          { id: uid('seq'), text: 'Second step' },
+          { id: uid('seq'), text: 'Third step' },
+          { id: uid('seq'), text: 'Fourth step' }
+        ],
+        feedbackCorrect: 'Perfect order!',
+        feedbackIncorrect: 'Not quite - check the order and try again.'
+      };
+    case 'slider':
+      return { label: 'How confident are you?', min: 0, max: 10, step: 1, defaultValue: 5, showValue: true };
+    case 'checklist':
+      return {
+        title: 'Before you continue',
+        items: [
+          { id: uid('cl'), text: 'I read the material' },
+          { id: uid('cl'), text: 'I tried the example' },
+          { id: uid('cl'), text: 'I know where to get help' }
+        ]
+      };
     case 'tabs':
       return {
         layout: 'tabs',
@@ -222,6 +258,19 @@ export function dragDropVariableName(blockId: string): string {
 
 export function mcVariableName(blockId: string): string {
   return `mc_${blockId}_correct`;
+}
+
+export function flashcardsDoneVariableName(blockId: string): string {
+  return `fc_${blockId}_done`;
+}
+export function sequenceVariableName(blockId: string): string {
+  return `seq_${blockId}_correct`;
+}
+export function sliderVariableName(blockId: string): string {
+  return `slider_${blockId}_value`;
+}
+export function checklistDoneVariableName(blockId: string): string {
+  return `cl_${blockId}_done`;
 }
 
 export function createBlock(type: BlockType, x: number, y: number): Block {

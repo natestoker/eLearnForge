@@ -6,7 +6,8 @@ export type BlockType =
   | 'text' | 'image' | 'statement' | 'multipleChoice'
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
   | 'code' | 'matching' | 'group'
-  | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs';
+  | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs'
+  | 'flashcards' | 'sequence' | 'slider' | 'checklist';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -242,12 +243,52 @@ export interface TabsProps {
   fontSize: number;
 }
 
+// Flashcards: a grid of flip cards (Rise-style). Flipping every card once
+// sets fc_{blockId}_done so triggers can gate progress on it.
+export interface Flashcard { id: string; front: string; back: string }
+export interface FlashcardsProps {
+  cards: Flashcard[];
+  columns: number; // grid columns; rows follow from the card count
+  accent?: string; // card back color; absent = theme mint
+}
+
+// Sequence: put the steps in order. Items are STORED in the correct order;
+// the runtime shuffles them for the learner. Scored on Check into
+// seq_{blockId}_correct.
+export interface SequenceItem { id: string; text: string }
+export interface SequenceProps {
+  question: string;
+  items: SequenceItem[];
+  feedbackCorrect: string;
+  feedbackIncorrect: string;
+}
+
+// Slider: a labeled range input. Every change writes the number variable
+// slider_{blockId}_value, so triggers can react with gt/lt/between.
+export interface SliderProps {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+  showValue: boolean;
+}
+
+// Checklist: tick items off; all checked sets cl_{blockId}_done (and
+// unchecking clears it), the classic "confirm the steps" gate.
+export interface ChecklistItem { id: string; text: string }
+export interface ChecklistProps {
+  title: string;
+  items: ChecklistItem[];
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps
-  | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps;
+  | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps
+  | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -

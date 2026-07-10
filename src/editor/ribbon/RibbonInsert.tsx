@@ -44,7 +44,11 @@ const ICONS: Record<string, JSX.Element> = {
   code: <Ic d="M9 8l-4 4 4 4M15 8l4 4-4 4" />,
   line: <Ic d="M4 18L20 6" />,
   arrow: <Ic d="M4 18L18 7M18 12V7h-5" />,
-  pen: <Ic d="M14.5 5.5l4 4L8 20l-4.8 1 1-4.8zM12.5 7.5l4 4" />
+  pen: <Ic d="M14.5 5.5l4 4L8 20l-4.8 1 1-4.8zM12.5 7.5l4 4" />,
+  flashcards: <Ic d="M7 7.5h13v11H7zM7 7.5L4 6v11l3 1.5M11 12.5h5" />,
+  sequence: <Ic d="M5 6.5h2M10 6.5h9M5 12h2M10 12h9M5 17.5h2M10 17.5h9" />,
+  slider: <Ic d="M4 12h16M9.5 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 8.5v7M20 8.5v7" />,
+  checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />
 };
 
 function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
@@ -169,6 +173,8 @@ export function RibbonInsert() {
             <MBtn icon="matching" label="Match" onClick={() => addBlock('matching')} />
             <MBtn icon="fillBlank" label="Fill Blank" onClick={() => addBlock('fillBlank')} />
             <MBtn icon="dragDrop" label="Drag & Drop" onClick={() => addBlock('dragDrop')} />
+            <MBtn icon="flashcards" label="Flashcards" onClick={() => addBlock('flashcards')} />
+            <MBtn icon="sequence" label="Sequence" onClick={() => addBlock('sequence')} />
           </div>
         </div>
         <span className="ribbon-group-title">Interactive</span>
@@ -182,6 +188,8 @@ export function RibbonInsert() {
             <MBtn icon="progress" label="Progress" onClick={() => addBlock('progress')} />
             <MBtn icon="timer" label="Timer" onClick={() => addBlock('timer')} />
             <MBtn icon="code" label="Code" onClick={() => addBlock('code')} />
+            <MBtn icon="slider" label="Slider" onClick={() => addBlock('slider')} />
+            <MBtn icon="checklist" label="Checklist" onClick={() => addBlock('checklist')} />
           </div>
         </div>
         <span className="ribbon-group-title">Widgets</span>
