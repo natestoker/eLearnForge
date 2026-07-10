@@ -7,6 +7,7 @@ import { SlidesPanel } from './SlidesPanel';
 import { LayersPanel } from './LayersPanel';
 import { TriggersPanel } from './TriggersPanel';
 import { VariablesPanel } from './VariablesPanel';
+import { BlockPanel } from './BlockPanel';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
@@ -103,11 +104,16 @@ export function App() {
             <TimelinePanel maxHeight={panelSizes.timeline} onCollapse={() => toggleCollapsed('timeline')} />
           )}
         </main>
-        {rightPanel && (
+        {collapsed.right ? (
+          <button className="panel-rail right" onClick={() => toggleCollapsed('right')} title="Show the block panel">
+            <span className="rail-label">Block / Triggers</span>
+          </button>
+        ) : (
           <>
             <Splitter target="right" />
             <aside className="sidebar-right bg-surface-container-low border-l border-outline-variant" style={{ width: panelSizes.right }}>
-              {rightPanel === 'triggers' ? <TriggersPanel /> : <VariablesPanel />}
+              <button className="panel-collapse-btn right" onClick={() => toggleCollapsed('right')} title="Hide this panel">{'›'}</button>
+              {rightPanel === 'triggers' ? <TriggersPanel /> : rightPanel === 'variables' ? <VariablesPanel /> : <BlockPanel />}
             </aside>
           </>
         )}

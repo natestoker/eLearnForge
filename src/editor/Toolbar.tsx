@@ -3,9 +3,6 @@ import type { ReactNode } from 'react';
 import { Icon } from './icons';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
-import { BLOCKS } from '../blocks/registry';
-import type { Block, BlockType, ShapeProps } from '../schema/types';
-import { ShapePicker } from '../blocks/shape/ShapePicker';
 import {
   chooseProjectFolder, exportProjectJson, exportProjectJsonAs, folderModeAvailable,
   importProjectJson, importProjectJsonWithPicker, resetFileHandle
@@ -18,18 +15,6 @@ import { importPptx } from '../publish/pptxImport';
 // actions (Insert, Undo/Redo); everything project-level lives in two menus -
 // File (open/save/import) and Run (preview/publish/export) - so new targets
 // can be added without widening the bar.
-
-// Insert is organized by category. Shapes render as a visual grid (recognize,
-// don't recall); the other categories are short labeled lists. Adding a new
-// insertable means adding one entry here - the menu scales, the toolbar
-// doesn't grow.
-const INSERT_CATEGORIES: { id: string; label: string; types?: BlockType[] }[] = [
-  { id: 'shapes', label: 'Shapes' }, // rendered as the ShapePicker grid
-  { id: 'text', label: 'Text', types: ['text', 'textEntry'] },
-  { id: 'media', label: 'Media', types: ['image', 'video', 'audio'] },
-  { id: 'interactive', label: 'Interactive', types: ['button', 'hotspot', 'multipleChoice', 'matching', 'fillBlank', 'dragDrop', 'tabs', 'statement'] },
-  { id: 'widgets', label: 'Widgets', types: ['progress', 'timer', 'code'] }
-];
 
 // The one dropdown pattern for every toolbar menu: opens on click, closes on
 // outside click, Escape, or item selection (items call close()).
@@ -72,87 +57,6 @@ function ToolbarMenu({ label, title, accent, align = 'left', menuClass, children
           {children(() => setOpen(false))}
         </div>
       )}
-    </div>
-  );
-}
-
-// A straight connector: a shape block in line mode. Arrows are the same
-// block with a PowerPoint-style triangle on the end.
-function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
-  addBlock('shape', (b) => {
-    const p = b.props as ShapeProps;
-    p.isLine = true;
-    p.points = '0,50 100,50';
-    p.fill = 'transparent';
-    p.borderWidth = 3;
-    if (withArrow) p.lineEnd = { type: 'triangle', size: 'md' };
-    b.w = 260;
-    b.h = 40;
-  });
-}
-
-function InsertMenu({ close }: { close: () => void }) {
-  const addBlock = useProjectStore((s) => s.addBlock);
-  const [catId, setCatId] = useState(INSERT_CATEGORIES[0].id);
-  const cat = INSERT_CATEGORIES.find((c) => c.id === catId) ?? INSERT_CATEGORIES[0];
-  return (
-    <div className="insert-menu">
-      <div className="insert-cats">
-        {INSERT_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            className={`menu-item ${c.id === catId ? 'active' : ''}`}
-            onPointerEnter={() => setCatId(c.id)}
-            onClick={() => setCatId(c.id)}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      <div className="insert-pane">
-        {cat.id === 'shapes' ? (
-          <>
-            <div className="field-row" style={{ marginBottom: 6 }}>
-              <button className="menu-item" onClick={() => { insertLine(addBlock, false); close(); }}>
-                <span className="menu-glyph">{'—'}</span> Line
-              </button>
-              <button className="menu-item" onClick={() => { insertLine(addBlock, true); close(); }}>
-                <span className="menu-glyph">{'→'}</span> Arrow
-              </button>
-              <button
-                className="menu-item"
-                title="Insert a shape and draw its geometry with the pen tool"
-                onClick={() => {
-                  addBlock('shape', (b) => { b.w = 300; b.h = 300; });
-                  close();
-                  // addBlock selects the new block; hand it straight to the pen.
-                  const id = useProjectStore.getState().selection.blockId;
-                  if (id) useUiStore.getState().openPenEditor(id, 'shape');
-                }}
-              >
-                <span className="menu-glyph">{'✎'}</span> Custom shape
-              </button>
-            </div>
-            <ShapePicker
-              onPick={(kind) => {
-                addBlock('shape', (b) => { (b.props as ShapeProps).kind = kind; });
-                close();
-              }}
-            />
-          </>
-        ) : (
-          (cat.types ?? []).map((type) => (
-            <button
-              key={type}
-              className="menu-item"
-              onClick={() => { addBlock(type); close(); }}
-            >
-              <span className="menu-glyph">{BLOCKS[type].glyph}</span>
-              {BLOCKS[type].label}
-            </button>
-          ))
-        )}
-      </div>
     </div>
   );
 }
@@ -212,9 +116,6 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       </div>
 
       <div className="toolbar-group">
-        <ToolbarMenu label={<><Icon.plus /> Insert</>} menuClass="menu-insert">
-          {(close) => <InsertMenu close={close} />}
-        </ToolbarMenu>
         <button className="iconbtn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
         <button className="iconbtn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
       </div>

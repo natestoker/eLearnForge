@@ -29,25 +29,6 @@ export function RibbonFormat() {
     <>
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <Field label="Name">
-            <TextInput
-              value={block.name ?? ''} placeholder={def.label}
-              onChange={(v) => updateBlock(block.id, (b) => { b.name = v || undefined; })}
-            />
-          </Field>
-          <Field label="Aria">
-            <SelectInput
-              value={block.aria ?? 'auto'}
-              options={[{ value: 'auto', label: 'Auto' }, { value: 'include', label: 'Include' }, { value: 'exclude', label: 'Exclude' }]}
-              onChange={(v) => updateBlock(block.id, (b) => { b.aria = v === 'auto' ? undefined : (v as 'include' | 'exclude'); })}
-            />
-          </Field>
-        </div>
-        <span className="ribbon-group-title">Identification</span>
-      </div>
-
-      <div className="ribbon-group">
-        <div className="ribbon-items">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <Field label="X"><NumberInput value={Math.round(block.x)} onChange={(v) => updateBlock(block.id, (b) => { b.x = v; })} /></Field>
             <Field label="Y"><NumberInput value={Math.round(block.y)} onChange={(v) => updateBlock(block.id, (b) => { b.y = v; })} /></Field>
@@ -71,18 +52,6 @@ export function RibbonFormat() {
           </div>
         </div>
         <span className="ribbon-group-title">Size & Position</span>
-      </div>
-
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <def.Properties
-              block={block}
-              onUpdateProps={(fn, history = true) => updateBlock(block.id, (b) => fn(b.props), history)}
-            />
-          </div>
-        </div>
-        <span className="ribbon-group-title">{def.label} Properties</span>
       </div>
 
       <div className="ribbon-group">

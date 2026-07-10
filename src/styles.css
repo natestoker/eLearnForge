@@ -118,6 +118,42 @@ button { font-family: inherit; }
   min-height: 0;
 }
 
+/* ---------- animation gallery tiles ---------- */
+.anim-gallery {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, auto);
+  gap: 3px;
+}
+.anim-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 60px;
+  padding: 3px 2px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.anim-tile:hover { background: var(--border-soft); color: var(--text); }
+.anim-tile.active { background: var(--accent-dim); border-color: rgba(61, 220, 151, 0.4); color: var(--accent); }
+.anim-tile-icon { width: 20px; height: 20px; display: block; }
+.anim-tile-icon .fxicon { width: 20px; height: 20px; }
+.anim-tile-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+}
+
 /* ---------- animation gallery previews ---------- */
 /* Static filled square by default; hovering the tile plays a CSS preview of
    the effect. transform-origin: center is the point - the old SMIL icons
@@ -400,10 +436,10 @@ select.input { appearance: auto; }
   border-bottom: 1px solid var(--border-soft);
 }
 
-.panel-body { overflow-y: auto; flex: 1; }
+.panel-body { overflow-y: auto; flex: 1; scrollbar-gutter: stable; }
 .panel-footnote { color: var(--muted); font-size: 10px; padding: 6px 12px; margin: 0; border-top: 1px solid var(--border-soft); }
 
-.panel-scroll { overflow-y: auto; padding: 14px; flex: 1; min-height: 0; }
+.panel-scroll { overflow-y: auto; padding: 14px; flex: 1; min-height: 0; scrollbar-gutter: stable; }
 .panel-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; }
 .panel-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .panel-title-row .panel-title { margin: 0; }
@@ -472,16 +508,23 @@ select.input { appearance: auto; }
   gap: 16px;
   padding: 8px 16px;
   overflow-x: auto;
-  min-height: 84px; /* to ensure it doesn't jump too much */
+  overflow-y: hidden;
+  height: 128px; /* consistent shelf height across every tab */
 }
+.ribbon-body .ribbon-group { max-height: 100%; overflow: hidden; }
+.ribbon-body .btn { padding: 4px 10px; font-size: 11.5px; }
+.ribbon-body p.hint, .ribbon-body .caption-status { display: none; }
 
 .ribbon-group {
   display: flex;
-  gap: 12px;
-  padding-right: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px;
   border-right: 1px solid var(--border);
   height: 100%;
 }
+.ribbon-group > .ribbon-items { flex: 1; min-height: 0; }
 .ribbon-group:last-child {
   border-right: none;
   padding-right: 0;
@@ -498,6 +541,8 @@ select.input { appearance: auto; }
   text-align: center;
   margin-top: auto;
   padding-top: 4px;
+  white-space: nowrap;
+  flex: none;
 }
 
 .ribbon-items {
@@ -2936,7 +2981,7 @@ select.input { appearance: auto; }
 
 /* Modal Styles */
 .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background: var(--surface-bg); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.modal-content { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .modal-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
 .modal-body { padding: 16px; overflow-y: auto; }

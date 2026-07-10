@@ -78,14 +78,16 @@ function MBtn({ icon, label, onClick }: { icon: string; label: string; onClick: 
 
 export function RibbonInsert() {
   const addBlock = useProjectStore((s) => s.addBlock);
-  const [allShapesOpen, setAllShapesOpen] = useState(false);
+  // The shelf clips overflow (overflow-x: auto), so the popover renders with
+  // position: fixed at the button's screen position instead of absolute.
+  const [allShapesOpen, setAllShapesOpen] = useState<{ left: number; top: number } | null>(null);
   const popRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!allShapesOpen) return;
     const onDown = (e: PointerEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) setAllShapesOpen(false);
+      if (popRef.current && !popRef.current.contains(e.target as Node)) setAllShapesOpen(null);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAllShapesOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAllShapesOpen(null); };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -96,7 +98,7 @@ export function RibbonInsert() {
 
   const pickShape = (kind: ShapeKind) => {
     addBlock('shape', (b) => { (b.props as ShapeProps).kind = kind; });
-    setAllShapesOpen(false);
+    setAllShapesOpen(null);
   };
 
   return (
@@ -139,14 +141,27 @@ export function RibbonInsert() {
               }}
             />
             <div className="menu-anchor" ref={popRef}>
-              <button className="rbn-mbtn" aria-haspopup="menu" aria-expanded={allShapesOpen} onClick={() => setAllShapesOpen((o) => !o)}>
+              <button
+                className="rbn-mbtn"
+                aria-haspopup="menu"
+                aria-expanded={!!allShapesOpen}
+                onClick={(e) => {
+                  if (allShapesOpen) { setAllShapesOpen(null); return; }
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setAllShapesOpen({ left: Math.round(r.left), top: Math.round(r.bottom + 4) });
+                }}
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
                   <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
                 </svg>
                 <span>All shapes {'▾'}</span>
               </button>
               {allShapesOpen && (
-                <div className="menu rbn-shapes-menu" role="menu">
+                <div
+                  className="menu rbn-shapes-menu"
+                  role="menu"
+                  style={{ position: 'fixed', left: allShapesOpen.left, top: allShapesOpen.top }}
+                >
                   <ShapePicker onPick={pickShape} />
                 </div>
               )}

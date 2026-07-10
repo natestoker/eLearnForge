@@ -17,6 +17,31 @@ export function LayersPanel() {
   const [draft, setDraft] = useState('');
   const cancelRef = useRef(false);
 
+  // Grip drag to reorder (same gesture as the slides rail). The base layer is
+  // pinned at index 0; moveLayer's own bounds keep everything else in range.
+  const startLayerDrag = (e: React.PointerEvent, layerId: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    grip.setPointerCapture(e.pointerId);
+    const row = grip.closest('.layer-item') as HTMLElement | null;
+    const ROW_H = (row?.offsetHeight ?? 26) + 3;
+    const startY = e.clientY;
+    let applied = 0;
+    const onMove = (ev: PointerEvent) => {
+      const target = Math.round((ev.clientY - startY) / ROW_H);
+      while (applied < target) { moveLayer(layerId, 1); applied++; }
+      while (applied > target) { moveLayer(layerId, -1); applied--; }
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   return (
     <div className="panel">
       <div className="panel-header">
@@ -39,6 +64,15 @@ export function LayersPanel() {
                 setRenamingId(layer.id); setDraft(layer.name);
               }}
             >
+              {!isBase && (
+                <span
+                  className="tl-grip layer-grip"
+                  title="Drag to reorder layer"
+                  onPointerDown={(e) => startLayerDrag(e, layer.id)}
+                >
+                  {'⋮⋮'}
+                </span>
+              )}
               <button
                 className={`btn btn-ghost btn-icon eye ${editorHidden ? 'off' : ''}`}
                 title={editorHidden ? 'Show on canvas' : 'Hide on canvas (editor only)'}
@@ -48,7 +82,7 @@ export function LayersPanel() {
               </button>
               <button
                 className="btn btn-ghost btn-icon"
-                style={layer.locked ? { color: '#e94b5a' } : undefined}
+                style={layer.locked ? { color: 'var(--danger)' } : undefined}
                 title={layer.locked ? 'Unlock this layer' : 'Lock this layer (blocks can be selected but not edited)'}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -120,20 +154,6 @@ export function LayersPanel() {
                     />
                     <span>default</span>
                   </label>
-                  <button
-                    className="btn btn-ghost btn-icon"
-                    title="Move layer up (paints above)"
-                    onClick={() => moveLayer(layer.id, 1)}
-                  >
-                    {'\u2191'}
-                  </button>
-                  <button
-                    className="btn btn-ghost btn-icon"
-                    title="Move layer down"
-                    onClick={() => moveLayer(layer.id, -1)}
-                  >
-                    {'\u2193'}
-                  </button>
                   <button
                     className="btn btn-ghost btn-icon btn-danger"
                     title="Delete layer"
