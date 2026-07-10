@@ -75,7 +75,7 @@ export function RibbonAnimations() {
               <div 
                 key={item.type}
                 onClick={() => setEntrance(item.type)}
-                className={`flex flex-col items-center justify-center gap-1 p-1 rounded cursor-pointer border min-w-[56px] h-14 ${isActive ? 'border-outline-variant bg-surface-container-highest text-primary' : 'hover:bg-surface-container-highest border-transparent text-on-surface-variant'}`}
+                className={`flex flex-col items-center justify-center gap-1 p-1 rounded-md cursor-pointer border min-w-[56px] h-14 ${isActive ? 'bg-primary/10 border-primary/40 text-primary' : 'hover:bg-surface-container-highest border-transparent text-on-surface-variant hover:text-on-surface'}`}
               >
                 <div className="w-8 h-8 flex items-center justify-center overflow-hidden rounded">
                   <div className="w-8 h-8">{item.icon}</div>

@@ -774,6 +774,12 @@ export function EditorCanvas() {
         <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
         <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.min(3, activeScale + 0.1)); }}>+</button>
         <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
+        <button
+          className="btn btn-ghost"
+          style={{ padding: '0 8px' }}
+          title="Preview from this slide"
+          onClick={() => useUiStore.getState().setPreviewOpen(true, useProjectStore.getState().selection.slideId)}
+        >{'▶'}</button>
       </div>
       <div className="canvas-meta">
         <span>

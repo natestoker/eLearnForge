@@ -1,5 +1,23 @@
 import { useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
+import type { Slide } from '../schema/types';
+
+// Wireframe thumbnail: every base-layer block as a schematic rect, scaled
+// into a 16:9 box. Cheap, always in sync, and enough silhouette to tell
+// slides apart at rail size.
+function SlideThumb({ slide, index }: { slide: Slide; index: number }) {
+  const blocks = slide.layers[0]?.blocks ?? [];
+  return (
+    <div className="slide-thumb">
+      <svg viewBox={`0 0 ${slide.width} ${slide.height}`} preserveAspectRatio="none" aria-hidden="true">
+        {blocks.slice(0, 24).map((b) => (
+          <rect key={b.id} className="wire" x={b.x} y={b.y} width={Math.max(b.w, 8)} height={Math.max(b.h, 8)} rx={6} />
+        ))}
+      </svg>
+      <span className="slide-num">{index + 1}</span>
+    </div>
+  );
+}
 
 export function SlidesPanel() {
   const slides = useProjectStore((s) => s.project.slides);
@@ -26,10 +44,11 @@ export function SlidesPanel() {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const card = e.currentTarget as HTMLElement;
+    card.setPointerCapture?.(e.pointerId);
     const startY = e.clientY;
     let cur = startIdx;
-    const ROW_H = 46; // Approximate height of a slide row
+    const ROW_H = card.offsetHeight + 8; // card height + list gap
     let recorded = false;
     const onMove = (ev: PointerEvent) => {
       const target = Math.max(0, Math.min(slides.length - 1, startIdx + Math.round((ev.clientY - startY) / ROW_H)));
@@ -73,37 +92,36 @@ export function SlidesPanel() {
                 startSlideDrag(e, slide.id, i);
               }}
             >
-              <span className="tl-grip slide-grip" title="Drag to reorder slide">
-                {'\u22EE\u22EE'}
-              </span>
-              <span className="slide-num">{i + 1}</span>
-              {renamingId === slide.id ? (
-                <input
-                  className="input input-inline"
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={() => {
-                    mutate((p) => {
-                      const s = p.slides.find((sl) => sl.id === slide.id);
-                      if (s && draft.trim()) s.name = draft.trim();
-                    });
-                    setRenamingId(null);
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                />
-              ) : (
-                <span className="slide-name" title="Double-click to rename">{slide.name}</span>
-              )}
-              {active && (
-                <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
-                    onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
-                  <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"
-                    disabled={slides.length <= 1}
-                    onClick={() => deleteSlide(slide.id)}>x</button>
-                </div>
-              )}
+              <SlideThumb slide={slide} index={i} />
+              <div className="slide-caption-row">
+                {renamingId === slide.id ? (
+                  <input
+                    className="input input-inline"
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                      mutate((p) => {
+                        const s = p.slides.find((sl) => sl.id === slide.id);
+                        if (s && draft.trim()) s.name = draft.trim();
+                      });
+                      setRenamingId(null);
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  />
+                ) : (
+                  <span className="slide-name" title="Double-click to rename; drag to reorder">{slide.name}</span>
+                )}
+                {active && (
+                  <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
+                      onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
+                    <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"
+                      disabled={slides.length <= 1}
+                      onClick={() => deleteSlide(slide.id)}>x</button>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

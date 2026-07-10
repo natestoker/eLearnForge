@@ -200,22 +200,23 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
   return (
     <header className="toolbar">
       <div className="brand">
-        <span className="brand-mark">eLF</span>
+        <span className="brand-mark">eF</span>
+        <span className="brand-name">eLearnForge</span>
         <input
           className="input title-input"
           value={project.title}
           onChange={(e) => mutate((p) => { p.title = e.target.value; }, false)}
           onBlur={() => useProjectStore.getState().record()}
         />
-        <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'saving...' : 'saved'}</span>
+        <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'saving…' : 'saved'}</span>
       </div>
 
       <div className="toolbar-group">
         <ToolbarMenu label={<><Icon.plus /> Insert</>} menuClass="menu-insert">
           {(close) => <InsertMenu close={close} />}
         </ToolbarMenu>
-        <button className="btn btn-ghost btn-icon-label" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
-        <button className="btn btn-ghost btn-icon-label" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
+        <button className="iconbtn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
+        <button className="iconbtn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
       </div>
 
       <div className="toolbar-group toolbar-right">
@@ -282,7 +283,8 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
             </>
           )}
         </ToolbarMenu>
-        <ToolbarMenu label={<><Icon.play /> Run</>} accent align="right" title="Preview and publish the project">
+        <div className="toolbar-divider" />
+        <ToolbarMenu label={<><Icon.play /> Preview</>} align="right" title="Run the project in the player">
           {(close) => (
             <>
               <button className="menu-item" onClick={() => { setPreviewOpen(true); close(); }}>
@@ -291,13 +293,12 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
               <button className="menu-item" onClick={() => { setPreviewOpen(true, selection.slideId); close(); }}>
                 <Icon.slide /> Preview this slide
               </button>
-              <div className="menu-sep" />
-              <button className="menu-item" onClick={() => { setPublishOpen(true); close(); }}>
-                <Icon.publish /> Publish...
-              </button>
             </>
           )}
         </ToolbarMenu>
+        <button className="btn btn-accent" onClick={() => setPublishOpen(true)} title="Package the course for SCORM / web">
+          Publish
+        </button>
         <input
           ref={pptxRef}
           type="file"
