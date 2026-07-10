@@ -25,6 +25,12 @@ interface UiStore {
   // Story view: the slide-graph overview (branching like Storyline).
   storyViewOpen: boolean;
   setStoryViewOpen: (open: boolean) => void;
+  // Visible layout grid on the stage (snap is separate - snapEnabled).
+  showGrid: boolean;
+  toggleShowGrid: () => void;
+  // First-run welcome / quick tour; reopenable from the toolbar Help button.
+  welcomeOpen: boolean;
+  setWelcomeOpen: (open: boolean) => void;
   // Pen editor: draw/edit a custom polygon for a shape block or an image clip.
   penEditor: { blockId: string; mode: 'shape' | 'imageClip' } | null;
   openPenEditor: (blockId: string, mode: 'shape' | 'imageClip') => void;
@@ -98,6 +104,17 @@ export const useUiStore = create<UiStore>((set) => ({
     }),
   storyViewOpen: false,
   setStoryViewOpen: (open) => set({ storyViewOpen: open }),
+  showGrid: (() => {
+    try { return localStorage.getItem('elearnforge.showGrid') === '1'; } catch { return false; }
+  })(),
+  toggleShowGrid: () =>
+    set((s) => {
+      const v = !s.showGrid;
+      try { localStorage.setItem('elearnforge.showGrid', v ? '1' : '0'); } catch { /* ignore */ }
+      return { showGrid: v };
+    }),
+  welcomeOpen: false,
+  setWelcomeOpen: (open) => set({ welcomeOpen: open }),
   scrubT: null,
   setScrubT: (t) => set({ scrubT: t })
 }));

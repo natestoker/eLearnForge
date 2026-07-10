@@ -214,6 +214,7 @@ export function EditorCanvas() {
   const select = useProjectStore((s) => s.select);
   const record = useProjectStore((s) => s.record);
   const snapEnabled = useUiStore((s) => s.snapEnabled);
+  const showGrid = useUiStore((s) => s.showGrid);
   const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
@@ -720,6 +721,7 @@ export function EditorCanvas() {
           onPointerDown={startMarquee}
           onContextMenu={onStageContextMenu}
       >
+          {showGrid && <div className="stage-grid" aria-hidden="true" />}
         {marquee && (marquee.w > 2 || marquee.h > 2) && (
           <div
             className="marquee"

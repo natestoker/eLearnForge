@@ -137,6 +137,13 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       </div>
 
       <div className="toolbar-group toolbar-right">
+        <button
+          className="iconbtn"
+          title="Welcome tour, tips, and links"
+          onClick={() => useUiStore.getState().setWelcomeOpen(true)}
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M9.4 9.2a2.6 2.6 0 1 1 3.4 2.5c-.8.3-1.3.9-1.3 1.8" /><circle cx="11.5" cy="16.6" r=".6" fill="currentColor" stroke="none" /></svg>
+        </button>
         <ToolbarMenu label={<><Icon.file /> File</>} align="right" title="New, save, load, and import">
           {(close) => (
             <>

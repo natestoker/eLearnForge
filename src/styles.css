@@ -325,6 +325,88 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 
+/* ---------- stage grid + welcome ---------- */
+/* The layout grid is drawn in slide units inside the transformed stage, so
+   it scales with zoom. Minor lines every 8px (the snap unit), stronger
+   every 40px; sits under all blocks (first child of .stage). */
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(31, 168, 113, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 168, 113, 0.16) 1px, transparent 1px),
+    linear-gradient(rgba(31, 168, 113, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 168, 113, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+}
+
+.welcome-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+.welcome {
+  position: relative;
+  width: min(92vw, 680px);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 34px 38px 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.welcome-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+.welcome-close:hover { color: var(--text); }
+.welcome-head { text-align: center; margin-bottom: 22px; }
+.welcome-head .brand-mark { display: inline-grid; width: 40px; height: 40px; font-size: 16px; border-radius: 10px; margin-bottom: 12px; }
+.welcome-head h1 { margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.welcome-head p { margin: 0 auto; max-width: 46ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.welcome-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.welcome-step {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.welcome-step-icon { display: block; width: 20px; height: 20px; color: var(--accent); margin-bottom: 8px; }
+.welcome-step-icon svg { width: 100%; height: 100%; }
+.welcome-step b { display: block; font-size: 12.5px; margin-bottom: 3px; }
+.welcome-step p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.welcome-actions { display: flex; justify-content: center; gap: 10px; margin-bottom: 18px; }
+.welcome-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--faint);
+  flex-wrap: wrap;
+}
+.welcome-foot a { color: var(--muted); text-decoration: none; }
+.welcome-foot a:hover { color: var(--accent); }
+
 /* ---------- status bar ---------- */
 
 .statusbar {

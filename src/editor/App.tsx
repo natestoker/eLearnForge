@@ -9,6 +9,7 @@ import { TriggersPanel } from './TriggersPanel';
 import { VariablesPanel } from './VariablesPanel';
 import { BlockPanel } from './BlockPanel';
 import { StoryView } from './StoryView';
+import { Welcome, WELCOME_SEEN_KEY } from './Welcome';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
@@ -25,6 +26,7 @@ export function App() {
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
   const ribbonTab = useUiStore((s) => s.ribbonTab);
   const storyViewOpen = useUiStore((s) => s.storyViewOpen);
+  const welcomeOpen = useUiStore((s) => s.welcomeOpen);
   // Triggers and Variables are full-height panels, not ribbon shelves - the
   // lists are too tall for a 120px strip. The shelf keeps a slim summary.
   const rightPanel = ribbonTab === 'triggers' || ribbonTab === 'variables' ? ribbonTab : null;
@@ -46,6 +48,10 @@ export function App() {
       .then((p) => { if (p) useProjectStore.getState().setProject(p); })
       .catch(() => { /* fresh profile or blocked IDB; demo project stands */ })
       .finally(() => setBooted(true));
+    // First visit: show the 60-second orientation once.
+    try {
+      if (!localStorage.getItem(WELCOME_SEEN_KEY)) useUiStore.getState().setWelcomeOpen(true);
+    } catch { /* ignore */ }
   }, []);
 
   // Autosave: debounce project changes into IndexedDB.
@@ -126,6 +132,7 @@ export function App() {
 
       <StatusBar saveState={saveState} />
 
+      {welcomeOpen && <Welcome />}
       {storyViewOpen && <StoryView />}
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
