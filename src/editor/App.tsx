@@ -5,6 +5,8 @@ import { loadProject, restoreFileHandle, saveProject } from '../state/persistenc
 import { Ribbon } from './Ribbon';
 import { SlidesPanel } from './SlidesPanel';
 import { LayersPanel } from './LayersPanel';
+import { TriggersPanel } from './TriggersPanel';
+import { VariablesPanel } from './VariablesPanel';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
@@ -19,6 +21,10 @@ export function App() {
   const panelSizes = useUiStore((s) => s.panelSizes);
   const collapsed = useUiStore((s) => s.collapsed);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
+  const ribbonTab = useUiStore((s) => s.ribbonTab);
+  // Triggers and Variables are full-height panels, not ribbon shelves - the
+  // lists are too tall for a 120px strip. The shelf keeps a slim summary.
+  const rightPanel = ribbonTab === 'triggers' || ribbonTab === 'variables' ? ribbonTab : null;
   const fonts = useProjectStore((s) => s.project.fonts);
   const embeddedFonts = useProjectStore((s) => s.project.embeddedFonts);
   useEffect(() => { (fonts ?? []).forEach((f) => ensureFont(f)); }, [fonts]);
@@ -97,6 +103,14 @@ export function App() {
             <TimelinePanel maxHeight={panelSizes.timeline} onCollapse={() => toggleCollapsed('timeline')} />
           )}
         </main>
+        {rightPanel && (
+          <>
+            <Splitter target="right" />
+            <aside className="sidebar-right bg-surface-container-low border-l border-outline-variant" style={{ width: panelSizes.right }}>
+              {rightPanel === 'triggers' ? <TriggersPanel /> : <VariablesPanel />}
+            </aside>
+          </>
+        )}
       </div>
 
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}

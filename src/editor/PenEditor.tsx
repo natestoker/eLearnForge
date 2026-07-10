@@ -266,7 +266,7 @@ export function PenEditor() {
               opacity="0.55"
             />
           )}
-          <rect x="0" y="0" width={EW} height={EH} fill="none" stroke="#2c3648" />
+          <rect x="0" y="0" width={EW} height={EH} fill="none" stroke="#3b463f" />
           {d && (
             <g transform={`scale(${EW / 100} ${EH / 100})`}>
               <path

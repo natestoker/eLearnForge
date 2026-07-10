@@ -19,7 +19,7 @@ export function riseSnippet(project: Project): string {
   4. Optional: in the code block settings, enable completion tracking so
      the continue-button divider waits for the interaction.
 -->
-<div id="ef-wrap" style="position:relative;width:100%;aspect-ratio:16/9;background:#0d1015;border-radius:12px;overflow:hidden">
+<div id="ef-wrap" style="position:relative;width:100%;aspect-ratio:16/9;background:#111412;border-radius:12px;overflow:hidden">
   <iframe
     id="ef-frame"
     src="COURSE_URL"

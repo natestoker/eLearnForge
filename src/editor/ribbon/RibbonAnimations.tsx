@@ -2,20 +2,24 @@ import { useSelectedBlock, useProjectStore, useCurrentSlide } from '../../state/
 import type { AnimType } from '../../schema/types';
 import { useState } from 'react';
 import { LogicPopup } from '../LogicPopup';
-import { 
-  WhipInIcon, DropInIcon, BounceInIcon, StretchHorizontalIcon, 
-  SpinInIcon, BlurIcon, GrowIcon, PopRotateIcon, 
-  FlipIcon, SwivelIcon, UnfoldVerticalIcon 
+import {
+  WhipInIcon, DropInIcon, BounceInIcon, StretchHorizontalIcon,
+  SpinInIcon, BlurIcon, GrowIcon, PopRotateIcon,
+  FlipIcon, SwivelIcon, UnfoldVerticalIcon,
+  NoneIcon, FadeInIcon, FlyInIcon, FloatInIcon, WipeIcon,
+  ZoomInAnimIcon, ZoomOutAnimIcon
 } from './AnimationIcons';
 
+// Every gallery tile is an animated SVG preview of its effect - one icon
+// system, no icon-font dependency.
 const GALLERY_ITEMS: { type: AnimType, label: string, icon: React.ReactNode | string }[] = [
-  { type: 'none', label: 'None', icon: 'do_not_disturb' },
-  { type: 'fade', label: 'Fade', icon: 'blur_on' },
-  { type: 'slide', label: 'Fly In', icon: 'flight_land' },
-  { type: 'rise', label: 'Float In', icon: 'keyboard_double_arrow_up' },
-  { type: 'wipe', label: 'Wipe', icon: 'cleaning_services' },
-  { type: 'zoom', label: 'Zoom In', icon: 'zoom_in' },
-  { type: 'zoomOut', label: 'Zoom Out', icon: 'zoom_out' },
+  { type: 'none', label: 'None', icon: <NoneIcon /> },
+  { type: 'fade', label: 'Fade', icon: <FadeInIcon /> },
+  { type: 'slide', label: 'Fly In', icon: <FlyInIcon /> },
+  { type: 'rise', label: 'Float In', icon: <FloatInIcon /> },
+  { type: 'wipe', label: 'Wipe', icon: <WipeIcon /> },
+  { type: 'zoom', label: 'Zoom In', icon: <ZoomInAnimIcon /> },
+  { type: 'zoomOut', label: 'Zoom Out', icon: <ZoomOutAnimIcon /> },
   { type: 'blur', label: 'Blur', icon: <BlurIcon /> },
   { type: 'spin', label: 'Spin', icon: <SpinInIcon /> },
   { type: 'flip', label: 'Flip', icon: <FlipIcon /> },
@@ -74,11 +78,7 @@ export function RibbonAnimations() {
                 className={`flex flex-col items-center justify-center gap-1 p-1 rounded cursor-pointer border min-w-[56px] h-14 ${isActive ? 'border-outline-variant bg-surface-container-highest text-primary' : 'hover:bg-surface-container-highest border-transparent text-on-surface-variant'}`}
               >
                 <div className="w-8 h-8 flex items-center justify-center overflow-hidden rounded">
-                  {typeof item.icon === 'string' ? (
-                    <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : undefined }}>{item.icon}</span>
-                  ) : (
-                    <div className="w-8 h-8">{item.icon}</div>
-                  )}
+                  <div className="w-8 h-8">{item.icon}</div>
                 </div>
                 <span className="font-body-sm text-[9px] uppercase tracking-tighter">{item.label}</span>
               </div>
@@ -88,7 +88,7 @@ export function RibbonAnimations() {
         <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Animation Gallery</span>
       </div>
 
-      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: '#2d2d2d', margin: '0 12px' }}></div>
+      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: 'var(--border)', margin: '0 12px' }}></div>
 
       {/* Group: Effect Options */}
       <div className="flex flex-col h-full justify-between items-center px-2">
@@ -96,13 +96,16 @@ export function RibbonAnimations() {
           className="flex flex-col items-center gap-1 p-2 rounded hover:bg-surface-container-highest cursor-pointer border border-outline-variant h-14 justify-center"
           onClick={() => setShowLogicPopup(true)}
         >
-          <span className="material-symbols-outlined text-on-surface">settings_voice</span>
+          <svg className="w-5 h-5 text-on-surface" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h6M14 17h6" />
+            <circle cx="16" cy="7" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="12" cy="17" r="2" />
+          </svg>
           <span className="font-body-sm text-[10px] uppercase tracking-tighter">Effect Options</span>
         </button>
         <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Options</span>
       </div>
 
-      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: '#2d2d2d', margin: '0 12px' }}></div>
+      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: 'var(--border)', margin: '0 12px' }}></div>
 
       {/* Group: Timing */}
       <div className="flex flex-col h-full justify-between items-center px-2 min-w-[280px]">
@@ -171,17 +174,21 @@ export function RibbonAnimations() {
         <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mt-1">Timing</span>
       </div>
 
-      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: '#2d2d2d', margin: '0 12px' }}></div>
+      <div className="ribbon-group-divider" style={{ width: 1, height: 60, backgroundColor: 'var(--border)', margin: '0 12px' }}></div>
 
       {/* Group: Advanced */}
       <div className="flex flex-col h-full justify-between items-center px-2">
         <div className="flex gap-2">
           <button className="flex flex-col items-center gap-1 p-1 rounded hover:bg-surface-container-highest cursor-pointer border border-outline-variant">
-            <span className="material-symbols-outlined text-on-surface">brush</span>
+            <svg className="w-5 h-5 text-on-surface" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15.5 5.5l3 3-8 8-3.5 1 1-3.5z" /><path d="M13.5 7.5l3 3" />
+            </svg>
             <span className="font-body-sm text-[10px] uppercase tracking-tighter">Painter</span>
           </button>
           <button className="flex flex-col items-center gap-1 p-1 rounded bg-secondary-container/20 border border-primary text-primary">
-            <span className="material-symbols-outlined">view_sidebar</span>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M14.5 4.5v15" />
+            </svg>
             <span className="font-body-sm text-[10px] uppercase tracking-tighter">Pane</span>
           </button>
         </div>

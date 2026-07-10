@@ -131,3 +131,72 @@ export const UnfoldVerticalIcon = () => (
     </g>
   </svg>
 );
+
+export const NoneIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.35" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <line opacity="0.6" stroke="currentColor" strokeWidth="1.5" x1="6.5" x2="17.5" y1="17.5" y2="6.5"></line>
+  </svg>
+);
+
+export const FadeInIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+      <animate attributeName="opacity" calcMode="spline" dur="1.6s" keySplines="0.4 0 0.2 1; 0 0 1 1" keyTimes="0; 0.55; 1" repeatCount="indefinite" values="0; 1; 1" />
+    </rect>
+  </svg>
+);
+
+export const FlyInIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+      <animateTransform attributeName="transform" calcMode="spline" dur="1.5s" keySplines="0.2 0.8 0.2 1; 0 0 1 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" type="translate" values="-22 22; 0 0; 0 0" />
+      <animate attributeName="opacity" dur="1.5s" keyTimes="0; 0.35; 0.9; 1" repeatCount="indefinite" values="0; 1; 1; 0" />
+    </rect>
+  </svg>
+);
+
+export const FloatInIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+      <animateTransform attributeName="transform" calcMode="spline" dur="1.6s" keySplines="0.2 0.8 0.2 1; 0 0 1 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" type="translate" values="0 10; 0 0; 0 0" />
+      <animate attributeName="opacity" dur="1.6s" keyTimes="0; 0.4; 0.9; 1" repeatCount="indefinite" values="0; 1; 1; 0" />
+    </rect>
+  </svg>
+);
+
+export const WipeIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+      <animate attributeName="width" calcMode="spline" dur="1.6s" keySplines="0.4 0 0.2 1; 0 0 1 1" keyTimes="0; 0.55; 1" repeatCount="indefinite" values="0; 12; 12" />
+    </rect>
+  </svg>
+);
+
+export const ZoomInAnimIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <g transformOrigin="12 12">
+      <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+        <animateTransform attributeName="transform" calcMode="spline" dur="1.6s" keySplines="0.2 0.8 0.2 1; 0 0 1 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" type="scale" values="0.2 0.2; 1 1; 1 1" transformOrigin="center" />
+        <animate attributeName="opacity" dur="1.6s" keyTimes="0; 0.35; 0.9; 1" repeatCount="indefinite" values="0; 1; 1; 0" />
+      </rect>
+    </g>
+  </svg>
+);
+
+export const ZoomOutAnimIcon = () => (
+  <svg className="w-full h-full" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="none" height="16" opacity="0.2" rx="2" stroke="currentColor" strokeWidth="1.5" width="16" x="4" y="4"></rect>
+    <g transformOrigin="12 12">
+      <rect fill="currentColor" height="12" rx="1" width="12" x="6" y="6">
+        <animateTransform attributeName="transform" calcMode="spline" dur="1.6s" keySplines="0.2 0.8 0.2 1; 0 0 1 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" type="scale" values="1.6 1.6; 1 1; 1 1" transformOrigin="center" />
+        <animate attributeName="opacity" dur="1.6s" keyTimes="0; 0.35; 0.9; 1" repeatCount="indefinite" values="0; 1; 1; 0" />
+      </rect>
+    </g>
+  </svg>
+);
