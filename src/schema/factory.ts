@@ -101,7 +101,9 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   sequence: { w: 480, h: 380 },
   slider: { w: 420, h: 90 },
   checklist: { w: 400, h: 280 },
-  varDisplay: { w: 260, h: 130 }
+  varDisplay: { w: 260, h: 130 },
+  labeledGraphic: { w: 560, h: 380 },
+  scenario: { w: 560, h: 360 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -225,6 +227,33 @@ export function defaultProps(type: BlockType): BlockProps {
       };
     case 'slider':
       return { label: 'How confident are you?', min: 0, max: 10, step: 1, defaultValue: 5, showValue: true };
+    case 'labeledGraphic':
+      return {
+        src: '',
+        fit: 'cover',
+        markers: [
+          { id: uid('mk'), x: 25, y: 30, title: 'First point of interest', body: 'Explain what the learner is looking at here.' },
+          { id: uid('mk'), x: 65, y: 55, title: 'Second point', body: 'Each marker opens a card like this one.' },
+          { id: uid('mk'), x: 45, y: 78, title: 'Third point', body: 'Opening every marker can gate the Next button via a trigger.' }
+        ]
+      };
+    case 'scenario': {
+      const a = uid('psg'); const b = uid('psg'); const c = uid('psg');
+      return {
+        passages: [
+          {
+            id: a, speaker: 'Narrator',
+            text: 'A colleague asks you to share your login "just this once" to meet a deadline. What do you do?',
+            choices: [
+              { id: uid('cho'), label: 'Share it - deadlines matter', targetId: b },
+              { id: uid('cho'), label: 'Decline and offer another way to help', targetId: c }
+            ]
+          },
+          { id: b, speaker: 'Narrator', text: 'Credentials are personal - sharing them violates policy even with good intentions. Try the other path.', choices: [{ id: uid('cho'), label: 'Reconsider', targetId: a }] },
+          { id: c, speaker: 'Narrator', text: 'Right call. You kept the account secure and still helped your colleague.', choices: [] }
+        ]
+      };
+    }
     case 'varDisplay':
       return { reference: 'Score', label: 'Your score', suffix: '%', fontSize: 44, align: 'center', tile: true };
     case 'checklist':
@@ -274,6 +303,12 @@ export function sliderVariableName(blockId: string): string {
 }
 export function checklistDoneVariableName(blockId: string): string {
   return `cl_${blockId}_done`;
+}
+export function labeledGraphicDoneVariableName(blockId: string): string {
+  return `lg_${blockId}_done`;
+}
+export function scenarioDoneVariableName(blockId: string): string {
+  return `sc_${blockId}_done`;
 }
 
 export function createBlock(type: BlockType, x: number, y: number): Block {

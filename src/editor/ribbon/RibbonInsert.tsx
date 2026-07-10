@@ -49,7 +49,9 @@ const ICONS: Record<string, JSX.Element> = {
   sequence: <Ic d="M5 6.5h2M10 6.5h9M5 12h2M10 12h9M5 17.5h2M10 17.5h9" />,
   slider: <Ic d="M4 12h16M9.5 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 8.5v7M20 8.5v7" />,
   checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />,
-  varDisplay: <Ic d="M4 5.5h16v13H4zM7 15.5V12M12 15.5V9.5M17 15.5v-4" />
+  varDisplay: <Ic d="M4 5.5h16v13H4zM7 15.5V12M12 15.5V9.5M17 15.5v-4" />,
+  labeledGraphic: <Ic d="M4 5.5h16v13H4zM9 11a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM11 13v3M16 8.5a1.4 1.4 0 1 0 0-.1" />,
+  scenario: <Ic d="M12 4.5v4M12 8.5L6 13M12 8.5l6 4.5M4 13h4v4H4zM16 13h4v4h-4zM10 4.5h4" />
 };
 
 function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
@@ -176,6 +178,8 @@ export function RibbonInsert() {
             <MBtn icon="dragDrop" label="Drag & Drop" onClick={() => addBlock('dragDrop')} />
             <MBtn icon="flashcards" label="Flashcards" onClick={() => addBlock('flashcards')} />
             <MBtn icon="sequence" label="Sequence" onClick={() => addBlock('sequence')} />
+            <MBtn icon="labeledGraphic" label="Labeled Graphic" onClick={() => addBlock('labeledGraphic')} />
+            <MBtn icon="scenario" label="Scenario" onClick={() => addBlock('scenario')} />
           </div>
         </div>
         <span className="ribbon-group-title">Interactive</span>

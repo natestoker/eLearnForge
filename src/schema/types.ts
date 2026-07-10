@@ -7,7 +7,8 @@ export type BlockType =
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
   | 'code' | 'matching' | 'group'
   | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs'
-  | 'flashcards' | 'sequence' | 'slider' | 'checklist' | 'varDisplay';
+  | 'flashcards' | 'sequence' | 'slider' | 'checklist' | 'varDisplay'
+  | 'labeledGraphic' | 'scenario';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -282,6 +283,35 @@ export interface ChecklistProps {
   items: ChecklistItem[];
 }
 
+// Labeled graphic (Rise-style): an image with numbered marker pins; clicking
+// a pin opens a popup card. Opening every pin once sets lg_{blockId}_done.
+export interface GraphicMarker {
+  id: string;
+  x: number; // percent 0..100 of block width
+  y: number; // percent 0..100 of block height
+  title: string;
+  body: string;
+}
+export interface LabeledGraphicProps {
+  src: string;             // background image; empty = neutral surface
+  fit: 'cover' | 'contain';
+  markers: GraphicMarker[];
+}
+
+// Branching scenario: passages of dialogue/story, each with choice buttons
+// jumping to another passage (or ending). Reaching an ending sets
+// sc_{blockId}_done; the chosen path is reported for tracking.
+export interface ScenarioChoice { id: string; label: string; targetId: string } // targetId '' = end
+export interface ScenarioPassage {
+  id: string;
+  speaker?: string;
+  text: string;
+  choices: ScenarioChoice[]; // empty = ending passage
+}
+export interface ScenarioProps {
+  passages: ScenarioPassage[]; // passages[0] is the start
+}
+
 // Score / value display: a stat tile showing one live reference - a project
 // variable by name or a built-in (Score, ProgressPercent, SlideNumber...).
 // The player re-renders on every runtime change, so it tracks live.
@@ -302,7 +332,8 @@ export type BlockProps =
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps
   | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps
-  | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps | VarDisplayProps;
+  | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps | VarDisplayProps
+  | LabeledGraphicProps | ScenarioProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -
