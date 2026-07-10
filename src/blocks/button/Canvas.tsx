@@ -5,10 +5,10 @@ import type { ButtonProps } from '../../schema/types';
 // Black or white text depending on the fill's perceived luminance.
 function autoContrast(hex: string): string {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return '#0d1015';
+  if (!m) return '#111412';
   const n = parseInt(m[1], 16);
   const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
-  return lum > 140 ? '#0d1015' : '#ffffff';
+  return lum > 140 ? '#111412' : '#ffffff';
 }
 
 export function buttonStyle(props: ButtonProps): CSSProperties {
