@@ -16,6 +16,15 @@ interface UiStore {
   setPanelSize: (key: 'left' | 'right' | 'timeline', px: number) => void;
   collapsed: { left: boolean; right: boolean; timeline: boolean };
   toggleCollapsed: (key: 'left' | 'right' | 'timeline') => void;
+  // Office-style ribbon collapse: the tab row stays, the shelf hides.
+  ribbonCollapsed: boolean;
+  toggleRibbonCollapsed: () => void;
+  // Collapse the layers half of the left sidebar down to its header.
+  layersCollapsed: boolean;
+  toggleLayersCollapsed: () => void;
+  // Story view: the slide-graph overview (branching like Storyline).
+  storyViewOpen: boolean;
+  setStoryViewOpen: (open: boolean) => void;
   // Pen editor: draw/edit a custom polygon for a shape block or an image clip.
   penEditor: { blockId: string; mode: 'shape' | 'imageClip' } | null;
   openPenEditor: (blockId: string, mode: 'shape' | 'imageClip') => void;
@@ -69,6 +78,26 @@ export const useUiStore = create<UiStore>((set) => ({
       return { collapsed };
     }),
   setPreviewOpen: (open, startSlideId = null) => set({ previewOpen: open, previewStartSlideId: open ? startSlideId : null }),
+  ribbonCollapsed: (() => {
+    try { return localStorage.getItem('elearnforge.ribbonCollapsed') === '1'; } catch { return false; }
+  })(),
+  toggleRibbonCollapsed: () =>
+    set((s) => {
+      const v = !s.ribbonCollapsed;
+      try { localStorage.setItem('elearnforge.ribbonCollapsed', v ? '1' : '0'); } catch { /* ignore */ }
+      return { ribbonCollapsed: v };
+    }),
+  layersCollapsed: (() => {
+    try { return localStorage.getItem('elearnforge.layersCollapsed') === '1'; } catch { return false; }
+  })(),
+  toggleLayersCollapsed: () =>
+    set((s) => {
+      const v = !s.layersCollapsed;
+      try { localStorage.setItem('elearnforge.layersCollapsed', v ? '1' : '0'); } catch { /* ignore */ }
+      return { layersCollapsed: v };
+    }),
+  storyViewOpen: false,
+  setStoryViewOpen: (open) => set({ storyViewOpen: open }),
   scrubT: null,
   setScrubT: (t) => set({ scrubT: t })
 }));

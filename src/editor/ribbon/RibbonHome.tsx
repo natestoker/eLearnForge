@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useProjectStore } from '../../state/projectStore';
+import { useUiStore } from '../../state/uiStore';
 import { ColorInput, Field, SelectInput } from '../fields';
 import { PlayerSettingsSection, ResourcesEditor, GlossaryEditor } from '../GlobalSettings';
 import { Icon } from '../icons';
@@ -27,12 +28,17 @@ export function RibbonHome() {
     <>
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <Field label="Accent color">
-            <ColorInput
-              value={project.theme?.accent ?? '#3ddc97'}
-              onChange={(v) => mutate((p) => { p.theme = { accent: v }; })}
-            />
-          </Field>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Field label="Player accent">
+              <span title="Colors the published course: buttons, progress bar, highlights, and quiz feedback. Not the editor.">
+                <ColorInput
+                  value={project.theme?.accent ?? '#3ddc97'}
+                  onChange={(v) => mutate((p) => { p.theme = { accent: v }; })}
+                />
+              </span>
+            </Field>
+            <span className="rbn-note">Buttons & highlights in the published course</span>
+          </div>
           <Field label="Slide transition">
             <SelectInput
               value={project.slideTransition ?? 'none'}
@@ -42,6 +48,20 @@ export function RibbonHome() {
           </Field>
         </div>
         <span className="ribbon-group-title">Course Theme</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items">
+          <button
+            className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]"
+            title="See the whole course as a branching map"
+            onClick={() => useUiStore.getState().setStoryViewOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M4 4.5h6v4.5H4zM14 4.5h6v4.5h-6zM9 15h6v4.5H9zM7 9v3h10V9M12 12v3" /></svg>
+            <span className="text-xs">Story View</span>
+          </button>
+        </div>
+        <span className="ribbon-group-title">Course Map</span>
       </div>
 
       <div className="ribbon-group">

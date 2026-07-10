@@ -8,6 +8,7 @@ import { LayersPanel } from './LayersPanel';
 import { TriggersPanel } from './TriggersPanel';
 import { VariablesPanel } from './VariablesPanel';
 import { BlockPanel } from './BlockPanel';
+import { StoryView } from './StoryView';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
@@ -23,6 +24,7 @@ export function App() {
   const collapsed = useUiStore((s) => s.collapsed);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
   const ribbonTab = useUiStore((s) => s.ribbonTab);
+  const storyViewOpen = useUiStore((s) => s.storyViewOpen);
   // Triggers and Variables are full-height panels, not ribbon shelves - the
   // lists are too tall for a 120px strip. The shelf keeps a slim summary.
   const rightPanel = ribbonTab === 'triggers' || ribbonTab === 'variables' ? ribbonTab : null;
@@ -69,7 +71,10 @@ export function App() {
         if (e.shiftKey) useProjectStore.getState().redo();
         else useProjectStore.getState().undo();
       }
-      if (e.key === 'Escape') setPreviewOpen(false);
+      if (e.key === 'Escape') {
+        setPreviewOpen(false);
+        useUiStore.getState().setStoryViewOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -121,6 +126,7 @@ export function App() {
 
       <StatusBar saveState={saveState} />
 
+      {storyViewOpen && <StoryView />}
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
     </div>

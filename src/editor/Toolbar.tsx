@@ -70,6 +70,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
   const canUndo = useProjectStore((s) => s.past.length > 0);
   const canRedo = useProjectStore((s) => s.future.length > 0);
   const setPreviewOpen = useUiStore((s) => s.setPreviewOpen);
+  const addBlock = useProjectStore((s) => s.addBlock);
   const selection = useProjectStore((s) => s.selection);
   const fileRef = useRef<HTMLInputElement>(null);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -118,6 +119,21 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       <div className="toolbar-group">
         <button className="iconbtn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
         <button className="iconbtn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
+        <div className="toolbar-divider" />
+        {/* Fast inserts for the three most-reached-for blocks; the full
+            catalog lives on the Insert tab. */}
+        <button className="iconbtn" title="Insert text" onClick={() => addBlock('text')}>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M5 7V5.5h14V7M12 5.5v13M9 18.5h6" /></svg>
+        </button>
+        <button className="iconbtn" title="Insert image" onClick={() => addBlock('image')}>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 6h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM5 16l4.5-4.5 3.5 3.5 3-3 4 4" /></svg>
+        </button>
+        <button className="iconbtn" title="Insert rectangle" onClick={() => addBlock('shape')}>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="6" width="16" height="12" rx="1.5" /></svg>
+        </button>
+        <button className="iconbtn" title="Insert button" onClick={() => addBlock('button')}>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3.5" y="9" width="17" height="6" rx="3" /><path d="M9 12h6" /></svg>
+        </button>
       </div>
 
       <div className="toolbar-group toolbar-right">
