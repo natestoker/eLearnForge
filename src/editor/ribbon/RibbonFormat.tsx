@@ -63,7 +63,7 @@ export function RibbonFormat() {
             </Field>
             <button
               className="btn"
-              style={block.locked ? { color: '#e94b5a' } : undefined}
+              style={block.locked ? { color: 'var(--danger)' } : undefined}
               onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
             >
               {block.locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked'}
@@ -147,7 +147,7 @@ function MultiRibbonFormat({ ids }: { ids: string[] }) {
             </Field>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
-            <button className="btn" style={anyLocked ? { color: '#e94b5a' } : undefined} onClick={() => each((b) => { b.locked = anyLocked ? undefined : true; })}>
+            <button className="btn" style={anyLocked ? { color: 'var(--danger)' } : undefined} onClick={() => each((b) => { b.locked = anyLocked ? undefined : true; })}>
               {anyLocked ? '\u{1F513} Unlock all' : '\u{1F512} Lock all'}
             </button>
           </div>

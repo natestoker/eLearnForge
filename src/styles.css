@@ -118,6 +118,88 @@ button { font-family: inherit; }
   min-height: 0;
 }
 
+/* ---------- animation gallery previews ---------- */
+/* Static filled square by default; hovering the tile plays a CSS preview of
+   the effect. transform-origin: center is the point - the old SMIL icons
+   rotated/scaled around the SVG corner. */
+.fxicon { position: relative; width: 26px; height: 26px; display: block; }
+.fxicon svg { width: 100%; height: 100%; display: block; }
+.fxicon.ghost::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 1.5px dashed currentColor;
+  opacity: 0.22;
+  border-radius: 5px;
+}
+.fxicon-box {
+  position: absolute;
+  inset: 5px;
+  background: currentColor;
+  border-radius: 4px;
+  display: block;
+  transform-origin: center;
+}
+.anim-tile:hover .fxicon-box {
+  animation-duration: 1.5s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-iteration-count: infinite;
+}
+.anim-tile:hover .fx-fade    { animation-name: fxk-fade; }
+.anim-tile:hover .fx-fly     { animation-name: fxk-fly; }
+.anim-tile:hover .fx-float   { animation-name: fxk-float; }
+.anim-tile:hover .fx-wipe    { animation-name: fxk-wipe; }
+.anim-tile:hover .fx-zoomin  { animation-name: fxk-zoomin; }
+.anim-tile:hover .fx-zoomout { animation-name: fxk-zoomout; }
+.anim-tile:hover .fx-blur    { animation-name: fxk-blur; }
+.anim-tile:hover .fx-spin    { animation-name: fxk-spin; }
+.anim-tile:hover .fx-flip    { animation-name: fxk-flip; }
+.anim-tile:hover .fx-bounce  { animation-name: fxk-bounce; animation-timing-function: linear; }
+.anim-tile:hover .fx-pop     { animation-name: fxk-pop; }
+.anim-tile:hover .fx-grow    { animation-name: fxk-grow; }
+.anim-tile:hover .fx-stretch { animation-name: fxk-stretch; }
+.anim-tile:hover .fx-unfold  { animation-name: fxk-unfold; }
+.anim-tile:hover .fx-drop    { animation-name: fxk-drop; animation-timing-function: linear; }
+.anim-tile:hover .fx-swivel  { animation-name: fxk-swivel; }
+.anim-tile:hover .fx-whip    { animation-name: fxk-whip; }
+
+@keyframes fxk-fade    { 0% { opacity: 0; } 50%, 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fxk-fly     { 0% { opacity: 0; transform: translate(-12px, 12px); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-float   { 0% { opacity: 0; transform: translateY(10px); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-wipe    { 0% { clip-path: inset(0 100% 0 0); } 50%, 88% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { opacity: 0; } }
+@keyframes fxk-zoomin  { 0% { opacity: 0; transform: scale(0.2); } 50%, 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes fxk-zoomout { 0% { opacity: 0; transform: scale(1.7); } 50%, 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes fxk-blur    { 0% { opacity: 0; filter: blur(4px); } 50%, 88% { opacity: 1; filter: blur(0); } 100% { opacity: 0; } }
+@keyframes fxk-spin    { 0% { opacity: 0; transform: rotate(-180deg) scale(0.6); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-flip    { 0% { opacity: 0; transform: perspective(80px) rotateX(88deg); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-bounce  {
+  0% { opacity: 0; transform: translateY(-14px); }
+  35% { opacity: 1; transform: translateY(0); }
+  52% { transform: translateY(-6px); }
+  66% { transform: translateY(0); }
+  76% { transform: translateY(-2px); }
+  84%, 90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes fxk-pop     { 0% { opacity: 0; transform: scale(0.3) rotate(-14deg); } 40% { opacity: 1; transform: scale(1.15) rotate(4deg); } 55%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-grow    { 0% { opacity: 0; transform: scale(0); } 50%, 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes fxk-stretch { 0% { opacity: 0; transform: scaleX(0); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-unfold  { 0% { opacity: 0; transform: scaleY(0); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-drop    {
+  0% { opacity: 0; transform: translateY(-16px); }
+  40% { opacity: 1; transform: translateY(0); }
+  58% { transform: translateY(-4px); }
+  70%, 90% { transform: translateY(0); opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes fxk-swivel  { 0% { opacity: 0; transform: perspective(80px) rotateY(180deg); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-whip    { 0% { opacity: 0; transform: translateX(-14px) rotate(-18deg); } 45% { opacity: 1; transform: translateX(2px) rotate(2deg); } 58%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-tile:hover .fxicon-box { animation: none !important; }
+  .hotspot-runtime.hint { animation: none !important; }
+}
+
 /* ---------- status bar ---------- */
 
 .statusbar {
@@ -423,6 +505,78 @@ select.input { appearance: auto; }
   gap: 8px;
   align-items: center;
 }
+
+/* Ribbon shelves compact the panel field components: inline label+input
+   rows with mono micro-labels and dark inputs, per the design artifact.
+   The same components keep their roomier stacked layout in side panels. */
+.ribbon-body .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 0;
+  flex: none;
+}
+.ribbon-body .field-label { white-space: nowrap; }
+.ribbon-body .input {
+  background: var(--bg-deep);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+.ribbon-body .input-number { width: 58px; text-align: center; }
+.ribbon-body input[type='text'].input { width: 128px; }
+.ribbon-body select.input { width: auto; max-width: 150px; }
+.ribbon-body .checkbox { margin-bottom: 0; font-size: 12px; }
+.ribbon-body .textarea { max-height: 64px; }
+.rbn-fgrid {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 16px;
+  align-items: center;
+}
+
+/* compact insert-style buttons and grids for ribbon shelves */
+.rbn-col { display: flex; flex-direction: column; gap: 2px; }
+.rbn-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 4px; }
+.rbn-mbtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.rbn-mbtn:hover { background: var(--border-soft); }
+.rbn-mbtn svg { width: 15px; height: 15px; color: var(--muted); flex-shrink: 0; }
+.rbn-mbtn:hover svg { color: var(--accent); }
+.rbn-shape-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 26px);
+  grid-auto-rows: 26px;
+  gap: 3px;
+}
+.rbn-shape-tile {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.rbn-shape-tile:hover { border-color: var(--accent); color: var(--accent); }
+.rbn-shape-tile svg { width: 100%; height: 100%; display: block; }
+.rbn-shapes-menu { padding: 10px; max-height: 320px; overflow-y: auto; }
 
 /* slides list */
 
@@ -928,6 +1082,10 @@ select.input { appearance: auto; }
 .player-block :is(button, input, textarea, select, video, audio, a) {
   pointer-events: auto;
 }
+/* Interactive runtimes built from plain elements (drag & drop items and
+   zones) get no pointer events from the native-control rule above - the
+   whole interaction surface needs them. */
+.player-block :is(.dd-block, .tabs-block) { pointer-events: auto; }
 .player-block { position: absolute; }
 .player-block.clickable { cursor: pointer; }
 
@@ -2275,7 +2433,14 @@ select.input { appearance: auto; }
 .dd-bank { min-height: 44px; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px dashed #b6c0cc; border-radius: 8px; background: rgba(0,0,0,0.02); }
 .dd-bank-empty { color: #8a95a3; font-size: 0.85em; font-style: italic; }
 .dd-item { padding: 6px 12px; background: #fff; border: 1px solid #c5cec7; border-radius: 6px; cursor: grab; box-shadow: 0 1px 2px rgba(0,0,0,0.06); user-select: none; }
-.dd-item.dragging { opacity: 0.4; }
+.dd-item.dragging {
+  opacity: 0.9;
+  position: relative;
+  z-index: 30;
+  cursor: grabbing;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  pointer-events: none; /* the element under the pointer is the drop zone */
+}
 .dd-targets { flex: 1; display: flex; gap: 10px; min-height: 0; }
 .dd-target { flex: 1; display: flex; flex-direction: column; border: 2px solid #d5dcd6; border-radius: 8px; overflow: hidden; }
 .dd-target-label { background: #eef2f6; padding: 6px 10px; font-weight: 600; font-size: 0.85em; border-bottom: 1px solid #d5dcd6; }

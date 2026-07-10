@@ -355,7 +355,14 @@ export function createDemoProject(): Project {
   s3Title.props = { html: '<b>Anatomy of a phishing URL</b>', fontSize: 28, align: 'left' };
   anim(s3Title, 'wipe', 0.2, 0.6);
 
-  const s3Tabs = blk('tabs', 'URL anatomy tabs', 80, 130, 760, 440);
+  const s3Url = blk('text', 'Example URL', 80, 120, 1120, 70);
+  s3Url.props = {
+    html: '<span style="color:#1fa871"><b>https://</b></span><span style="color:#c0392b"><b>paypal.evil-site.ru</b></span><span style="color:#8a8f8b">/secure/verify/login</span>',
+    fontSize: 30, align: 'center', fontFamily: 'JetBrains Mono'
+  };
+  anim(s3Url, 'grow', 0.5, 0.6, 'back.out(1.4)');
+
+  const s3Tabs = blk('tabs', 'URL anatomy tabs', 80, 210, 760, 380);
   s3Tabs.props = {
     layout: 'tabs', fontSize: 16,
     panels: [
@@ -370,7 +377,7 @@ export function createDemoProject(): Project {
   s3Progress.props = { source: 'course', showLabel: true, shape: 'bar' };
   const s3Next = blk('button', 'Continue button', 1020, 610, 180, 52);
   s3Next.props = { label: 'Continue →', variant: 'outline', fontSize: 17 };
-  s3.layers[0].blocks.push(s3Title, s3Tabs, s3Progress, s3Next);
+  s3.layers[0].blocks.push(s3Title, s3Url, s3Tabs, s3Progress, s3Next);
 
   // ---- Slide 4 · Knowledge check (quiz, variable, success layer) ----
   const s4 = createSlide('Knowledge check');

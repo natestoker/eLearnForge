@@ -27,31 +27,33 @@ export function RibbonSlide() {
     <>
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <Field label="Name">
-            <TextInput
-              value={slide.name}
-              onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.name = v; })}
-            />
-          </Field>
-          <Field label="Width">
-            <NumberInput
-              value={slide.width} min={320}
-              onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.width = v; })}
-            />
-          </Field>
-          <Field label="Height">
-            <NumberInput
-              value={slide.height} min={240}
-              onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.height = v; })}
-            />
-          </Field>
-          <Field label="Transition">
-            <SelectInput
-              value={slide.transition ?? ''}
-              options={[{ value: '', label: 'Course default' }, ...TRANSITION_OPTIONS]}
-              onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.transition = v === '' ? undefined : (v as Slide['transition']); })}
-            />
-          </Field>
+          <div className="rbn-fgrid">
+            <Field label="Name">
+              <TextInput
+                value={slide.name}
+                onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.name = v; })}
+              />
+            </Field>
+            <Field label="Transition">
+              <SelectInput
+                value={slide.transition ?? ''}
+                options={[{ value: '', label: 'Course default' }, ...TRANSITION_OPTIONS]}
+                onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.transition = v === '' ? undefined : (v as Slide['transition']); })}
+              />
+            </Field>
+            <Field label="Width">
+              <NumberInput
+                value={slide.width} min={320}
+                onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.width = v; })}
+              />
+            </Field>
+            <Field label="Height">
+              <NumberInput
+                value={slide.height} min={240}
+                onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.height = v; })}
+              />
+            </Field>
+          </div>
         </div>
         <span className="ribbon-group-title">Slide Settings</span>
       </div>
