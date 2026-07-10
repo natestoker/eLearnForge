@@ -1,7 +1,7 @@
 const fs = require('fs');
 const https = require('https');
 
-const data = fs.readFileSync('C:\\Users\\nates\\.gemini\\antigravity\\brain\\e592782d-74b8-479d-b817-7b528df384e3\\.system_generated\\steps\\768\\output.txt', 'utf8');
+const data = fs.readFileSync('C:\\Users\\nates\\.gemini\\antigravity\\brain\\e592782d-74b8-479d-b817-7b528df384e3\\.system_generated\\steps\\872\\output.txt', 'utf8');
 const screens = JSON.parse(data.trim().replace(/^\d+:\s*/gm, '')).screens;
 
 async function fetchHtml(url) {
@@ -23,15 +23,22 @@ async function main() {
         try {
           const html = await fetchHtml(screen.htmlCode.downloadUrl);
           const match = html.match(/<svg[\s\S]*?<\/svg>/i);
+          let name = screen.title;
+          if (icons[name]) {
+             let idx = 2;
+             while (icons[`${name} ${idx}`]) idx++;
+             name = `${name} ${idx}`;
+          }
+
           if (match) {
-            icons[screen.title] = match[0];
+            icons[name] = match[0];
           } else {
             // Might be an icon in a div
             const divMatch = html.match(/<div[^>]*class="[^"]*material-symbols-outlined[^"]*"[^>]*>.*?<\/div>/i);
             if (divMatch) {
-              icons[screen.title] = divMatch[0];
+              icons[name] = divMatch[0];
             } else {
-                icons[screen.title] = html; // Save everything if no SVG found
+                icons[name] = html; // Save everything if no SVG found
             }
           }
         } catch (e) {
