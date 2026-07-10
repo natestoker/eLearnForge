@@ -63,6 +63,7 @@ export function BlockNode({
   startResize,
   startTail,
   startMotion,
+  startMarquee,
   previewStyle
 }: {
   block: Block;
@@ -71,6 +72,9 @@ export function BlockNode({
   updateBlock: (id: string, fn: (b: Block) => void, history?: boolean) => void;
   startMove: (e: React.PointerEvent, block: Block, layer?: Layer) => void;
   startResize: (e: React.PointerEvent, block: Block, h: any) => void;
+  // Locked blocks hand their pointerdown to the canvas marquee, so a
+  // full-bleed locked background image never blocks rubber-band selection.
+  startMarquee?: (e: React.PointerEvent) => void;
   startTail?: (e: React.PointerEvent, block: Block) => void;
   startMotion?: (e: React.PointerEvent, block: Block) => void;
   previewStyle?: React.CSSProperties;
@@ -88,9 +92,11 @@ export function BlockNode({
     <div
       className={`stage-block ${isSelected ? 'selected' : ''} ${isMultiSel && !isSelected ? 'co-selected' : ''} ${locked ? 'locked' : ''}`}
       style={{ left: block.x, top: block.y, width: block.w, height: block.h, ...previewStyle }}
-      onPointerDown={(e) => startMove(e, block, layer)}
+      onPointerDown={(e) => (locked && startMarquee ? startMarquee(e) : startMove(e, block, layer))}
       onDoubleClick={
-        block.type === 'group'
+        locked
+          ? () => useProjectStore.getState().select({ blockId: block.id, blockIds: [] })
+          : block.type === 'group'
           ? (e) => {
               // Drill into the group: select the top-most child under the
               // cursor so its properties (color, text...) are editable.
@@ -173,7 +179,7 @@ export function BlockNode({
         </>
       )}
       {isSelected && locked && <div className="block-badge locked">{'\u{1F512}'} {def.label} (locked)</div>}
-      {!isSelected && locked && <div className="lock-glyph" title="Locked - unlock from its timeline row or layer">{'\u{1F512}'}</div>}
+      {!isSelected && locked && <div className="lock-glyph" title="Locked - double-click to select; drag starts a marquee. Unlock from its timeline row or layer.">{'\u{1F512}'}</div>}
     </div>
   );
 }
@@ -208,6 +214,7 @@ export function EditorCanvas() {
   const select = useProjectStore((s) => s.select);
   const record = useProjectStore((s) => s.record);
   const snapEnabled = useUiStore((s) => s.snapEnabled);
+  const showGrid = useUiStore((s) => s.showGrid);
   const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
@@ -714,6 +721,7 @@ export function EditorCanvas() {
           onPointerDown={startMarquee}
           onContextMenu={onStageContextMenu}
       >
+          {showGrid && <div className="stage-grid" aria-hidden="true" />}
         {marquee && (marquee.w > 2 || marquee.h > 2) && (
           <div
             className="marquee"
@@ -748,6 +756,7 @@ export function EditorCanvas() {
                   startResize={startResize}
                   startTail={startTail}
                   startMotion={startMotion}
+                  startMarquee={startMarquee}
                   previewStyle={previewFor(block)}
                 />
               ))}

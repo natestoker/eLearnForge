@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
+import { useUiStore } from '../state/uiStore';
 import type { Slide } from '../schema/types';
 
 // Wireframe thumbnail: every base-layer block as a schematic rect, scaled
@@ -74,7 +75,16 @@ export function SlidesPanel() {
     <div className="panel">
       <div className="panel-header">
         <span>Slides</span>
-        <button className="btn btn-ghost btn-icon" title="Add slide" onClick={addSlide}>+</button>
+        <span style={{ display: 'flex', gap: 2 }}>
+          <button
+            className="btn btn-ghost btn-icon"
+            title="Story view - see the whole course as a branching map"
+            onClick={() => useUiStore.getState().setStoryViewOpen(true)}
+          >
+            {'\u25a6'}
+          </button>
+          <button className="btn btn-ghost btn-icon" title="Add slide" onClick={addSlide}>+</button>
+        </span>
       </div>
       <div className="panel-body slides-list">
         {slides.map((slide, i) => {
