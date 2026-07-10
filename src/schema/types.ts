@@ -7,7 +7,7 @@ export type BlockType =
   | 'button' | 'hotspot' | 'shape' | 'video' | 'audio' | 'textEntry'
   | 'code' | 'matching' | 'group'
   | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs'
-  | 'flashcards' | 'sequence' | 'slider' | 'checklist';
+  | 'flashcards' | 'sequence' | 'slider' | 'checklist' | 'varDisplay';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -282,13 +282,27 @@ export interface ChecklistProps {
   items: ChecklistItem[];
 }
 
+// Score / value display: a stat tile showing one live reference - a project
+// variable by name or a built-in (Score, ProgressPercent, SlideNumber...).
+// The player re-renders on every runtime change, so it tracks live.
+export interface VarDisplayProps {
+  reference: string;   // variable name or built-in reference name
+  label: string;       // caption under the value; empty = value only
+  prefix?: string;     // e.g. "$"
+  suffix?: string;     // e.g. "%", "pts"
+  fontSize: number;    // value size; the caption scales from it
+  color?: string;      // value color; absent = theme mint
+  align: 'left' | 'center' | 'right';
+  tile: boolean;       // true = card with border; false = bare text
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
   | MatchingProps
   | TextEntryProps | CodeProps | GroupProps
   | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps
-  | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps;
+  | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps | VarDisplayProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -

@@ -48,7 +48,8 @@ const ICONS: Record<string, JSX.Element> = {
   flashcards: <Ic d="M7 7.5h13v11H7zM7 7.5L4 6v11l3 1.5M11 12.5h5" />,
   sequence: <Ic d="M5 6.5h2M10 6.5h9M5 12h2M10 12h9M5 17.5h2M10 17.5h9" />,
   slider: <Ic d="M4 12h16M9.5 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 8.5v7M20 8.5v7" />,
-  checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />
+  checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />,
+  varDisplay: <Ic d="M4 5.5h16v13H4zM7 15.5V12M12 15.5V9.5M17 15.5v-4" />
 };
 
 function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
@@ -190,6 +191,7 @@ export function RibbonInsert() {
             <MBtn icon="code" label="Code" onClick={() => addBlock('code')} />
             <MBtn icon="slider" label="Slider" onClick={() => addBlock('slider')} />
             <MBtn icon="checklist" label="Checklist" onClick={() => addBlock('checklist')} />
+            <MBtn icon="varDisplay" label="Score" onClick={() => addBlock('varDisplay')} />
           </div>
         </div>
         <span className="ribbon-group-title">Widgets</span>

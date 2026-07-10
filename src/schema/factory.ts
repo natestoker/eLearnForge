@@ -100,7 +100,8 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   flashcards: { w: 560, h: 320 },
   sequence: { w: 480, h: 380 },
   slider: { w: 420, h: 90 },
-  checklist: { w: 400, h: 280 }
+  checklist: { w: 400, h: 280 },
+  varDisplay: { w: 260, h: 130 }
 };
 
 export function defaultPlayerSettings(): PlayerSettings {
@@ -224,6 +225,8 @@ export function defaultProps(type: BlockType): BlockProps {
       };
     case 'slider':
       return { label: 'How confident are you?', min: 0, max: 10, step: 1, defaultValue: 5, showValue: true };
+    case 'varDisplay':
+      return { reference: 'Score', label: 'Your score', suffix: '%', fontSize: 44, align: 'center', tile: true };
     case 'checklist':
       return {
         title: 'Before you continue',
@@ -465,7 +468,7 @@ export function createDemoProject(): Project {
   s4.triggers.push({
     id: uid('trg'), event: 'onVariableChange', watchVariableId: mcVar.id,
     conditions: [{ variableId: mcVar.id, operator: 'eq', value: true }],
-    actions: [{ type: 'showLayer', layerId: s4Done.id }]
+    actions: [{ type: 'showLayer', layerId: s4Done.id }, { type: 'setScore', score: 100 }]
   });
 
   // ---- Slide 5 · Sort the inbox (drag & drop, variable, layer) ----
@@ -519,15 +522,19 @@ export function createDemoProject(): Project {
   };
   anim(s6Recap, 'fade', 0.9);
 
-  const s6Ring = blk('progress', 'Progress ring', 860, 200, 220, 220);
+  const s6Ring = blk('progress', 'Progress ring', 860, 180, 200, 200);
   s6Ring.props = { source: 'course', showLabel: true, shape: 'ring' };
   anim(s6Ring, 'zoom', 1.2, 0.7, 'back.out(1.6)');
+
+  const s6Score = blk('varDisplay', 'Score tile', 850, 410, 220, 120);
+  s6Score.props = { reference: 'Score', label: 'Your score', suffix: '%', fontSize: 44, align: 'center', tile: true };
+  anim(s6Score, 'popRotate', 1.5, 0.7, 'back.out(1.6)');
 
   const s6Finish = blk('button', 'Finish button', 80, 530, 240, 58);
   s6Finish.props = { label: 'Finish course ✓', variant: 'solid', fontSize: 18 };
   s6Finish.emphasis = 'pulse';
   anim(s6Finish, 'slide', 1.6, 0.6);
-  s6.layers[0].blocks.push(s6Title, s6Recap, s6Ring, s6Finish);
+  s6.layers[0].blocks.push(s6Title, s6Recap, s6Ring, s6Score, s6Finish);
 
   // ---- Cross-slide navigation triggers ----
   project.slides = [s1, s2, s3, s4, s5, s6];
