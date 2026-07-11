@@ -9,6 +9,7 @@ import { TriggersPanel } from './TriggersPanel';
 import { VariablesPanel } from './VariablesPanel';
 import { BlockPanel } from './BlockPanel';
 import { StoryView } from './StoryView';
+import { DesktopGate } from './DesktopGate';
 import { Welcome, WELCOME_SEEN_KEY } from './Welcome';
 import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
@@ -136,6 +137,7 @@ export function App() {
       {storyViewOpen && <StoryView />}
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
+      <DesktopGate />
     </div>
   );
 }
