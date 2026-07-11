@@ -407,6 +407,49 @@ button { font-family: inherit; }
 .welcome-foot a { color: var(--muted); text-decoration: none; }
 .welcome-foot a:hover { color: var(--accent); }
 
+/* ---------- desktop gate + player mobile ---------- */
+.desktop-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.desktop-gate-card {
+  max-width: 380px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.desktop-gate-card .brand-mark { width: 44px; height: 44px; font-size: 17px; border-radius: 11px; }
+.desktop-gate-card h1 { margin: 6px 0 0; font-size: 20px; font-weight: 800; }
+.desktop-gate-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+.desktop-gate-note { font-size: 12.5px !important; color: var(--faint) !important; }
+.desktop-gate-card .btn-accent { margin-top: 8px; padding: 9px 22px; }
+.desktop-gate-links { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
+.desktop-gate-links a { color: var(--muted); text-decoration: none; }
+.desktop-gate-links a:hover { color: var(--accent); }
+
+/* Player at phone widths: the bottom chrome crams onto one row and collides,
+   so drop the least-load-bearing bits (running timecode, course title) and
+   tighten spacing. The scrubber and Back/Next stay. */
+@media (max-width: 640px) {
+  .player-chrome-bar { gap: 8px; padding: 8px 10px; flex-wrap: wrap; }
+  .player-time { display: none; }
+  .player-hud-title { display: none; }
+  .player-chrome-btn { padding: 8px 14px; font-size: 12px; }
+  .player-controls { flex: 1 1 100%; order: 2; }
+  .player-course-progress { order: 0; }
+  .player-seek { flex: 1; min-width: 0; }
+  .player-info-tabs { top: 6px; right: 8px; }
+  .player-stage-area { padding: 0 4px; }
+}
+
 /* ---------- status bar ---------- */
 
 .statusbar {
