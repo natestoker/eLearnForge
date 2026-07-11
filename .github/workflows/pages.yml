@@ -26,7 +26,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # --ignore-scripts skips onnxruntime-node's postinstall, which tries to
+      # download a server-side CUDA binary from GitHub releases and fails in
+      # CI. It's a transitive dep of kokoro-js (in-browser TTS); the Vite
+      # build only bundles the browser ONNX runtime, so the node binary is
+      # never needed. esbuild's binary ships as an optional dep, not a script.
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - uses: actions/configure-pages@v5
         with:
