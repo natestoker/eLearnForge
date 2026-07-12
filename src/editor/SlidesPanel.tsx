@@ -87,13 +87,6 @@ export function SlidesPanel() {
               {'\u25a4'}
             </button>
           )}
-          <button
-            className="btn btn-ghost btn-icon"
-            title="Story view - see the whole course as a branching map"
-            onClick={() => useUiStore.getState().setStoryViewOpen(true)}
-          >
-            {'\u25a6'}
-          </button>
           <button className="btn btn-ghost btn-icon" title="Add slide" onClick={addSlide}>+</button>
         </span>
       </div>
