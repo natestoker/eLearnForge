@@ -32,6 +32,8 @@ export function SlidesPanel() {
   const deleteTemplate = useProjectStore((s) => s.deleteTemplate);
   const mutate = useProjectStore((s) => s.mutate);
   const record = useProjectStore((s) => s.record);
+  const layersCollapsed = useUiStore((s) => s.layersCollapsed);
+  const toggleLayersCollapsed = useUiStore((s) => s.toggleLayersCollapsed);
 
   const saveTemplate = (slideId: string, fallback: string) => {
     const name = window.prompt('Template name', fallback);
@@ -76,6 +78,15 @@ export function SlidesPanel() {
       <div className="panel-header">
         <span>Slides</span>
         <span style={{ display: 'flex', gap: 2 }}>
+          {layersCollapsed && (
+            <button
+              className="btn btn-ghost btn-icon"
+              title="Show the layers panel"
+              onClick={toggleLayersCollapsed}
+            >
+              {'\u25a4'}
+            </button>
+          )}
           <button
             className="btn btn-ghost btn-icon"
             title="Story view - see the whole course as a branching map"
