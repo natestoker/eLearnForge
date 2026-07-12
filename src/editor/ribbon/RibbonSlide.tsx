@@ -1,6 +1,6 @@
 import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
-import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker } from '../fields';
-import { Slide, NavOverride } from '../../schema/types';
+import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker, ColorInput } from '../fields';
+import { Slide, NavOverride, SlideBackground } from '../../schema/types';
 import { NAV_OVERRIDE_OPTIONS } from '../../runtime/PlayerChrome';
 import { BakeNarration } from '../BakeNarration';
 import { VoiceRecorder } from '../VoiceRecorder';
@@ -25,6 +25,22 @@ export function RibbonSlide() {
   if (!slide) return null;
 
   const hasCaptions = Boolean(slide.timeline?.captionsVtt);
+  const bg = slide.background;
+  const patchBg = (patch: Partial<SlideBackground>) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (s) s.background = { ...(s.background ?? { type: 'color' }), ...patch } as SlideBackground;
+    });
+  const setBgType = (t: string) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (!s) return;
+      if (t === '') { s.background = undefined; return; }
+      const prev = s.background;
+      if (t === 'color') s.background = { type: 'color', color: prev?.color ?? '#0b1f17' };
+      else if (t === 'gradient') s.background = { type: 'gradient', from: prev?.from ?? '#123b2b', to: prev?.to ?? '#0b1210', angle: prev?.angle ?? 135 };
+      else s.background = { type: 'image', src: prev?.src ?? '', fit: prev?.fit ?? 'cover' };
+    });
   const setNav = (which: 'next' | 'back' | 'submit', v: string) =>
     mutate((p) => {
       const s = p.slides.find((sl) => sl.id === slide.id);
@@ -68,6 +84,48 @@ export function RibbonSlide() {
           </div>
         </div>
         <span className="ribbon-group-title">Slide Settings</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items">
+          <div className="rbn-fgrid">
+            <Field label="Background">
+              <SelectInput
+                value={bg?.type ?? ''}
+                options={[
+                  { value: '', label: 'None (theme)' },
+                  { value: 'color', label: 'Color' },
+                  { value: 'gradient', label: 'Gradient' },
+                  { value: 'image', label: 'Image' }
+                ]}
+                onChange={setBgType}
+              />
+            </Field>
+            {bg?.type === 'color' && (
+              <Field label="Fill"><ColorInput value={bg.color ?? ''} onChange={(v) => patchBg({ color: v })} /></Field>
+            )}
+            {bg?.type === 'gradient' && (
+              <>
+                <Field label="From"><ColorInput value={bg.from ?? ''} onChange={(v) => patchBg({ from: v })} /></Field>
+                <Field label="To"><ColorInput value={bg.to ?? ''} onChange={(v) => patchBg({ to: v })} /></Field>
+                <Field label="Angle"><NumberInput value={bg.angle ?? 135} step={15} onChange={(v) => patchBg({ angle: v })} /></Field>
+              </>
+            )}
+            {bg?.type === 'image' && (
+              <Field label="Fit">
+                <SelectInput
+                  value={bg.fit ?? 'cover'}
+                  options={[{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'tile', label: 'Tile' }]}
+                  onChange={(v) => patchBg({ fit: v as SlideBackground['fit'] })}
+                />
+              </Field>
+            )}
+          </div>
+          {bg?.type === 'image' && (
+            <ImagePicker src={bg.src ?? ''} onChange={(src) => patchBg({ src })} />
+          )}
+        </div>
+        <span className="ribbon-group-title">Background</span>
       </div>
 
       <div className="ribbon-group">

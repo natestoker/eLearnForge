@@ -3,6 +3,7 @@ import type { Block, Layer, ShapeProps } from '../schema/types';
 import { selectedIds, useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { BLOCKS } from '../blocks/registry';
+import { slideBackgroundStyle } from '../shared/background';
 import { CALLOUT_BODY, DEFAULT_TAIL } from '../blocks/shape/geometry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionPoints } from '../engine/motionPath';
@@ -716,7 +717,8 @@ export function EditorCanvas() {
             transformOrigin: 'top left',
             position: 'absolute',
             top: PASTEBOARD * activeScale,
-            left: PASTEBOARD * activeScale
+            left: PASTEBOARD * activeScale,
+            ...slideBackgroundStyle(slide.background)
           }}
           onPointerDown={startMarquee}
           onContextMenu={onStageContextMenu}

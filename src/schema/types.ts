@@ -501,6 +501,10 @@ export interface StateStyle {
   borderColor?: string;
   textColor?: string;
   opacity?: number;
+  // Looping attention animation that runs while this state is active (e.g. a
+  // button that pulses on hover). Overrides the block's base emphasis for the
+  // duration of the state; clears back to it when the state ends.
+  emphasis?: 'none' | 'pulse' | 'bounce' | 'shake' | 'float' | 'wobble' | 'tada' | 'heartbeat' | 'glow';
 }
 
 export type ConditionOperator =
@@ -580,6 +584,17 @@ export interface Slide {
   // forces it visible even when hidden globally. This is how you e.g. block
   // Next on a gate slide without touching the course-wide chrome.
   nav?: SlideNavOverride;
+  // Slide backdrop behind all layers. Absent = the theme's neutral surface.
+  // Lets an author set a colour/gradient/image without dropping a full-bleed
+  // graphic on the base layer.
+  background?: SlideBackground;
+}
+
+export interface SlideBackground {
+  type: 'color' | 'gradient' | 'image';
+  color?: string;                          // type 'color'
+  from?: string; to?: string; angle?: number; // type 'gradient' (deg)
+  src?: string; fit?: 'cover' | 'contain' | 'tile'; // type 'image'
 }
 
 export type NavOverride = 'show' | 'hide' | 'disable';
