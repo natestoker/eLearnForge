@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
-import { loadProject, restoreFileHandle, saveProject } from '../state/persistence';
+import { loadProject, restoreFileHandle, saveProject, exportProjectJson, exportProjectJsonAs } from '../state/persistence';
 import { Ribbon } from './Ribbon';
 import { SlidesPanel } from './SlidesPanel';
 import { LayersPanel } from './LayersPanel';
@@ -73,6 +73,17 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      // Ctrl/Cmd+S saves to the project file (Shift = Save As), replacing the
+      // browser's own save dialog. Works even while typing in a field - Save
+      // should always win. The keydown is a user gesture, so first-time Save
+      // is allowed to open the file picker.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        const project = useProjectStore.getState().project;
+        if (e.shiftKey) void exportProjectJsonAs(project);
+        else void exportProjectJson(project);
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing) {
         e.preventDefault();
         if (e.shiftKey) useProjectStore.getState().redo();

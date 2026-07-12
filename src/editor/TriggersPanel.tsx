@@ -4,6 +4,7 @@ import type {
 } from '../schema/types';
 import { useCurrentSlide, useProjectStore } from '../state/projectStore';
 import { uid } from '../schema/factory';
+import { SELF_TARGET } from '../schema/types';
 import { SelectInput } from './fields';
 
 // Operators offered per variable type. String variables get contains;
@@ -106,6 +107,20 @@ export function TriggersPanel() {
   const blocks = slideBlocks(slide);
   const audioBlocks = blocks.filter(({ block }) => block.type === 'audio');
   const variables = project.variables;
+
+  // Block-target dropdown options. When the trigger fires on an object
+  // (onClick/onHover/onBlockEnters/...), offer "This object" up top - the
+  // Storyline self-target - so an action can act on the same block that
+  // triggered it without naming it explicitly.
+  const blockTargetOptions = (trigger: Trigger, from = blocks) => {
+    const opts = from.map(({ block, layerName }) => ({
+      value: block.id,
+      label: `${blockLabel(block)} (${layerName})`
+    }));
+    return trigger.sourceBlockId
+      ? [{ value: SELF_TARGET, label: '↻ This object (the source)' }, ...opts]
+      : opts;
+  };
 
   const edit = (triggerId: string, fn: (t: Trigger) => void, history = true) =>
     mutate((p) => {
@@ -436,10 +451,7 @@ export function TriggersPanel() {
                 {(action.type === 'showBlock' || action.type === 'hideBlock' || action.type === 'toggleBlock') && (
                   <SelectInput
                     value={action.blockId}
-                    options={blocks.map(({ block, layerName }) => ({
-                      value: block.id,
-                      label: `${blockLabel(block)} (${layerName})`
-                    }))}
+                    options={blockTargetOptions(trigger)}
                     onChange={(v) =>
                       edit(trigger.id, (t) => {
                         (t.actions[ai] as { blockId: string }).blockId = v;
@@ -524,7 +536,7 @@ export function TriggersPanel() {
                   <>
                     <SelectInput
                       value={action.blockId}
-                      options={blocks.map(({ block, layerName }) => ({ value: block.id, label: `${blockLabel(block)} (${layerName})` }))}
+                      options={blockTargetOptions(trigger)}
                       onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
                     />
                     <SelectInput
@@ -551,7 +563,7 @@ export function TriggersPanel() {
                 {(action.type === 'playAudio' || action.type === 'pauseAudio') && (
                   <SelectInput
                     value={action.blockId}
-                    options={(audioBlocks.length ? audioBlocks : blocks).map(({ block, layerName }) => ({ value: block.id, label: `${blockLabel(block)} (${layerName})` }))}
+                    options={blockTargetOptions(trigger, audioBlocks.length ? audioBlocks : blocks)}
                     onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
                   />
                 )}
@@ -559,7 +571,7 @@ export function TriggersPanel() {
                   <>
                     <SelectInput
                       value={action.blockId}
-                      options={blocks.map(({ block, layerName }) => ({ value: block.id, label: `${blockLabel(block)} (${layerName})` }))}
+                      options={blockTargetOptions(trigger)}
                       onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
                     />
                     <SelectInput

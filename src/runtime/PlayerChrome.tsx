@@ -1,4 +1,4 @@
-import type { Project, PlayerSettings } from '../schema/types';
+import type { NavOverride, Project, PlayerSettings } from '../schema/types';
 import type { Runtime } from '../engine/runtime';
 
 // Player chrome, split in two:
@@ -47,30 +47,41 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
     const next = project.slides[slideIndex + dir];
     if (next) runtime.enterSlide(next.id);
   };
+  // Merge the global button setting with this slide's optional override.
+  // 'hide' drops the button here, 'show' forces it visible, 'disable' shows it
+  // greyed out. Absent = inherit the course-wide PlayerSettings.
+  const nav = project.slides[slideIndex]?.nav;
+  const shown = (which: 'next' | 'back' | 'submit') => {
+    const o = nav?.[which];
+    if (o === 'hide') return false;
+    if (o === 'show' || o === 'disable') return true;
+    return settings[which].show;
+  };
+  const forcedOff = (which: 'next' | 'back' | 'submit'): boolean => nav?.[which] === 'disable';
   return (
     <div className="player-navbar-buttons">
-      {settings.submit.show && (
+      {shown('submit') && (
         <button
           className="player-chrome-btn accent"
-          disabled={!runtime.isPlayerButtonEnabled('submit')}
+          disabled={forcedOff('submit') || !runtime.isPlayerButtonEnabled('submit')}
           onClick={() => runtime.submit()}
         >
           {settings.submit.label}
         </button>
       )}
-      {settings.back.show && (
+      {shown('back') && (
         <button
           className="player-chrome-btn"
-          disabled={slideIndex === 0 || !runtime.isPlayerButtonEnabled('back')}
+          disabled={forcedOff('back') || slideIndex === 0 || !runtime.isPlayerButtonEnabled('back')}
           onClick={() => go(-1)}
         >
           {settings.back.label}
         </button>
       )}
-      {settings.next.show && (
+      {shown('next') && (
         <button
           className="player-chrome-btn accent"
-          disabled={slideIndex >= project.slides.length - 1 || !runtime.isPlayerButtonEnabled('next')}
+          disabled={forcedOff('next') || slideIndex >= project.slides.length - 1 || !runtime.isPlayerButtonEnabled('next')}
           onClick={() => go(1)}
         >
           {settings.next.label}
@@ -79,3 +90,12 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
     </div>
   );
 }
+
+// A NavOverride select used by the Slide ribbon. Exported here so the label
+// wording (Default / Show / Disable / Hide) stays in one place.
+export const NAV_OVERRIDE_OPTIONS: { value: '' | NavOverride; label: string }[] = [
+  { value: '', label: 'Course default' },
+  { value: 'show', label: 'Show' },
+  { value: 'disable', label: 'Disable (greyed)' },
+  { value: 'hide', label: 'Hide' }
+];

@@ -1,6 +1,7 @@
 import type {
   Action, Block, BlockState, Condition, Project, Slide, Trigger, VariableValue
 } from '../schema/types';
+import { SELF_TARGET } from '../schema/types';
 import type { TrackingEvent } from '../tracking/adapter';
 
 // Trigger engine v1: deliberately thin per the brief.
@@ -401,11 +402,15 @@ export class Runtime {
     }
     for (const trigger of triggers) {
       if (!this.conditionsPass(trigger.conditions, trigger.conditionLogic ?? 'and')) continue;
-      for (const action of trigger.actions) this.applyAction(action, depth + 1);
+      for (const action of trigger.actions) this.applyAction(action, depth + 1, trigger.sourceBlockId);
     }
   }
 
-  private applyAction(action: Action, depth: number): void {
+  private applyAction(action: Action, depth: number, sourceBlockId?: string): void {
+    // Resolve the "this object" (self) target to the trigger's source block.
+    // If there is no source (e.g. onSlideLoad), a self target is a harmless
+    // no-op rather than an error.
+    const self = (blockId: string) => (blockId === SELF_TARGET ? (sourceBlockId ?? '') : blockId);
     switch (action.type) {
       case 'showLayer':
         this.snapshot = {
@@ -422,13 +427,13 @@ export class Runtime {
       case 'showBlock':
         this.snapshot = {
           ...this.snapshot,
-          blockVisible: { ...this.snapshot.blockVisible, [action.blockId]: true }
+          blockVisible: { ...this.snapshot.blockVisible, [self(action.blockId)]: true }
         };
         break;
       case 'hideBlock':
         this.snapshot = {
           ...this.snapshot,
-          blockVisible: { ...this.snapshot.blockVisible, [action.blockId]: false }
+          blockVisible: { ...this.snapshot.blockVisible, [self(action.blockId)]: false }
         };
         break;
       case 'goToSlide':
@@ -455,15 +460,16 @@ export class Runtime {
         if (typeof window !== 'undefined') window.open(action.url, '_blank', 'noopener');
         break;
       case 'toggleBlock': {
-        const visible = this.snapshot.blockVisible[action.blockId] ?? true;
+        const id = self(action.blockId);
+        const visible = this.snapshot.blockVisible[id] ?? true;
         this.snapshot = {
           ...this.snapshot,
-          blockVisible: { ...this.snapshot.blockVisible, [action.blockId]: !visible }
+          blockVisible: { ...this.snapshot.blockVisible, [id]: !visible }
         };
         break;
       }
       case 'setState':
-        this.setBlockState(action.blockId, action.state, depth);
+        this.setBlockState(self(action.blockId), action.state, depth);
         break;
       case 'setPlayerButton':
         this.playerButtons[action.button] = action.enabled;
@@ -471,12 +477,16 @@ export class Runtime {
       case 'playAudio':
       case 'pauseAudio':
       case 'pulseBlock':
+        // Carry a blockId; resolve "self" before handing to the Player so the
+        // live-effect handler always sees a concrete id.
+        this.effectHandler?.({ ...action, blockId: self(action.blockId) });
+        break;
       case 'pauseTimeline':
       case 'resumeTimeline':
       case 'seekTimeline':
       case 'restartTimeline':
-        // These touch the live player (audio elements, the clock, transient
-        // emphasis), which the runtime doesn't own - hand them to the Player.
+        // These touch the live player (the clock), which the runtime doesn't
+        // own - hand them to the Player.
         this.effectHandler?.(action);
         break;
     }

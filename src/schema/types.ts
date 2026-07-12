@@ -574,7 +574,26 @@ export interface Slide {
   // is the general pattern for slide-level settings that can override a
   // global one without needing to be set everywhere.
   transition?: SlideTransition;
+  // Per-slide override of the global player nav buttons (PlayerSettings.next /
+  // back / submit). Absent per button = inherit the global setting. 'hide'
+  // removes the button on this slide, 'disable' shows it greyed out, 'show'
+  // forces it visible even when hidden globally. This is how you e.g. block
+  // Next on a gate slide without touching the course-wide chrome.
+  nav?: SlideNavOverride;
 }
+
+export type NavOverride = 'show' | 'hide' | 'disable';
+export interface SlideNavOverride {
+  next?: NavOverride;
+  back?: NavOverride;
+  submit?: NavOverride;
+}
+
+// Sentinel target meaning "the object this trigger fires on" (its
+// sourceBlockId) - the Storyline "this object" convenience. Block ids are
+// always "blk_..." so this string never collides with a real one. The runtime
+// resolves it to the trigger's source when the action runs.
+export const SELF_TARGET = 'self';
 
 export type SlideTransition =
   | 'none' | 'fade' | 'slide' | 'slideLeft' | 'slideRight' | 'slideUp'

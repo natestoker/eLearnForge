@@ -1,6 +1,7 @@
 import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
 import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker } from '../fields';
-import { Slide } from '../../schema/types';
+import { Slide, NavOverride } from '../../schema/types';
+import { NAV_OVERRIDE_OPTIONS } from '../../runtime/PlayerChrome';
 import { BakeNarration } from '../BakeNarration';
 import { VoiceRecorder } from '../VoiceRecorder';
 
@@ -22,6 +23,17 @@ export function RibbonSlide() {
   const mutate = useProjectStore((s) => s.mutate);
 
   if (!slide) return null;
+
+  const hasCaptions = Boolean(slide.timeline?.captionsVtt);
+  const setNav = (which: 'next' | 'back' | 'submit', v: string) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      if (!s) return;
+      const nav = { ...(s.nav ?? {}) };
+      if (v === '') delete nav[which];
+      else nav[which] = v as NavOverride;
+      s.nav = Object.keys(nav).length ? nav : undefined;
+    });
 
   return (
     <>
@@ -80,10 +92,30 @@ export function RibbonSlide() {
               <button className="btn btn-ghost btn-danger" onClick={() => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.timeline = undefined; })}>
                 Remove
               </button>
+              <span className={`cc-badge ${hasCaptions ? 'on' : 'off'}`} title={hasCaptions ? 'This slide has closed captions - they play over the stage and the CC button shows in the player.' : 'No captions yet. Bake narration from notes (Audio) to auto-generate them, or paste WebVTT.'}>
+                <b>CC</b> {hasCaptions ? 'on this slide' : 'none yet'}
+              </span>
             </>
           )}
         </div>
         <span className="ribbon-group-title">Timeline</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items">
+          <div className="rbn-fgrid">
+            <Field label="Next button">
+              <SelectInput value={slide.nav?.next ?? ''} options={NAV_OVERRIDE_OPTIONS} onChange={(v) => setNav('next', v)} />
+            </Field>
+            <Field label="Back button">
+              <SelectInput value={slide.nav?.back ?? ''} options={NAV_OVERRIDE_OPTIONS} onChange={(v) => setNav('back', v)} />
+            </Field>
+            <Field label="Submit button">
+              <SelectInput value={slide.nav?.submit ?? ''} options={NAV_OVERRIDE_OPTIONS} onChange={(v) => setNav('submit', v)} />
+            </Field>
+          </div>
+        </div>
+        <span className="ribbon-group-title">Nav (this slide)</span>
       </div>
 
       <div className="ribbon-group">
