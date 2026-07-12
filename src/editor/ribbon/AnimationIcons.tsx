@@ -40,3 +40,5 @@ export const UnfoldVerticalIcon = () => <FxIcon fx="unfold" />;
 export const DropInIcon = () => <FxIcon fx="drop" />;
 export const SwivelIcon = () => <FxIcon fx="swivel" />;
 export const WhipInIcon = () => <FxIcon fx="whip" />;
+export const FlyCornerIcon = () => <FxIcon fx="flycorner" />;
+export const RollIcon = () => <FxIcon fx="roll" />;

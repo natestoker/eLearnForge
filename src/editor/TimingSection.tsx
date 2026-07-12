@@ -26,17 +26,36 @@ const ANIMS: { value: AnimType; label: string }[] = [
   { value: 'collapse', label: 'Unfold (vertical)' },
   { value: 'drop', label: 'Drop in' },
   { value: 'swivel', label: 'Swivel' },
-  { value: 'whipIn', label: 'Whip in' }
+  { value: 'whipIn', label: 'Whip in' },
+  { value: 'flyCorner', label: 'Fly from corner' },
+  { value: 'roll', label: 'Roll in' }
 ];
 
-const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip', 'whipIn'];
-const DISTANCED: AnimType[] = ['slide', 'rise', 'drop', 'whipIn', 'blur'];
-const DIRECTIONS: { value: AnimDirection; label: string }[] = [
+const DIRECTIONAL: AnimType[] = ['slide', 'rise', 'wipe', 'flip', 'whipIn', 'flyCorner', 'roll'];
+const DISTANCED: AnimType[] = ['slide', 'rise', 'drop', 'whipIn', 'blur', 'flyCorner', 'roll'];
+const SIDE_DIRECTIONS: { value: AnimDirection; label: string }[] = [
   { value: 'up', label: 'Up' },
   { value: 'down', label: 'Down' },
   { value: 'left', label: 'Left' },
   { value: 'right', label: 'Right' }
 ];
+const CORNER_DIRECTIONS: { value: AnimDirection; label: string }[] = [
+  { value: 'upLeft', label: 'Top-left' },
+  { value: 'upRight', label: 'Top-right' },
+  { value: 'downLeft', label: 'Bottom-left' },
+  { value: 'downRight', label: 'Bottom-right' }
+];
+const LR_DIRECTIONS: { value: AnimDirection; label: string }[] = [
+  { value: 'left', label: 'From left' },
+  { value: 'right', label: 'From right' }
+];
+// The direction choices depend on the effect: corners fly from corners, roll
+// enters from a side, everything else uses the four cardinal directions.
+function directionsFor(type: AnimType): { value: AnimDirection; label: string }[] {
+  if (type === 'flyCorner') return CORNER_DIRECTIONS;
+  if (type === 'roll') return LR_DIRECTIONS;
+  return SIDE_DIRECTIONS;
+}
 
 const EASES = ['power2.out', 'power2.inOut', 'power3.out', 'power4.out', 'back.out(1.7)', 'elastic.out(1, 0.5)', 'none'];
 
@@ -87,7 +106,7 @@ function AnimEditor(props: {
             <Field label="Direction">
               <SelectInput
                 value={spec.direction ?? defaultDirection(type as AnimType)}
-                options={DIRECTIONS}
+                options={directionsFor(type as AnimType)}
                 onChange={(v) => props.onChange({ ...spec, direction: v as AnimDirection })}
               />
             </Field>

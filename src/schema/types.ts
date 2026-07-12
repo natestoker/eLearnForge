@@ -352,14 +352,18 @@ export type AnimType =
   | 'collapse' // unfolds vertically
   | 'drop'     // falls in from above (distance; pair with a bounce ease)
   | 'swivel'   // full Y-axis turn while fading in
-  | 'whipIn';  // fast angled swing-in (direction left/right, distance)
+  | 'whipIn'   // fast angled swing-in (direction left/right, distance)
+  | 'flyCorner' // slides in diagonally from a corner (direction = the corner)
+  | 'roll';    // rolls in from the side with a spin (direction left/right)
 
 // Legacy stored values from projects saved before the consolidation.
 export type LegacyAnimType =
   | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight'
   | 'wipeUp' | 'flipX' | 'flipY';
 
-export type AnimDirection = 'up' | 'down' | 'left' | 'right';
+export type AnimDirection =
+  | 'up' | 'down' | 'left' | 'right'
+  | 'upLeft' | 'upRight' | 'downLeft' | 'downRight'; // corners (fly-in)
 
 export interface AnimSpec {
   type: AnimType | LegacyAnimType;
