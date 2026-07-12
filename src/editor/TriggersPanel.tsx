@@ -163,6 +163,7 @@ export function TriggersPanel() {
       case 'playAudio': return { type, blockId: audioBlocks[0]?.block.id ?? blocks[0]?.block.id ?? '' };
       case 'pauseAudio': return { type, blockId: audioBlocks[0]?.block.id ?? blocks[0]?.block.id ?? '' };
       case 'pulseBlock': return { type, blockId: blocks[0]?.block.id ?? '', emphasis: 'pulse' };
+      case 'playMotion': return { type, blockId: blocks[0]?.block.id ?? '' };
       case 'pauseTimeline': return { type };
       case 'resumeTimeline': return { type };
       case 'seekTimeline': return { type, seconds: 0 };
@@ -414,6 +415,7 @@ export function TriggersPanel() {
                     { value: 'playAudio', label: 'Play audio' },
                     { value: 'pauseAudio', label: 'Pause audio' },
                     { value: 'pulseBlock', label: 'Pulse / emphasize a block' },
+                    { value: 'playMotion', label: 'Play motion path' },
                     { value: 'pauseTimeline', label: 'Pause the timeline' },
                     { value: 'resumeTimeline', label: 'Resume the timeline' },
                     { value: 'seekTimeline', label: 'Jump the timeline to...' },
@@ -564,6 +566,13 @@ export function TriggersPanel() {
                   <SelectInput
                     value={action.blockId}
                     options={blockTargetOptions(trigger, audioBlocks.length ? audioBlocks : blocks)}
+                    onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
+                  />
+                )}
+                {action.type === 'playMotion' && (
+                  <SelectInput
+                    value={action.blockId}
+                    options={blockTargetOptions(trigger)}
                     onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
                   />
                 )}

@@ -477,9 +477,10 @@ export class Runtime {
       case 'playAudio':
       case 'pauseAudio':
       case 'pulseBlock':
+      case 'playMotion':
         // Carry a blockId; resolve "self" before handing to the Player so the
         // live-effect handler always sees a concrete id.
-        this.effectHandler?.({ ...action, blockId: self(action.blockId) });
+        this.emitEffect({ ...action, blockId: self(action.blockId) });
         break;
       case 'pauseTimeline':
       case 'resumeTimeline':
@@ -487,16 +488,26 @@ export class Runtime {
       case 'restartTimeline':
         // These touch the live player (the clock), which the runtime doesn't
         // own - hand them to the Player.
-        this.effectHandler?.(action);
+        this.emitEffect(action);
         break;
     }
   }
 
   // The Player registers a handler for actions that manipulate live player
-  // objects (audio playback, the timeline clock, one-shot emphasis).
+  // objects (audio playback, the timeline clock, one-shot emphasis). The
+  // first slide's onSlideLoad runs inside the constructor, before the Player
+  // has mounted and registered - buffer those effects and flush on register
+  // so slide-1 playMotion/playAudio aren't lost.
   private effectHandler: ((action: Action) => void) | null = null;
+  private pendingEffects: Action[] = [];
+  private emitEffect(action: Action): void {
+    if (this.effectHandler) this.effectHandler(action);
+    else this.pendingEffects.push(action);
+  }
   onEffect(fn: (action: Action) => void): () => void {
     this.effectHandler = fn;
+    const queued = this.pendingEffects.splice(0);
+    queued.forEach((a) => fn(a));
     return () => { if (this.effectHandler === fn) this.effectHandler = null; };
   }
 }

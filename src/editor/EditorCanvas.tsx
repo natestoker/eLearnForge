@@ -162,8 +162,19 @@ export function BlockNode({
             const cx = block.w / 2, cy = block.h / 2;
             const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${cx + p.x},${cy + p.y}`).join(' ');
             const hv = block.motion.vector;
+            // Where the block comes to rest: the last path point (a circle
+            // loops home, so its ghost sits back at the start).
+            const end = pts[pts.length - 1] ?? { x: 0, y: 0 };
             return (
               <>
+                {/* Ghost: a translucent preview of the block at its landing spot. */}
+                <div
+                  className="motion-ghost"
+                  style={{ left: end.x, top: end.y, width: block.w, height: block.h }}
+                  aria-hidden="true"
+                >
+                  <span>lands here</span>
+                </div>
                 <svg className="motion-overlay" style={{ position: 'absolute', left: 0, top: 0, width: block.w, height: block.h, overflow: 'visible', pointerEvents: 'none' }}>
                   <path d={d} fill="none" stroke="#f0b429" strokeWidth={1.5} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
                 </svg>
