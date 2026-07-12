@@ -44,20 +44,22 @@ export function LayersPanel() {
     window.addEventListener('pointerup', onUp);
   };
 
+  // Collapsed: render nothing at all so the Slides panel takes the full
+  // sidebar height. The restore toggle lives in the Slides panel header.
+  if (layersCollapsed) return null;
+
   return (
-    <div className={`panel ${layersCollapsed ? 'collapsed' : ''}`}>
+    <div className="panel">
       <div className="panel-header">
         <span>Layers</span>
         <span style={{ display: 'flex', gap: 2 }}>
-          {!layersCollapsed && (
-            <button className="btn btn-ghost btn-icon" title="Add layer" onClick={() => addLayer(slide.id)}>+</button>
-          )}
+          <button className="btn btn-ghost btn-icon" title="Add layer" onClick={() => addLayer(slide.id)}>+</button>
           <button
             className="btn btn-ghost btn-icon"
-            title={layersCollapsed ? 'Show layers' : 'Collapse layers (more room for slides)'}
+            title="Hide the layers panel (more room for slides)"
             onClick={toggleLayersCollapsed}
           >
-            {layersCollapsed ? '⌄' : '⌃'}
+            {'⌃'}
           </button>
         </span>
       </div>

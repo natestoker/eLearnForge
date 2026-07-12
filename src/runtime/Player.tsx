@@ -3,6 +3,7 @@ import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
+import { motionOffsetAt } from '../engine/motionPath';
 import { slideBackgroundStyle } from '../shared/background';
 import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
@@ -104,6 +105,20 @@ export function Player({ project, adapter, startSlideId }: {
   const timedMediaRef = useRef<TimedMedia>(new TimedMedia());
   const clockRef = useRef<TimelineClock | null>(null);
   const pulseRef = useRef<Map<string, () => void>>(new Map());
+  const motionTweenRef = useRef<Map<string, gsap.core.Tween>>(new Map());
+  // Find a block anywhere in the course by id (motion lookup for playMotion).
+  const findBlockOnSlide = (id: string) => {
+    const walk = (blocks: typeof project.slides[number]['layers'][number]['blocks']): (typeof blocks)[number] | undefined => {
+      for (const b of blocks) {
+        if (b.id === id) return b;
+        const kids = (b as { children?: typeof blocks }).children;
+        if (kids) { const f = walk(kids); if (f) return f; }
+      }
+      return undefined;
+    };
+    for (const s of project.slides) for (const l of s.layers) { const f = walk(l.blocks); if (f) return f; }
+    return undefined;
+  };
 
   // Handle trigger actions that touch live player objects: audio playback,
   // the timeline clock, and one-shot emphasis pulses.
@@ -129,6 +144,28 @@ export function Player({ project, adapter, startSlideId }: {
           pulseRef.current.set(action.blockId, stop);
           // Auto-stop a one-shot pulse after a moment.
           window.setTimeout(() => { stop(); pulseRef.current.delete(action.blockId); }, 1600);
+        }
+      } else if (action.type === 'playMotion') {
+        // Send the block travelling along its path now. Only meaningful for a
+        // trigger-driven motion (auto motion already moves on the clock). We
+        // tween the FX layer so it composes with the wrapper's timeline state,
+        // linearly, letting motionOffsetAt apply the path's own easing.
+        const blk = findBlockOnSlide(action.blockId);
+        const el = document.querySelector(`[data-block-id="${action.blockId}"] .block-fx`) as HTMLElement | null;
+        if (blk?.motion && el) {
+          const m = blk.motion;
+          const easeFn = gsap.parseEase(m.ease) ?? ((n: number) => n);
+          motionTweenRef.current.get(action.blockId)?.kill();
+          const proxy = { p: 0 };
+          const tw = gsap.to(proxy, {
+            p: 1, duration: Math.max(0.05, m.duration), ease: 'none',
+            repeat: m.loop ? -1 : 0,
+            onUpdate: () => {
+              const off = motionOffsetAt(m, m.start + proxy.p * m.duration, easeFn);
+              gsap.set(el, { x: off.x, y: off.y });
+            }
+          });
+          motionTweenRef.current.set(action.blockId, tw);
         }
       }
     });

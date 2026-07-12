@@ -395,6 +395,10 @@ export interface MotionPath {
   duration: number; // seconds to traverse the path
   ease: string;
   loop?: boolean;
+  // When true the block does NOT travel automatically on the timeline; it
+  // waits at its start position until a `playMotion` trigger fires. Lets an
+  // author drive movement from a click/variable instead of the clock.
+  trigger?: boolean;
 }
 
 export interface Block {
@@ -540,6 +544,7 @@ export type Action =
   | { type: 'playAudio'; blockId: string }
   | { type: 'pauseAudio'; blockId: string }
   | { type: 'pulseBlock'; blockId: string; emphasis: 'pulse' | 'bounce' | 'shake' | 'float' }
+  | { type: 'playMotion'; blockId: string }
   | { type: 'pauseTimeline' }
   | { type: 'resumeTimeline' }
   | { type: 'seekTimeline'; seconds: number }

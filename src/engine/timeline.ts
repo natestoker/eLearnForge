@@ -160,8 +160,9 @@ function composeInto(state: BlockVisualState, o: Partial<BlockVisualState>): voi
 
 export function blockStateAt(t: number, timing: BlockTiming | undefined, timelineEnd: number, motion?: MotionPath): BlockVisualState {
   if (!timing) {
-    // No entrance/exit, but a motion path still drives position on the clock.
-    if (motion) {
+    // No entrance/exit, but a motion path still drives position on the clock -
+    // unless it's trigger-driven, in which case it waits at rest.
+    if (motion && !motion.trigger) {
       const off = motionOffsetAt(motion, t, easeFn(motion.ease));
       return { ...REST, translateX: off.x, translateY: off.y };
     }
@@ -202,8 +203,9 @@ export function blockStateAt(t: number, timing: BlockTiming | undefined, timelin
   }
 
   // Motion path adds to whatever the entrance/exit produced, so a block can
-  // slide in AND then travel along a path.
-  if (motion) {
+  // slide in AND then travel along a path. Trigger-driven motion waits at rest
+  // until a playMotion action fires (handled imperatively in the player).
+  if (motion && !motion.trigger) {
     const off = motionOffsetAt(motion, t, easeFn(motion.ease));
     state.translateX += off.x;
     state.translateY += off.y;

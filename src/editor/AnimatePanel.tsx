@@ -18,10 +18,17 @@ function useScrubPreview(windowOf: (b: Block) => [number, number]) {
     const dur = Math.max(dur0, 0.4);
     const t0 = performance.now();
     const pad = 0.4;
+    // Each setScrubT re-renders the whole canvas, so cap updates to ~33ms
+    // (30fps) - smooth enough to read, half the React churn of a raw rAF loop.
+    let lastPush = 0;
     const tick = () => {
-      const el = (performance.now() - t0) / 1000;
+      const now = performance.now();
+      const el = (now - t0) / 1000;
       if (el >= dur + pad) { setScrubT(null); raf.current = null; return; }
-      setScrubT(Math.round((start + Math.min(el, dur)) * 100) / 100);
+      if (now - lastPush >= 33) {
+        lastPush = now;
+        setScrubT(Math.round((start + Math.min(el, dur)) * 100) / 100);
+      }
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
@@ -219,6 +226,12 @@ function MotionSection({ block, updateBlock, onPreview }: {
             />
           </Field>
           <CheckboxInput label="Loop" checked={m.loop ?? false} onChange={(v) => set((mm) => { mm.loop = v || undefined; })} />
+          <CheckboxInput
+            label="Play only when triggered"
+            checked={m.trigger ?? false}
+            onChange={(v) => set((mm) => { mm.trigger = v || undefined; })}
+          />
+          {m.trigger && <p className="hint">The block waits at its start until a “Play motion path” trigger fires. Wire one on the Triggers tab.</p>}
           <button className="btn btn-accent" style={{ marginTop: 8 }} onClick={() => onPreview(block)}>▶ Preview motion</button>
         </>
       )}

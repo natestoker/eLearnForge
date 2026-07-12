@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
 import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker, ColorInput } from '../fields';
 import { Slide, NavOverride, SlideBackground } from '../../schema/types';
 import { NAV_OVERRIDE_OPTIONS } from '../../runtime/PlayerChrome';
 import { BakeNarration } from '../BakeNarration';
 import { VoiceRecorder } from '../VoiceRecorder';
+import { Modal } from '../Modal';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -21,6 +23,7 @@ const TRANSITION_OPTIONS = [
 export function RibbonSlide() {
   const slide = useCurrentSlide();
   const mutate = useProjectStore((s) => s.mutate);
+  const [audioOpen, setAudioOpen] = useState(false);
 
   if (!slide) return null;
 
@@ -178,10 +181,38 @@ export function RibbonSlide() {
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <BakeNarration slideId={slide.id} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+            <button
+              className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[76px]"
+              title="Bake speaker notes into narration, or record your own - the voice model and controls open in a dialog"
+              onClick={() => setAudioOpen(true)}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+              <span className="text-xs">Narration</span>
+            </button>
+            {slide.timeline?.narrationSrc && <span className="hint" style={{ fontSize: 10 }}>Narration set</span>}
+          </div>
         </div>
         <span className="ribbon-group-title">Audio</span>
       </div>
+
+      {audioOpen && (
+        <Modal title={`Narration - ${slide.name}`} onClose={() => setAudioOpen(false)} width="560px">
+          <BakeNarration slideId={slide.id} />
+          <div className="divider" />
+          <h4 className="panel-subtitle">Record your own</h4>
+          <VoiceRecorder
+            onRecorded={(dataUrl) =>
+              mutate((p) => {
+                const s = p.slides.find((sl) => sl.id === slide.id);
+                if (!s) return;
+                if (!s.timeline) s.timeline = { duration: 10, autoAdvance: false };
+                s.timeline.narrationSrc = dataUrl;
+              })
+            }
+          />
+        </Modal>
+      )}
     </>
   );
 }

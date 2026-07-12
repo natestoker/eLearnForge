@@ -1765,6 +1765,28 @@ select.input { appearance: auto; }
   cursor: grab; z-index: 7;
 }
 .motion-handle:active { cursor: grabbing; }
+/* Ghost preview of a block at its motion-path landing spot. Purely an author
+   cue: non-interactive, dashed, faint, with a tiny label. */
+.motion-ghost {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px dashed rgba(255, 179, 104, 0.8);
+  border-radius: 8px;
+  background: rgba(255, 179, 104, 0.08);
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.motion-ghost span {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: #ffb368;
+  background: rgba(17, 20, 18, 0.85);
+  padding: 1px 5px;
+  border-radius: 0 0 5px 0;
+  white-space: nowrap;
+}
 
 /* Editor timeline playhead */
 .timeline-ruler.scrubbable { cursor: col-resize; }
