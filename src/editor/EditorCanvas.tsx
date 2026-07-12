@@ -214,11 +214,11 @@ export function EditorCanvas() {
   const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const record = useProjectStore((s) => s.record);
-  const snapEnabled = useUiStore((s) => s.snapEnabled);
   const showGrid = useUiStore((s) => s.showGrid);
-  const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
+  const addBlock = useProjectStore((s) => s.addBlock);
+  const [dropActive, setDropActive] = useState(false);
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
   const addGuide = useProjectStore((s) => s.addGuide);
   const removeGuide = useProjectStore((s) => s.removeGuide);
@@ -269,6 +269,77 @@ export function EditorCanvas() {
     el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
     el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
   }, [slide.id, activeScale]);
+
+  // Drag media (image / video / audio) straight from the desktop onto the
+  // canvas - no menu round-trip. Files land as a block centered on the drop
+  // point; images size to their natural aspect (capped). Native listeners
+  // (not React's synthetic onDrop) so dataTransfer.files is reliably present.
+  // Internal block drags use pointer events and carry no files, so they pass
+  // through untouched.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const pointFor = (clientX: number, clientY: number) => {
+      const stageEl = el.querySelector('.stage') as HTMLElement | null;
+      if (!stageEl) return { x: slide.width / 2, y: slide.height / 2 };
+      const rect = stageEl.getBoundingClientRect();
+      return { x: (clientX - rect.left) / activeScale, y: (clientY - rect.top) / activeScale };
+    };
+    const onOver = (e: DragEvent) => {
+      if (!e.dataTransfer || !Array.from(e.dataTransfer.types).includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDropActive(true);
+    };
+    const onLeave = (e: DragEvent) => { if (e.target === el) setDropActive(false); };
+    const onDrop = (e: DragEvent) => {
+      const files = Array.from(e.dataTransfer?.files ?? []).filter((f) => /^(image|video|audio)\//.test(f.type));
+      setDropActive(false);
+      if (!files.length) return;
+      e.preventDefault();
+      const pt = pointFor(e.clientX, e.clientY);
+      files.forEach((file, i) => {
+        const drop = { x: pt.x + i * 24, y: pt.y + i * 24 };
+        const name = file.name.replace(/\.[^.]+$/, '');
+        const reader = new FileReader();
+        reader.onload = () => {
+          const src = String(reader.result);
+          if (file.type.startsWith('image/')) {
+            const img = new Image();
+            const place = (w: number, h: number) =>
+              addBlock('image', (b) => {
+                const p = b.props as { src: string; alt: string; fit: string };
+                p.src = src; p.alt = name; p.fit = 'cover';
+                b.w = w; b.h = h;
+              }, drop);
+            img.onload = () => {
+              const maxW = 640, maxH = 480, minW = 80;
+              const nw = img.naturalWidth || 360, nh = img.naturalHeight || 240;
+              // Scale down to fit the max box, but also up so a tiny source
+              // isn't an unclickable dot; keep aspect throughout.
+              const s = Math.min(maxW / nw, maxH / nh, Math.max(1, minW / nw));
+              place(Math.max(minW, Math.round(nw * s)), Math.max(40, Math.round(nh * s)));
+            };
+            img.onerror = () => place(360, 240);
+            img.src = src;
+          } else if (file.type.startsWith('video/')) {
+            addBlock('video', (b) => { (b.props as { src: string }).src = src; }, drop);
+          } else {
+            addBlock('audio', (b) => { (b.props as { src: string }).src = src; }, drop);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+    el.addEventListener('dragover', onOver);
+    el.addEventListener('dragleave', onLeave);
+    el.addEventListener('drop', onDrop);
+    return () => {
+      el.removeEventListener('dragover', onOver);
+      el.removeEventListener('dragleave', onLeave);
+      el.removeEventListener('drop', onDrop);
+    };
+  }, [activeScale, slide.width, slide.height, addBlock]);
 
   // Drag / resize: record() once at gesture start, silent updates during,
   // so the whole gesture is one undo step.
@@ -689,7 +760,7 @@ export function EditorCanvas() {
     // over the slide before.
     <div className="canvas-wrap">
     <div
-      className="canvas-area"
+      className={`canvas-area ${dropActive ? 'drop-active' : ''}`}
       ref={containerRef}
       style={{ overflow: 'auto', position: 'relative', display: 'flex' }}
       onPointerDown={startMarquee}
@@ -780,6 +851,11 @@ export function EditorCanvas() {
       </div>
       </div>
     </div>
+      {dropActive && (
+        <div className="canvas-drop-hint" aria-hidden="true">
+          <div className="canvas-drop-inner">Drop image, video, or audio to add it to this slide</div>
+        </div>
+      )}
       <div className="canvas-zoom">
         <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.max(0.1, activeScale - 0.1)); }}>-</button>
         <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
@@ -796,14 +872,8 @@ export function EditorCanvas() {
         <span>
           {slide.width} x {slide.height} @ {(activeScale * 100).toFixed(0)}%
         </span>
-        <label className="snap-toggle">
-          <input
-            type="checkbox"
-            checked={snapEnabled}
-            onChange={(e) => setSnapEnabled(e.target.checked)}
-          />
-          snap {GRID}px (Alt inverts)
-        </label>
+        {/* Snap to grid lives on the Home ribbon (Grids & Guides); hold Alt
+            while dragging to invert it for one gesture. */}
       </div>
       {canvasMenu && (
         <div className="ctx-menu" style={{ left: canvasMenu.x, top: canvasMenu.y }} onPointerDown={(e) => e.stopPropagation()}>

@@ -48,7 +48,7 @@ export function normalizeAnimSpec(spec: AnimSpec): AnimSpec & { type: AnimType }
 // Default direction when the spec has none (slide/rise/wipe enter from
 // below, flip around the X axis - the PowerPoint defaults).
 export function defaultDirection(type: AnimType): AnimDirection {
-  return type === 'flip' ? 'up' : 'up';
+  return type === 'flyCorner' ? 'upLeft' : 'up';
 }
 
 const easeCache = new Map<string, (n: number) => number>();
@@ -65,7 +65,14 @@ const DIR_VEC: Record<AnimDirection, [number, number]> = {
   up: [0, 1],    // enters moving up = offset starts below
   down: [0, -1],
   left: [1, 0],  // enters moving left = offset starts to the right
-  right: [-1, 0]
+  right: [-1, 0],
+  // Corners name the ORIGIN the block flies in FROM (Top-left = starts up and
+  // to the left, then travels to rest). Normalized so diagonal travel matches
+  // the straight-line distance. Screen axes: +x right, +y down.
+  upLeft: [-0.7071, -0.7071],
+  upRight: [0.7071, -0.7071],
+  downLeft: [-0.7071, 0.7071],
+  downRight: [0.7071, 0.7071]
 };
 
 function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<BlockVisualState> {
@@ -102,6 +109,18 @@ function animOffsets(rawSpec: AnimSpec, p: number, entering: boolean): Partial<B
     case 'drop': return { opacity: 1 - Math.min(1, k * 2), translateY: -(spec.distance ?? 200) * k }; // falls in (pair with bounce ease)
     case 'swivel': return { opacity: 1 - k, rotateY: 360 * k, scale: 1 - 0.2 * k };
     case 'whipIn': return { opacity: 1 - k, translateX: (spec.distance ?? 240) * k * (dir === 'right' ? -1 : 1), rotate: -14 * k, scale: 1 - 0.15 * k };
+    case 'flyCorner': {
+      // Diagonal slide + fade from whichever corner `dir` names.
+      const d = spec.distance ?? SLIDE_DISTANCE;
+      return { opacity: 1 - k, translateX: vx * d * k, translateY: vy * d * k };
+    }
+    case 'roll': {
+      // Rolls in from the side: travels horizontally while un-spinning, like
+      // Animate.css rollIn. Direction left/right picks the entry side.
+      const d = spec.distance ?? 260;
+      const sign = dir === 'right' ? 1 : -1;
+      return { opacity: 1 - k, translateX: -sign * d * k, rotate: sign * 120 * k };
+    }
     case 'wipe': {
       const clip = { top: 0, right: 0, bottom: 0, left: 0 };
       if (dir === 'up') clip.top = k;          // reveals upward from the bottom

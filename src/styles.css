@@ -198,6 +198,8 @@ button { font-family: inherit; }
 .anim-tile:hover .fx-drop    { animation-name: fxk-drop; animation-timing-function: linear; }
 .anim-tile:hover .fx-swivel  { animation-name: fxk-swivel; }
 .anim-tile:hover .fx-whip    { animation-name: fxk-whip; }
+.anim-tile:hover .fx-flycorner { animation-name: fxk-flycorner; }
+.anim-tile:hover .fx-roll    { animation-name: fxk-roll; }
 
 @keyframes fxk-fade    { 0% { opacity: 0; } 50%, 88% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes fxk-fly     { 0% { opacity: 0; transform: translate(-12px, 12px); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
@@ -230,6 +232,8 @@ button { font-family: inherit; }
 }
 @keyframes fxk-swivel  { 0% { opacity: 0; transform: perspective(80px) rotateY(180deg); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @keyframes fxk-whip    { 0% { opacity: 0; transform: translateX(-14px) rotate(-18deg); } 45% { opacity: 1; transform: translateX(2px) rotate(2deg); } 58%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-flycorner { 0% { opacity: 0; transform: translate(-12px, -12px); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes fxk-roll    { 0% { opacity: 0; transform: translateX(-14px) rotate(-120deg); } 50%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   .anim-tile:hover .fxicon-box { animation: none !important; }
@@ -749,6 +753,31 @@ select.input { appearance: auto; }
 .eye.off { color: var(--muted); }
 
 /* ---------- canvas ---------- */
+
+/* Drag-media-onto-canvas: a soft accent wash + centered prompt while a file
+   is dragged over the editor canvas. Purely a cue - it never intercepts the
+   drop (pointer-events: none), which the canvas-area handles. */
+.canvas-area.drop-active { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.canvas-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(61, 220, 151, 0.08);
+}
+.canvas-drop-inner {
+  background: var(--panel-2, #171b18);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
 
 .canvas-area {
   flex: 1;

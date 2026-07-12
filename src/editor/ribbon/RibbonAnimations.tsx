@@ -5,7 +5,7 @@ import {
   SpinInIcon, BlurIcon, GrowIcon, PopRotateIcon,
   FlipIcon, SwivelIcon, UnfoldVerticalIcon,
   NoneIcon, FadeInIcon, FlyInIcon, FloatInIcon, WipeIcon,
-  ZoomInAnimIcon, ZoomOutAnimIcon
+  ZoomInAnimIcon, ZoomOutAnimIcon, FlyCornerIcon, RollIcon
 } from './AnimationIcons';
 
 // Quick animation controls. Every control here is wired to the real model -
@@ -34,7 +34,9 @@ const GALLERY_ITEMS: { type: AnimType, label: string, icon: React.ReactNode }[] 
   { type: 'collapse', label: 'Unfold', icon: <UnfoldVerticalIcon /> },
   { type: 'drop', label: 'Drop', icon: <DropInIcon /> },
   { type: 'swivel', label: 'Swivel', icon: <SwivelIcon /> },
-  { type: 'whipIn', label: 'Whip In', icon: <WhipInIcon /> }
+  { type: 'whipIn', label: 'Whip In', icon: <WhipInIcon /> },
+  { type: 'flyCorner', label: 'Fly Corner', icon: <FlyCornerIcon /> },
+  { type: 'roll', label: 'Roll', icon: <RollIcon /> }
 ];
 
 const EXITS: { value: AnimType | 'none'; label: string }[] = [

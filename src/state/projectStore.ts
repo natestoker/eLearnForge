@@ -103,7 +103,10 @@ interface ProjectStore {
   deleteLayer: (slideId: string, layerId: string) => void;
   // init runs on the new block after defaults/theming, e.g. to set a
   // specific shape kind picked in the Insert menu.
-  addBlock: (type: BlockType, init?: (b: Block) => void) => void;
+  // Add a block to the current slide. `pos` (stage coords) centers the block
+  // on that point - used when dropping media onto the canvas; omitted it lands
+  // at a slightly-randomized default spot. Returns the new block id.
+  addBlock: (type: BlockType, init?: (b: Block) => void, pos?: { x: number; y: number }) => string;
   deleteBlock: (blockId: string) => void;
   copyBlocks: () => void;
   cutBlocks: () => void;
@@ -442,7 +445,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  addBlock: (type, init) => {
+  addBlock: (type, init, pos) => {
     const { selection } = get();
     const block = createBlock(type, 120 + Math.random() * 60, 120 + Math.random() * 60);
     get().mutate((p) => {
@@ -491,8 +494,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.variables.push({ id: uid('var'), name: dragDropVariableName(block.id), type: 'boolean', defaultValue: false });
       }
       init?.(block);
+      // Center on the drop point using the FINAL size (init may have resized
+      // the block, e.g. an image to its natural dimensions), clamped so it
+      // never lands fully off the top-left of the slide.
+      if (pos) {
+        block.x = Math.round(pos.x - block.w / 2);
+        block.y = Math.round(pos.y - block.h / 2);
+      }
     });
     get().select({ blockId: block.id });
+    return block.id;
   },
 
   deleteBlock: (blockId) => {
