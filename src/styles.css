@@ -982,6 +982,31 @@ select.input { appearance: auto; }
 
 /* ---------- canvas ---------- */
 
+/* Drag-media-onto-canvas: a soft accent wash + centered prompt while a file
+   is dragged over the editor canvas. Purely a cue - it never intercepts the
+   drop (pointer-events: none), which the canvas-area handles. */
+.canvas-area.drop-active { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.canvas-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(61, 220, 151, 0.08);
+}
+.canvas-drop-inner {
+  background: var(--panel-2, #171b18);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
 .canvas-area {
   flex: 1;
   position: relative;
