@@ -214,9 +214,7 @@ export function EditorCanvas() {
   const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const record = useProjectStore((s) => s.record);
-  const snapEnabled = useUiStore((s) => s.snapEnabled);
   const showGrid = useUiStore((s) => s.showGrid);
-  const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
   const addBlock = useProjectStore((s) => s.addBlock);
@@ -874,14 +872,8 @@ export function EditorCanvas() {
         <span>
           {slide.width} x {slide.height} @ {(activeScale * 100).toFixed(0)}%
         </span>
-        <label className="snap-toggle">
-          <input
-            type="checkbox"
-            checked={snapEnabled}
-            onChange={(e) => setSnapEnabled(e.target.checked)}
-          />
-          snap {GRID}px (Alt inverts)
-        </label>
+        {/* Snap to grid lives on the Home ribbon (Grids & Guides); hold Alt
+            while dragging to invert it for one gesture. */}
       </div>
       {canvasMenu && (
         <div className="ctx-menu" style={{ left: canvasMenu.x, top: canvasMenu.y }} onPointerDown={(e) => e.stopPropagation()}>
