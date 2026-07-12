@@ -3,6 +3,7 @@ import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
+import { slideBackgroundStyle } from '../shared/background';
 import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
 import { PlayerNavButtons, PlayerSideNav } from './PlayerChrome';
@@ -349,7 +350,8 @@ export function Player({ project, adapter, startSlideId }: {
           style={{
             width: slide.width,
             height: slide.height,
-            transform: `scale(${scale})`
+            transform: `scale(${scale})`,
+            ...slideBackgroundStyle(slide.background)
           }}
         >
         {slide.layers.map((layer) =>
@@ -409,7 +411,7 @@ export function Player({ project, adapter, startSlideId }: {
                     {/* FX layer: GSAP emphasis writes transform HERE, on an
                         element React does not re-style every tick, so the
                         timeline transform on the wrapper never fights it. */}
-                    <BlockFx emphasis={block.emphasis}>
+                    <BlockFx emphasis={stateStyle?.emphasis ?? block.emphasis}>
                       <div
                         style={{ width: '100%', height: '100%', ...shadowStyle(block) }}
                         ref={(el) => {
