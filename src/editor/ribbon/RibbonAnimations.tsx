@@ -44,6 +44,10 @@ const EXITS: { value: AnimType | 'none'; label: string }[] = [
   { value: 'spin', label: 'Spin' }, { value: 'swivel', label: 'Swivel' }, { value: 'drop', label: 'Drop' }
 ];
 
+// Effects that can be layered on top of the base entrance (everything the
+// gallery offers except "None").
+const LAYER_OPTS = GALLERY_ITEMS.filter((i) => i.type !== 'none').map((i) => ({ value: i.type, label: i.label }));
+
 const EMPHASES = [
   { value: 'none', label: 'None' }, { value: 'pulse', label: 'Pulse' },
   { value: 'heartbeat', label: 'Heartbeat' }, { value: 'bounce', label: 'Bounce' },
@@ -76,6 +80,35 @@ export function RibbonAnimations() {
     updateBlock(block.id, (b) => {
       if (!b.timing) b.timing = { start: 0 };
       b.timing.animIn = type === 'none' ? undefined : { type, duration: b.timing.animIn?.duration ?? 0.5, ease: b.timing.animIn?.ease ?? 'power2.out' };
+    });
+  };
+
+  // Layered entrances: extra effects that play together with the gallery
+  // entrance (fade + spin, slide + blur, ...). These write animInStack, the
+  // same array the engine composites and the Animate tab edits.
+  const addEntranceLayer = () => {
+    ensureTimeline();
+    updateBlock(block.id, (b) => {
+      if (!b.timing) b.timing = { start: 0 };
+      // Default to the base entrance if any, else fade - so a fresh layer is
+      // visible immediately rather than a silent "none".
+      const seed = b.timing.animIn?.type && b.timing.animIn.type !== 'fade' ? 'fade' : 'spin';
+      b.timing.animInStack = [...(b.timing.animInStack ?? []), { type: seed, duration: b.timing.animIn?.duration ?? 0.6, ease: 'power2.out' }];
+    });
+  };
+  const setEntranceLayer = (i: number, type: AnimType) => {
+    updateBlock(block.id, (b) => {
+      const arr = [...(b.timing?.animInStack ?? [])];
+      if (!arr[i]) return;
+      arr[i] = { ...arr[i], type };
+      b.timing!.animInStack = arr;
+    });
+  };
+  const removeEntranceLayer = (i: number) => {
+    updateBlock(block.id, (b) => {
+      const arr = [...(b.timing?.animInStack ?? [])];
+      arr.splice(i, 1);
+      b.timing!.animInStack = arr.length ? arr : undefined;
     });
   };
 
@@ -172,6 +205,38 @@ export function RibbonAnimations() {
         <span className="ribbon-group-title">Timing</span>
       </div>
 
+      {/* Group: Layered entrances (stack extra effects onto the base) */}
+      <div className="ribbon-group">
+        <div className="ribbon-items">
+          <div className="stack-list">
+            {(timing?.animInStack ?? []).map((layer, i) => (
+              <div className="stack-row" key={i}>
+                <select
+                  className="input"
+                  value={layer.type}
+                  title="This effect plays together with the base entrance"
+                  onChange={(e) => setEntranceLayer(i, e.target.value as AnimType)}
+                >
+                  {LAYER_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <button className="stack-remove" title="Remove this layered effect" onClick={() => removeEntranceLayer(i)}>×</button>
+              </div>
+            ))}
+            <button
+              className="btn btn-ghost stack-add"
+              disabled={currentAnim === 'none' && !(timing?.animInStack?.length)}
+              title={currentAnim === 'none' && !(timing?.animInStack?.length)
+                ? 'Pick a base entrance first, then layer more effects on top'
+                : 'Add another entrance effect that plays together with the one above (e.g. Fly In + Spin)'}
+              onClick={addEntranceLayer}
+            >
+              + Layer effect
+            </button>
+          </div>
+        </div>
+        <span className="ribbon-group-title">Stack Entrances</span>
+      </div>
+
       {/* Group: Exit + Emphasis */}
       <div className="ribbon-group">
         <div className="ribbon-items">
@@ -227,7 +292,7 @@ export function RibbonAnimations() {
       <div className="ribbon-group">
         <div className="ribbon-items">
           <span className="hint" style={{ maxWidth: 190 }}>
-            Easing, direction, effect stacks, and previews are in the <b style={{ color: 'var(--text)' }}>Animate tab</b> of the block panel {'→'}
+            Easing, direction, exit stacks, and previews are in the <b style={{ color: 'var(--text)' }}>Animate tab</b> of the block panel {'→'}
           </span>
         </div>
         <span className="ribbon-group-title">More</span>

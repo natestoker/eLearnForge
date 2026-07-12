@@ -811,6 +811,35 @@ select.input { appearance: auto; }
   align-items: center;
 }
 
+/* Layered-entrance stack in the Animations ribbon: a compact column of
+   effect selects (each plays together with the base gallery entrance) plus
+   an add button. Scrolls if a block carries many layers. */
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 96px;
+  overflow-y: auto;
+  min-width: 150px;
+}
+.stack-row { display: flex; align-items: center; gap: 4px; }
+.stack-row select.input { flex: 1; max-width: none; }
+.stack-remove {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-deep);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.stack-remove:hover { color: var(--danger); border-color: var(--danger); }
+.ribbon-body .btn.stack-add { align-self: flex-start; }
+.btn.stack-add:disabled { opacity: 0.45; cursor: default; }
+
 /* compact insert-style buttons and grids for ribbon shelves */
 .rbn-col { display: flex; flex-direction: column; gap: 2px; }
 .rbn-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 4px; }
