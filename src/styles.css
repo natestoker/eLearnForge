@@ -278,7 +278,7 @@ button { font-family: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; }
 
 .brand-mark {
-  width: 22px;
+  width: 50px;
   height: 22px;
   display: grid;
   place-items: center;
