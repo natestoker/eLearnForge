@@ -21,35 +21,50 @@ const TABS: { id: RibbonTab; label: string }[] = [
 export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
   const activeTab = useUiStore((s) => s.ribbonTab);
   const setTab = useUiStore((s) => s.setRibbonTab);
+  const collapsed = useUiStore((s) => s.ribbonCollapsed);
+  const toggleCollapsed = useUiStore((s) => s.toggleRibbonCollapsed);
 
   return (
     <div className="ribbon">
       {/* Top bar with file actions, title, preview/publish */}
       <Toolbar saveState={saveState} />
-      
-      {/* Tab headers */}
+
+      {/* Tab headers; clicking a tab while collapsed re-expands the shelf */}
       <div className="ribbon-tabs">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             className={`ribbon-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setTab(tab.id)}
+            onClick={() => {
+              setTab(tab.id);
+              if (collapsed) toggleCollapsed();
+            }}
           >
             {tab.label}
           </button>
         ))}
+        <button
+          className="ribbon-collapse-btn"
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expand the ribbon' : 'Collapse the ribbon (tabs stay)'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? '⌄' : '⌃'}
+        </button>
       </div>
 
       {/* Ribbon body content */}
-      <div className="ribbon-body">
-        {activeTab === 'home' && <RibbonHome />}
-        {activeTab === 'slide' && <RibbonSlide />}
-        {activeTab === 'insert' && <RibbonInsert />}
-        {activeTab === 'format' && <RibbonFormat />}
-        {activeTab === 'animations' && <RibbonAnimations />}
-        {activeTab === 'triggers' && <RibbonTriggers />}
-        {activeTab === 'variables' && <RibbonVariables />}
-      </div>
+      {!collapsed && (
+        <div className="ribbon-body">
+          {activeTab === 'home' && <RibbonHome />}
+          {activeTab === 'slide' && <RibbonSlide />}
+          {activeTab === 'insert' && <RibbonInsert />}
+          {activeTab === 'format' && <RibbonFormat />}
+          {activeTab === 'animations' && <RibbonAnimations />}
+          {activeTab === 'triggers' && <RibbonTriggers />}
+          {activeTab === 'variables' && <RibbonVariables />}
+        </div>
+      )}
     </div>
   );
 }

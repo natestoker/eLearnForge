@@ -12,6 +12,8 @@ export function LayersPanel() {
   const mutate = useProjectStore((s) => s.mutate);
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
   const toggleLayerHidden = useUiStore((s) => s.toggleLayerHidden);
+  const layersCollapsed = useUiStore((s) => s.layersCollapsed);
+  const toggleLayersCollapsed = useUiStore((s) => s.toggleLayersCollapsed);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -43,11 +45,23 @@ export function LayersPanel() {
   };
 
   return (
-    <div className="panel">
+    <div className={`panel ${layersCollapsed ? 'collapsed' : ''}`}>
       <div className="panel-header">
         <span>Layers</span>
-        <button className="btn btn-ghost btn-icon" title="Add layer" onClick={() => addLayer(slide.id)}>+</button>
+        <span style={{ display: 'flex', gap: 2 }}>
+          {!layersCollapsed && (
+            <button className="btn btn-ghost btn-icon" title="Add layer" onClick={() => addLayer(slide.id)}>+</button>
+          )}
+          <button
+            className="btn btn-ghost btn-icon"
+            title={layersCollapsed ? 'Show layers' : 'Collapse layers (more room for slides)'}
+            onClick={toggleLayersCollapsed}
+          >
+            {layersCollapsed ? '⌄' : '⌃'}
+          </button>
+        </span>
       </div>
+      {layersCollapsed ? null : (
       <div className="panel-body layers-list">
         {slide.layers.map((layer, i) => {
           const isBase = i === 0;
@@ -167,7 +181,8 @@ export function LayersPanel() {
           );
         })}
       </div>
-      <p className="panel-footnote">New blocks land on the selected layer.</p>
+      )}
+      {!layersCollapsed && <p className="panel-footnote">New blocks land on the selected layer.</p>}
     </div>
   );
 }

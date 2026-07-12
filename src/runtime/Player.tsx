@@ -75,7 +75,7 @@ export function Player({ project, adapter, startSlideId }: {
     const el = stageAreaRef.current;
     if (!el) return;
     const measure = () => {
-      const pad = 32;
+      const pad = window.innerWidth < 640 ? 8 : 32;
       const s = Math.min(
         (el.clientWidth - pad) / slide.width,
         (el.clientHeight - pad) / slide.height

@@ -184,7 +184,7 @@ export function RibbonInsert() {
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <div className="rbn-grid2">
+          <div className="rbn-grid3">
             <MBtn icon="button" label="Button" onClick={() => addBlock('button')} />
             <MBtn icon="hotspot" label="Hotspot" onClick={() => addBlock('hotspot')} />
             <MBtn icon="multipleChoice" label="Quiz" onClick={() => addBlock('multipleChoice')} />
@@ -202,7 +202,7 @@ export function RibbonInsert() {
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <div className="rbn-grid2">
+          <div className="rbn-grid3">
             <MBtn icon="tabs" label="Tabs" onClick={() => addBlock('tabs')} />
             <MBtn icon="statement" label="Statement" onClick={() => addBlock('statement')} />
             <MBtn icon="progress" label="Progress" onClick={() => addBlock('progress')} />
