@@ -39,11 +39,26 @@ export function RibbonHome() {
               <span title="Colors the published course: buttons, progress bar, highlights, and quiz feedback. Not the editor.">
                 <ColorInput
                   value={project.theme?.accent ?? '#3ddc97'}
-                  onChange={(v) => mutate((p) => { p.theme = { accent: v }; })}
+                  onChange={(v) => mutate((p) => { p.theme = { accent: v, palette: p.theme?.palette }; })}
                 />
               </span>
             </Field>
             <span className="rbn-note">Buttons & highlights in the published course</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span className="field-label">Brand colors</span>
+            <div className="brand-palette-editor">
+              {(project.theme?.palette ?? []).map((c, i) => (
+                <span key={i} className="brand-chip" style={{ background: c }} title={`${c} — right-click to remove`}
+                  onContextMenu={(e) => { e.preventDefault(); mutate((p) => { if (p.theme?.palette) p.theme.palette = p.theme.palette.filter((_, j) => j !== i); }); }}>
+                  <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(c) ? c : '#3ddc97'}
+                    onChange={(e) => mutate((p) => { if (p.theme?.palette) p.theme.palette[i] = e.target.value; })} />
+                </span>
+              ))}
+              <button className="brand-chip add" title="Add a brand color"
+                onClick={() => mutate((p) => { p.theme = p.theme ?? { accent: '#3ddc97' }; p.theme.palette = [...(p.theme.palette ?? []), '#5b8def']; })}>+</button>
+            </div>
+            <span className="rbn-note">One-click swatches in every color picker (right-click a chip to remove)</span>
           </div>
           <Field label="Slide transition">
             <SelectInput

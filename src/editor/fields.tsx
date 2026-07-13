@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useProjectStore } from '../state/projectStore';
 
@@ -191,6 +191,15 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
   const [local, setLocal] = useState<string | null>(null);
   const shown = local ?? props.value;
 
+  // Brand palette (PowerPoint "theme colors"): the course accent plus any
+  // custom brand colours, offered as one-click swatches in every colour
+  // picker. Managed on the Home ribbon.
+  const theme = useProjectStore((s) => s.project.theme);
+  const swatches = useMemo(
+    () => [...new Set([theme?.accent, ...(theme?.palette ?? [])].filter(Boolean) as string[])],
+    [theme]
+  );
+
   const colorRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(props.onChange);
   onChangeRef.current = props.onChange;
@@ -241,37 +250,53 @@ export function ColorInput(props: { value: string; onChange: (v: string) => void
   }, [hex, local]);
 
   return (
-    <div className={`color-input ${props.disabled ? 'disabled' : ''}`}>
-      <input
-        ref={colorRef}
-        type="color"
-        defaultValue={hex}
-        disabled={props.disabled}
-        onInput={(e) => {
-          const v = (e.target as HTMLInputElement).value;
-          setLocal(v);
-          liveTick(v);
-        }}
-      />
-      <input
-        className="input"
-        value={shown}
-        disabled={props.disabled}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => {
-          if (local !== null) {
-            props.onChange(local);
-            setLocal(null);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && local !== null) {
-            props.onChange(local);
-            setLocal(null);
-          }
-        }}
-        placeholder="#3ddc97"
-      />
+    <div className="color-field">
+      <div className={`color-input ${props.disabled ? 'disabled' : ''}`}>
+        <input
+          ref={colorRef}
+          type="color"
+          defaultValue={hex}
+          disabled={props.disabled}
+          onInput={(e) => {
+            const v = (e.target as HTMLInputElement).value;
+            setLocal(v);
+            liveTick(v);
+          }}
+        />
+        <input
+          className="input"
+          value={shown}
+          disabled={props.disabled}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={() => {
+            if (local !== null) {
+              props.onChange(local);
+              setLocal(null);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && local !== null) {
+              props.onChange(local);
+              setLocal(null);
+            }
+          }}
+          placeholder="#3ddc97"
+        />
+      </div>
+      {!props.disabled && swatches.length > 0 && (
+        <div className="brand-swatches" role="group" aria-label="Brand colors">
+          {swatches.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`brand-swatch ${shown.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
+              style={{ background: c }}
+              title={`Brand color ${c}`}
+              onClick={() => { setLocal(null); props.onChange(c); }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

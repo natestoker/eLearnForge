@@ -1900,6 +1900,34 @@ select.input { appearance: auto; }
 }
 
 
+.color-field { display: flex; flex-direction: column; gap: 6px; }
+.brand-swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+.brand-swatch {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  padding: 0; cursor: pointer;
+}
+.brand-swatch:hover { transform: scale(1.12); }
+.brand-swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent); }
+/* Home-ribbon brand palette editor: each chip embeds a hidden color input. */
+.brand-palette-editor { display: flex; flex-wrap: wrap; gap: 5px; max-width: 180px; }
+.brand-chip {
+  position: relative;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.brand-chip input[type="color"] {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: none; padding: 0;
+}
+.brand-chip.add { background: var(--panel-2, #171b18); color: var(--muted); font-size: 15px; line-height: 1; }
+.brand-chip.add:hover { color: var(--accent); border-color: var(--accent); }
+
 .color-input { display: flex; gap: 8px; align-items: center; }
 .color-input input[type="color"] {
   width: 36px;

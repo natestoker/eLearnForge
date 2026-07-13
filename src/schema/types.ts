@@ -702,7 +702,9 @@ export interface Project {
   slides: Slide[];
   variables: Variable[];
   completion?: CompletionSettings; // absent in v1 projects -> allSlides
-  theme?: { accent: string };      // default color for new shapes/buttons
+  // accent: default color for new shapes/buttons. palette: extra brand colors
+  // ("theme colors") offered as one-click swatches in every color picker.
+  theme?: { accent: string; palette?: string[] };
   player?: PlayerSettings;
   fonts?: string[]; // google font families used (for publish <link>s)
   // Fonts embedded from an imported PowerPoint: family name + a data-URL
