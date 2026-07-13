@@ -1000,6 +1000,30 @@ select.input { appearance: auto; }
   pointer-events: none;
   background: rgba(61, 220, 151, 0.08);
 }
+/* Highlight on an existing media block that a dragged file will replace. */
+.swap-highlight {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(61, 220, 151, 0.14);
+  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.25);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.swap-highlight span {
+  margin-top: -11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #06110c;
+  background: var(--accent);
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .canvas-drop-inner {
   background: var(--panel-2, #171b18);
   border: 1px solid var(--accent);

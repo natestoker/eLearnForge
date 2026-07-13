@@ -230,6 +230,7 @@ export function EditorCanvas() {
   const deleteBlock = useProjectStore((s) => s.deleteBlock);
   const addBlock = useProjectStore((s) => s.addBlock);
   const [dropActive, setDropActive] = useState(false);
+  const [swapTargetId, setSwapTargetId] = useState<string | null>(null);
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
   const addGuide = useProjectStore((s) => s.addGuide);
   const removeGuide = useProjectStore((s) => s.removeGuide);
@@ -296,25 +297,53 @@ export function EditorCanvas() {
       const rect = stageEl.getBoundingClientRect();
       return { x: (clientX - rect.left) / activeScale, y: (clientY - rect.top) / activeScale };
     };
+    // Topmost image/video/audio block whose bounds contain a stage point -
+    // the drop target for an in-place media swap.
+    const mediaBlockAt = (px: number, py: number): Block | null => {
+      const st = useProjectStore.getState();
+      const cur = st.project.slides.find((s) => s.id === st.selection.slideId) ?? st.project.slides[0];
+      const blocks = cur.layers.flatMap((l) => l.blocks);
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        const b = blocks[i];
+        if ((b.type === 'image' || b.type === 'video' || b.type === 'audio') &&
+            px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) return b;
+      }
+      return null;
+    };
     const onOver = (e: DragEvent) => {
       if (!e.dataTransfer || !Array.from(e.dataTransfer.types).includes('Files')) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       setDropActive(true);
+      const pt = pointFor(e.clientX, e.clientY);
+      setSwapTargetId(mediaBlockAt(pt.x, pt.y)?.id ?? null);
     };
-    const onLeave = (e: DragEvent) => { if (e.target === el) setDropActive(false); };
+    const onLeave = (e: DragEvent) => { if (e.target === el) { setDropActive(false); setSwapTargetId(null); } };
     const onDrop = (e: DragEvent) => {
       const files = Array.from(e.dataTransfer?.files ?? []).filter((f) => /^(image|video|audio)\//.test(f.type));
       setDropActive(false);
+      setSwapTargetId(null);
       if (!files.length) return;
       e.preventDefault();
       const pt = pointFor(e.clientX, e.clientY);
+      const kindOf = (f: File) => f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'audio';
+      // Dropping a media file onto an existing block of the same kind swaps it
+      // in place (keeps the block's size/position); otherwise a new block lands.
+      const swapTarget = mediaBlockAt(pt.x, pt.y);
       files.forEach((file, i) => {
         const drop = { x: pt.x + i * 24, y: pt.y + i * 24 };
         const name = file.name.replace(/\.[^.]+$/, '');
         const reader = new FileReader();
         reader.onload = () => {
           const src = String(reader.result);
+          if (i === 0 && swapTarget && swapTarget.type === kindOf(file)) {
+            updateBlock(swapTarget.id, (b) => {
+              (b.props as { src: string }).src = src;
+              if (b.type === 'image') (b.props as { alt?: string }).alt = name;
+            });
+            select({ blockId: swapTarget.id });
+            return;
+          }
           if (file.type.startsWith('image/')) {
             const img = new Image();
             const place = (w: number, h: number) =>
@@ -350,7 +379,7 @@ export function EditorCanvas() {
       el.removeEventListener('dragleave', onLeave);
       el.removeEventListener('drop', onDrop);
     };
-  }, [activeScale, slide.width, slide.height, addBlock]);
+  }, [activeScale, slide.width, slide.height, addBlock, updateBlock, select]);
 
   // Drag / resize: record() once at gesture start, silent updates during,
   // so the whole gesture is one undo step.
@@ -806,6 +835,14 @@ export function EditorCanvas() {
           onContextMenu={onStageContextMenu}
       >
           {showGrid && <div className="stage-grid" aria-hidden="true" />}
+        {swapTargetId && (() => {
+          const t = slide.layers.flatMap((l) => l.blocks).find((b) => b.id === swapTargetId);
+          return t ? (
+            <div className="swap-highlight" style={{ left: t.x, top: t.y, width: t.w, height: t.h }} aria-hidden="true">
+              <span>Drop to replace</span>
+            </div>
+          ) : null;
+        })()}
         {marquee && (marquee.w > 2 || marquee.h > 2) && (
           <div
             className="marquee"
@@ -862,9 +899,9 @@ export function EditorCanvas() {
       </div>
       </div>
     </div>
-      {dropActive && (
+      {dropActive && !swapTargetId && (
         <div className="canvas-drop-hint" aria-hidden="true">
-          <div className="canvas-drop-inner">Drop image, video, or audio to add it to this slide</div>
+          <div className="canvas-drop-inner">Drop image, video, or audio to add it — or onto a media block to replace it</div>
         </div>
       )}
       <div className="canvas-zoom">
