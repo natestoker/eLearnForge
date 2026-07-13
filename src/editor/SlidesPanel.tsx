@@ -27,6 +27,7 @@ export function SlidesPanel() {
   const select = useProjectStore((s) => s.select);
   const addSlide = useProjectStore((s) => s.addSlide);
   const deleteSlide = useProjectStore((s) => s.deleteSlide);
+  const duplicateSlide = useProjectStore((s) => s.duplicateSlide);
   const saveSlideAsTemplate = useProjectStore((s) => s.saveSlideAsTemplate);
   const addSlideFromTemplate = useProjectStore((s) => s.addSlideFromTemplate);
   const deleteTemplate = useProjectStore((s) => s.deleteTemplate);
@@ -128,6 +129,8 @@ export function SlidesPanel() {
                 )}
                 {active && (
                   <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-ghost btn-icon" title="Duplicate this slide"
+                      onClick={() => duplicateSlide(slide.id)}>&#9741;</button>
                     <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
                       onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
                     <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"

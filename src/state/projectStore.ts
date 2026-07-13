@@ -87,6 +87,7 @@ interface ProjectStore {
   applyTextStyle: (styleId: string) => void;
   deleteTextStyle: (styleId: string) => void;
   addSlide: () => void;
+  duplicateSlide: (slideId: string) => void;
   saveSlideAsTemplate: (slideId: string, name: string) => void;
   addSlideFromTemplate: (templateId: string) => void;
   deleteTemplate: (templateId: string) => void;
@@ -262,6 +263,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   addSlide: () => {
     const slide = createSlide(`Slide ${get().project.slides.length + 1}`);
     get().mutate((p) => { p.slides.push(slide); });
+    get().select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: null });
+  },
+
+  duplicateSlide: (slideId) => {
+    const { project } = get();
+    const src = project.slides.find((s) => s.id === slideId);
+    if (!src) return;
+    // cloneSlideFresh regenerates every id and remaps this slide's triggers,
+    // conditions, and auto-registered result variables, so the copy is fully
+    // self-contained. Drop it right after the original.
+    const { slide, newVariables } = cloneSlideFresh(src, project.variables);
+    slide.name = `${src.name} copy`;
+    get().mutate((p) => {
+      const i = p.slides.findIndex((s) => s.id === slideId);
+      p.slides.splice(i + 1, 0, slide);
+      if (newVariables.length) p.variables.push(...newVariables);
+    });
     get().select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: null });
   },
 
