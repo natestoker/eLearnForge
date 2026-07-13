@@ -219,6 +219,22 @@ export function TriggersPanel() {
               }
             />
             <button
+              className="btn btn-ghost btn-icon"
+              title="Duplicate this trigger (same event, conditions, and actions)"
+              onClick={() =>
+                mutate((p) => {
+                  const s = p.slides.find((sl) => sl.id === slide.id);
+                  const i = s?.triggers.findIndex((t) => t.id === trigger.id) ?? -1;
+                  if (!s || i < 0) return;
+                  const copy = structuredClone(s.triggers[i]);
+                  copy.id = uid('trg');
+                  s.triggers.splice(i + 1, 0, copy);
+                })
+              }
+            >
+              {'⧉'}
+            </button>
+            <button
               className="btn btn-ghost btn-icon btn-danger"
               title="Delete trigger"
               onClick={() =>
