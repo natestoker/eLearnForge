@@ -522,6 +522,11 @@ export type ConditionOperator =
 
 export interface Condition {
   variableId: string;
+  // Block-state condition: when blockId is set, the condition tests the
+  // block's CURRENT STATE (blockState, default 'visited') instead of a
+  // variable - "hotspot 1 is visited". operator 'ne' negates ("is not").
+  blockId?: string;
+  blockState?: BlockState;
   // Older v1 projects stored { equals }. The runtime and UI treat a missing
   // operator as 'eq' with `value` falling back to `equals` for migration.
   operator?: ConditionOperator;

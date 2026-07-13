@@ -372,6 +372,11 @@ export class Runtime {
   private conditionsPass(conditions: Condition[], logic: 'and' | 'or' = 'and'): boolean {
     if (conditions.length === 0) return true;
     const test = (c: Condition): boolean => {
+      // Block-state condition: "block X is (not) in state S".
+      if (c.blockId) {
+        const match = this.getBlockState(c.blockId) === (c.blockState ?? 'visited');
+        return (c.operator ?? 'eq') === 'ne' ? !match : match;
+      }
       const actual = this.snapshot.variables[c.variableId];
       const expected = c.value !== undefined ? c.value : c.equals;
       const s = (v: unknown) => String(v ?? '').toLowerCase();

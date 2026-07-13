@@ -220,6 +220,38 @@ export function TriggersPanel() {
             />
             <button
               className="btn btn-ghost btn-icon"
+              title="Move up - triggers run top to bottom, so order matters"
+              disabled={ti === 0}
+              onClick={() =>
+                mutate((p) => {
+                  const s = p.slides.find((sl) => sl.id === slide.id);
+                  const i = s?.triggers.findIndex((t) => t.id === trigger.id) ?? -1;
+                  if (!s || i <= 0) return;
+                  const [t] = s.triggers.splice(i, 1);
+                  s.triggers.splice(i - 1, 0, t);
+                })
+              }
+            >
+              {'↑'}
+            </button>
+            <button
+              className="btn btn-ghost btn-icon"
+              title="Move down - triggers run top to bottom, so order matters"
+              disabled={ti === slide.triggers.length - 1}
+              onClick={() =>
+                mutate((p) => {
+                  const s = p.slides.find((sl) => sl.id === slide.id);
+                  const i = s?.triggers.findIndex((t) => t.id === trigger.id) ?? -1;
+                  if (!s || i < 0 || i >= s.triggers.length - 1) return;
+                  const [t] = s.triggers.splice(i, 1);
+                  s.triggers.splice(i + 1, 0, t);
+                })
+              }
+            >
+              {'↓'}
+            </button>
+            <button
+              className="btn btn-ghost btn-icon"
               title="Duplicate this trigger (same event, conditions, and actions)"
               onClick={() =>
                 mutate((p) => {
@@ -338,12 +370,13 @@ export function TriggersPanel() {
               )}
               <button
                 className="btn btn-ghost"
-                disabled={variables.length === 0}
-                title={variables.length === 0 ? 'Create a variable first' : 'Add condition'}
+                disabled={variables.length === 0 && blocks.length === 0}
+                title="Add a condition on a variable or a block's state"
                 onClick={() =>
                   edit(trigger.id, (t) => {
                     const v = variables[0];
-                    t.conditions.push({ variableId: v.id, operator: 'eq', value: defaultValueFor(v) });
+                    if (v) t.conditions.push({ variableId: v.id, operator: 'eq', value: defaultValueFor(v) });
+                    else t.conditions.push({ variableId: '', blockId: blocks[0].block.id, blockState: 'visited', operator: 'eq' });
                   })
                 }
               >
@@ -352,20 +385,59 @@ export function TriggersPanel() {
             </div>
             {trigger.conditions.map((cond, ci) => {
               const variable = variables.find((v) => v.id === cond.variableId);
+              // Subject select: variables AND block states in one list. A
+              // block subject tests its runtime state ("hotspot 1 is visited")
+              // - no helper variable needed.
+              const subject = cond.blockId ? `blk:${cond.blockId}` : `var:${cond.variableId}`;
               return (
                 <div key={ci} className="trigger-row">
                   <SelectInput
-                    value={cond.variableId}
-                    options={variables.map((v) => ({ value: v.id, label: v.name }))}
+                    value={subject}
+                    options={[
+                      ...variables.map((v) => ({ value: `var:${v.id}`, label: v.name })),
+                      ...blocks.map(({ block, layerName }) => ({ value: `blk:${block.id}`, label: `state of ${blockLabel(block)} (${layerName})` }))
+                    ]}
                     onChange={(raw) =>
                       edit(trigger.id, (t) => {
-                        const nv = variables.find((v) => v.id === raw);
-                        t.conditions[ci].variableId = raw;
-                        t.conditions[ci].value = defaultValueFor(nv);
-                        delete t.conditions[ci].equals;
+                        const c = t.conditions[ci];
+                        if (raw.startsWith('blk:')) {
+                          c.blockId = raw.slice(4);
+                          c.blockState = c.blockState ?? 'visited';
+                          c.variableId = '';
+                          c.operator = c.operator === 'ne' ? 'ne' : 'eq';
+                          c.value = undefined; c.value2 = undefined; delete c.equals;
+                        } else {
+                          const nv = variables.find((v) => v.id === raw.slice(4));
+                          c.variableId = raw.slice(4);
+                          c.blockId = undefined; c.blockState = undefined;
+                          c.value = defaultValueFor(nv);
+                          delete c.equals;
+                        }
                       })
                     }
                   />
+                  {cond.blockId && (
+                    <>
+                      <SelectInput
+                        value={cond.operator === 'ne' ? 'ne' : 'eq'}
+                        options={[{ value: 'eq', label: 'is' }, { value: 'ne', label: 'is not' }]}
+                        onChange={(v) => edit(trigger.id, (t) => { t.conditions[ci].operator = v as ConditionOperator; })}
+                      />
+                      <SelectInput
+                        value={cond.blockState ?? 'visited'}
+                        options={(['visited', 'selected', 'normal', 'disabled', 'hidden'] as const).map((s) => ({ value: s, label: s }))}
+                        onChange={(v) => edit(trigger.id, (t) => { t.conditions[ci].blockState = v as BlockState; })}
+                      />
+                      <button
+                        className="btn btn-ghost btn-icon btn-danger"
+                        onClick={() => edit(trigger.id, (t) => { t.conditions.splice(ci, 1); })}
+                      >
+                        x
+                      </button>
+                    </>
+                  )}
+                  {!cond.blockId && (
+                  <>
                   <SelectInput
                     value={cond.operator ?? 'eq'}
                     options={OPERATORS.filter((o) => o.types.includes(variable?.type ?? 'string'))
@@ -400,6 +472,8 @@ export function TriggersPanel() {
                   >
                     x
                   </button>
+                  </>
+                  )}
                 </div>
               );
             })}
