@@ -70,7 +70,7 @@ export function ShapeSvg({ props, w = 100, h = 100, innerShadow }: {
       <div style={{
         width: '100%',
         height: '100%',
-        backgroundColor: props.fill,
+        backgroundColor: props.noFill ? 'transparent' : props.fill,
         border: props.borderWidth > 0 ? `${props.borderWidth}px solid ${props.borderColor}` : 'none',
         borderRadius: props.kind === 'roundedRectangle' ? props.cornerRadius : 0,
         boxSizing: 'border-box',
@@ -81,7 +81,7 @@ export function ShapeSvg({ props, w = 100, h = 100, innerShadow }: {
 
   const stroke = props.borderWidth > 0 ? props.borderColor : 'none';
   const common = {
-    fill: props.fill,
+    fill: props.noFill ? 'none' : props.fill,
     stroke,
     strokeWidth: props.borderWidth,
     strokeLinejoin: 'round' as const,

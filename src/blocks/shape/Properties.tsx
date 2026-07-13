@@ -85,10 +85,22 @@ export function ShapeProperties({ block, onUpdateProps }: PropertiesRendererProp
         {props.nodes?.length || props.points ? 'Edit custom shape (pen)' : 'Draw custom shape (pen)'}
       </button>
       <Field label="Fill">
-        <ColorInput value={props.fill} onChange={(v) => onUpdateProps((p: ShapeProps) => { p.fill = v; })} />
+        <div className="color-none-row">
+          <ColorInput value={props.fill} disabled={props.noFill} onChange={(v) => onUpdateProps((p: ShapeProps) => { p.fill = v; p.noFill = undefined; })} />
+          <label className="checkbox tiny" title="No fill - the shape is transparent inside">
+            <input type="checkbox" checked={!!props.noFill} onChange={(e) => onUpdateProps((p: ShapeProps) => { p.noFill = e.target.checked || undefined; })} />
+            <span>None</span>
+          </label>
+        </div>
       </Field>
       <Field label="Border">
-        <ColorInput value={props.borderColor} onChange={(v) => onUpdateProps((p: ShapeProps) => { p.borderColor = v; })} />
+        <div className="color-none-row">
+          <ColorInput value={props.borderColor} disabled={props.borderWidth === 0} onChange={(v) => onUpdateProps((p: ShapeProps) => { p.borderColor = v; if (p.borderWidth === 0) p.borderWidth = 2; })} />
+          <label className="checkbox tiny" title="No border">
+            <input type="checkbox" checked={props.borderWidth === 0} onChange={(e) => onUpdateProps((p: ShapeProps) => { p.borderWidth = e.target.checked ? 0 : 2; })} />
+            <span>None</span>
+          </label>
+        </div>
       </Field>
       <Row>
         <Field label="Border width">

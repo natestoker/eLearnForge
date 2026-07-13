@@ -632,6 +632,8 @@ select.input { appearance: auto; }
 .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer; }
 .checkbox input { accent-color: var(--accent); }
 .checkbox.tiny { margin: 0; font-size: 11px; color: var(--muted); gap: 4px; }
+.color-none-row { display: flex; align-items: center; gap: 10px; }
+.color-none-row .checkbox.tiny { flex: none; white-space: nowrap; }
 
 .hint { color: var(--muted); font-size: 11px; line-height: 1.6; }
 .hint code { color: var(--accent); }

@@ -125,8 +125,9 @@ export interface ShapeProps {
   tail?: { x: number; y: number };
   kind: ShapeKind;
   fill: string;
+  noFill?: boolean;    // render with no fill (transparent) while keeping `fill`
   borderColor: string;
-  borderWidth: number;
+  borderWidth: number; // 0 = no border
   cornerRadius: number;
   // Legacy soft shadow flag (pre-v6.3). Migrated to Block.shadow on read.
   shadow?: boolean;
