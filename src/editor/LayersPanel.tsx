@@ -8,6 +8,7 @@ export function LayersPanel() {
   const select = useProjectStore((s) => s.select);
   const addLayer = useProjectStore((s) => s.addLayer);
   const deleteLayer = useProjectStore((s) => s.deleteLayer);
+  const duplicateLayer = useProjectStore((s) => s.duplicateLayer);
   const moveLayer = useProjectStore((s) => s.moveLayer);
   const mutate = useProjectStore((s) => s.mutate);
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
@@ -170,6 +171,13 @@ export function LayersPanel() {
                     />
                     <span>default</span>
                   </label>
+                  <button
+                    className="btn btn-ghost btn-icon"
+                    title="Duplicate this layer (and everything on it)"
+                    onClick={() => duplicateLayer(slide.id, layer.id)}
+                  >
+                    {'⧉'}
+                  </button>
                   <button
                     className="btn btn-ghost btn-icon btn-danger"
                     title="Delete layer"

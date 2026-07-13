@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Block, BlockType, Project, TextProps, TextStyle } from '../schema/types';
 import {
   cloneSlideFresh, createBlock, createDemoProject, createLayer, createSlide, dragDropVariableName, fillBlankVariableName,
-  mcVariableName, outerTagOf, setOuterTag, textEntryVariableName, timerDoneVariableName, uid
+  mcVariableName, outerTagOf, reassignBlockIds, setOuterTag, textEntryVariableName, timerDoneVariableName, uid
 } from '../schema/factory';
 
 // History design note (open question #1 from the brief):
@@ -102,6 +102,7 @@ interface ProjectStore {
   removeGuide: (guideId: string) => void;
   moveGuide: (guideId: string, pos: number) => void;
   deleteLayer: (slideId: string, layerId: string) => void;
+  duplicateLayer: (slideId: string, layerId: string) => void;
   // init runs on the new block after defaults/theming, e.g. to set a
   // specific shape kind picked in the Insert menu.
   // Add a block to the current slide. `pos` (stage coords) centers the block
@@ -125,6 +126,7 @@ interface ProjectStore {
 let clipboard: Block[] = [];
 let pasteOffset = false;
 let gestureActive = false;
+let lastRecordAt = 0;
 
 export function selectedIds(sel: Selection): string[] {
   const ids = new Set<string>();
@@ -157,6 +159,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   record: () => {
     if (gestureActive) return;
+    // Coalesce bursts: each snapshot deep-clones the WHOLE project (including
+    // any embedded data-URL media), so recording on every keystroke of a text
+    // edit both lags the editor and floods undo with one-character steps.
+    // Records within 400ms of the previous one merge into that undo step -
+    // the earlier snapshot already captures the state before the burst.
+    const now = Date.now();
+    if (now - lastRecordAt < 400) return;
+    lastRecordAt = now;
     set((s) => ({
       past: [...s.past.slice(-(HISTORY_CAP - 1)), structuredClone(s.project)],
       future: []
@@ -185,6 +195,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   undo: () =>
     set((s) => {
       if (s.past.length === 0) return s;
+      // A record right after undo must never coalesce into a pre-undo one.
+      lastRecordAt = 0;
       const prev = s.past[s.past.length - 1];
       return {
         project: prev,
@@ -198,6 +210,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   redo: () =>
     set((s) => {
       if (s.future.length === 0) return s;
+      lastRecordAt = 0;
       const next = s.future[0];
       return {
         project: next,
@@ -447,6 +460,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const g = slide?.guides?.find((x) => x.id === guideId);
       if (g) g.pos = Math.round(pos);
     }, false),
+
+  duplicateLayer: (slideId, layerId) => {
+    const src = get().project.slides.find((s) => s.id === slideId)?.layers.find((l) => l.id === layerId);
+    if (!src) return;
+    // Fresh layer + block ids so the copy is independent. Slide triggers keep
+    // pointing at the ORIGINAL layer's blocks - correct for a duplicate.
+    const copy = structuredClone(src);
+    copy.id = uid('lyr');
+    copy.name = `${src.name} copy`;
+    reassignBlockIds(copy.blocks, new Map());
+    get().mutate((p) => {
+      const slide = p.slides.find((s) => s.id === slideId);
+      if (!slide) return;
+      const i = slide.layers.findIndex((l) => l.id === layerId);
+      slide.layers.splice(i + 1, 0, copy);
+    });
+    get().select({ layerId: copy.id, blockId: null });
+  },
 
   deleteLayer: (slideId, layerId) => {
     const { selection } = get();

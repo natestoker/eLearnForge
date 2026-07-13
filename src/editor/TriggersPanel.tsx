@@ -179,7 +179,10 @@ export function TriggersPanel() {
         <h3 className="panel-title">Slide triggers</h3>
         <button className="btn btn-accent" onClick={addTrigger}>+ Trigger</button>
       </div>
-      <p className="hint">Triggers belong to this slide: {slide.name}</p>
+      <p className="hint">
+        Triggers belong to this slide: {slide.name}. Sources and targets can be
+        blocks on ANY layer (the dropdowns show each block's layer).
+      </p>
 
       {slide.triggers.length === 0 && (
         <p className="empty-note">No triggers yet. Add one to make this slide react.</p>
@@ -472,7 +475,10 @@ export function TriggersPanel() {
                     }
                   />
                 )}
-                {action.type === 'setVariable' && (
+                {action.type === 'setVariable' && variables.length === 0 && (
+                  <span className="hint">No variables yet — create one in the Variables tab, then pick it and its new value here.</span>
+                )}
+                {action.type === 'setVariable' && variables.length > 0 && (
                   <>
                     <SelectInput
                       value={action.variableId}

@@ -106,6 +106,8 @@ export function Player({ project, adapter, startSlideId }: {
   const clockRef = useRef<TimelineClock | null>(null);
   const pulseRef = useRef<Map<string, () => void>>(new Map());
   const motionTweenRef = useRef<Map<string, gsap.core.Tween>>(new Map());
+  // Slide-clock time each non-base layer was revealed at (its clock's zero).
+  const layerRevealRef = useRef<Map<string, number>>(new Map());
   // Find a block anywhere in the course by id (motion lookup for playMotion).
   const findBlockOnSlide = (id: string) => {
     const walk = (blocks: typeof project.slides[number]['layers'][number]['blocks']): (typeof blocks)[number] | undefined => {
@@ -249,6 +251,9 @@ export function Player({ project, adapter, startSlideId }: {
   // the general slide-overrides-global pattern (same as slideTransition
   // itself being the fallback for everything else).
   const effectiveTransition = slide.transition ?? project.slideTransition ?? 'none';
+  // New slide: forget layer reveal times so its layers start fresh clocks.
+  useEffect(() => { layerRevealRef.current.clear(); }, [slide.id]);
+
   useEffect(() => {
     const el = stageAnimRef.current;
     const kind = effectiveTransition;
@@ -391,8 +396,20 @@ export function Player({ project, adapter, startSlideId }: {
             ...slideBackgroundStyle(slide.background)
           }}
         >
-        {slide.layers.map((layer) =>
-          runtime.isLayerVisible(layer.id) ? (
+        {slide.layers.map((layer, layerIndex) => {
+          const layerVisible = runtime.isLayerVisible(layer.id);
+          // Layers have their own clock, Storyline-style: it starts the moment
+          // the layer is revealed (a hidden layer shown by a hotspot at t=5
+          // plays its entrances THEN, not "already played at t=0"). Track the
+          // reveal time per layer; hiding a layer resets it, so re-showing
+          // replays its animations. The base layer stays on the slide clock.
+          const reveals = layerRevealRef.current;
+          if (layerIndex > 0) {
+            if (layerVisible && !reveals.has(layer.id)) reveals.set(layer.id, layer.visibleByDefault ? 0 : t);
+            else if (!layerVisible && reveals.has(layer.id)) reveals.delete(layer.id);
+          }
+          const layerT = layerIndex === 0 ? t : Math.max(0, t - (reveals.get(layer.id) ?? 0));
+          return layerVisible ? (
             <div key={layer.id} className="player-layer">
               {layer.blocks.map((block) => {
                 if (!runtime.isBlockVisible(block.id)) return null;
@@ -402,7 +419,7 @@ export function Player({ project, adapter, startSlideId }: {
                 const disabled = pState === 'disabled';
                 const acc = accessibilityFor(block);
                 const clickable = !disabled && (runtime.blockHasInteractionTrigger(block.id) || Boolean(block.stateStyles?.selected || block.stateStyles?.visited));
-                const tState = hasTimeline ? blockStateAt(t, block.timing, duration, block.motion) : null;
+                const tState = hasTimeline ? blockStateAt(layerT, block.timing, duration, block.motion) : null;
                 const attachedAudio = block.audio?.src;
                 const timedMedia = hasTimeline && block.timing &&
                   (block.type === 'audio' || block.type === 'video' || Boolean(attachedAudio));
@@ -476,8 +493,8 @@ export function Player({ project, adapter, startSlideId }: {
                 );
               })}
             </div>
-          ) : null
-        )}
+          ) : null;
+        })}
       </div>
       {activeCue && (
         <div className="player-captions" aria-live="polite">

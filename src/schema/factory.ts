@@ -22,7 +22,7 @@ export function setOuterTag(html: string, tag: string): string {
 
 // Recursively give a block (and any group children) a fresh id, recording the
 // old->new mapping so references elsewhere can be remapped.
-function reassignBlockIds(blocks: Block[], map: Map<string, string>): void {
+export function reassignBlockIds(blocks: Block[], map: Map<string, string>): void {
   for (const b of blocks) {
     const nid = uid('blk');
     map.set(b.id, nid);
