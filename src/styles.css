@@ -614,6 +614,8 @@ button { font-family: inherit; }
 .input-number { width: 100%; }
 .input-inline { padding: 2px 6px; }
 .textarea { resize: vertical; line-height: 1.5; }
+/* The narration script gets real room - full width, tall, freely resizable. */
+.narration-notes { width: 100%; box-sizing: border-box; min-height: 180px; font-size: 14px; padding: 10px 12px; }
 
 select.input { appearance: auto; }
 

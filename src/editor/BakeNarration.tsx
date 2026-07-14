@@ -68,11 +68,11 @@ export function BakeNarration({ slideId }: { slideId: string }) {
 
   return (
     <>
-      <div className="field" style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
         <span className="field-label">Speaker notes (the narration script)</span>
         <textarea
-          className="textarea"
-          rows={4}
+          className="textarea narration-notes"
+          rows={8}
           placeholder="Type what the narrator should say on this slide..."
           value={slide?.notes ?? ''}
           onChange={(e) =>
