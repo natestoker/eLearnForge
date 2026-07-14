@@ -173,6 +173,26 @@ export function LayersPanel() {
                   </label>
                   <button
                     className="btn btn-ghost btn-icon"
+                    style={layer.timeline ? { color: 'var(--accent)' } : undefined}
+                    title={layer.timeline
+                      ? 'This layer has its own timeline (starts when the layer is shown). Click to remove it.'
+                      : 'Give this layer its own timeline - it starts when the layer is shown, and the seekbar follows it'}
+                    onClick={() => {
+                      if (layer.timeline && !confirm('Remove this layer’s own timeline? Its blocks go back to the base timeline clock.')) return;
+                      mutate((p) => {
+                        const s = p.slides.find((sl) => sl.id === slide.id);
+                        const l = s?.layers.find((ly) => ly.id === layer.id);
+                        if (!l) return;
+                        l.timeline = l.timeline ? undefined : { duration: 10, autoAdvance: false };
+                        if (!l.timeline) l.pauseBase = undefined;
+                      });
+                      select({ layerId: layer.id, blockId: null });
+                    }}
+                  >
+                    {'⏱'}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-icon"
                     title="Duplicate this layer (and everything on it)"
                     onClick={() => duplicateLayer(slide.id, layer.id)}
                   >

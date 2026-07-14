@@ -477,6 +477,13 @@ export interface Layer {
   // Authoring lock for the whole layer (see Block.locked).
   locked?: boolean;
   blocks: Block[];
+  // Own timeline (Storyline-style). It starts from 0 the moment the layer is
+  // revealed; while the layer is up, the player's seekbar/play controls drive
+  // THIS timeline and the layer's blocks schedule against it. narrationSrc
+  // makes the layer's audio the clock, exactly like the slide timeline.
+  timeline?: SlideTimeline;
+  // While this layer is visible, pause the base timeline (resumes on hide).
+  pauseBase?: boolean;
 }
 
 export type VariableValue = string | number | boolean;

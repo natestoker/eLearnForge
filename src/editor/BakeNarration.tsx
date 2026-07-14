@@ -11,6 +11,12 @@ import { AudioBaker } from './AudioBaker';
 export function BakeNarration({ slideId }: { slideId: string }) {
   const mutate = useProjectStore((s) => s.mutate);
   const slide = useProjectStore((s) => s.project.slides.find((sl) => sl.id === slideId));
+  const selection = useProjectStore((s) => s.selection);
+  // Narration targets the SELECTED layer: a non-base layer gets the audio as
+  // its own timeline's clock (layer.timeline.narrationSrc); the base layer
+  // keeps the hidden-track approach on the slide timeline.
+  const selLayer = slide?.layers.find((l) => l.id === selection.layerId);
+  const targetLayer = selLayer && slide && slide.layers[0]?.id !== selLayer.id ? selLayer : null;
 
   const notes = slide?.notes?.trim() ?? '';
   const baseName = `${(slide?.name ?? 'narration').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
@@ -21,6 +27,17 @@ export function BakeNarration({ slideId }: { slideId: string }) {
       if (!s) return;
       const seconds = Math.round(result.seconds * 10) / 10;
       const vName = voiceName(result.voiceId);
+      if (targetLayer) {
+        // Layer narration: the audio IS the layer's clock, so visuals and
+        // voice can never drift and the seekbar follows it.
+        const l = s.layers.find((x) => x.id === targetLayer.id);
+        if (!l) return;
+        l.timeline = l.timeline ?? { duration: Math.max(1, seconds), autoAdvance: false };
+        l.timeline.narrationSrc = result.dataUrl;
+        l.timeline.duration = Math.max(l.timeline.duration, seconds);
+        if (result.captionsVtt) l.timeline.captionsVtt = result.captionsVtt;
+        return;
+      }
       s.timeline = s.timeline ?? { duration: Math.max(1, seconds), autoAdvance: false };
       s.timeline.duration = Math.max(s.timeline.duration, seconds);
       const block = createBlock('audio', 40, s.height - 96);
@@ -47,6 +64,7 @@ export function BakeNarration({ slideId }: { slideId: string }) {
   const narrationTracks = (slide?.layers ?? []).flatMap((l) =>
     l.blocks.filter((b) => b.type === 'audio' && (b.props as AudioProps).hideInPlayer)
   );
+  const layerNarration = Boolean(targetLayer?.timeline?.narrationSrc);
 
   return (
     <>
@@ -65,6 +83,28 @@ export function BakeNarration({ slideId }: { slideId: string }) {
           }
         />
       </div>
+      {targetLayer && (
+        <p className="hint" style={{ marginTop: 0 }}>
+          Narration will attach to the <b>{targetLayer.name}</b> layer as its own
+          timeline's audio (select the base layer first for slide narration).
+        </p>
+      )}
+      {layerNarration && (
+        <p className="caption-status ok" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          ✓ This layer has narration (it drives the layer's timeline).
+          <button
+            className="btn btn-ghost btn-danger"
+            onClick={() =>
+              mutate((p) => {
+                const l = p.slides.find((sl) => sl.id === slideId)?.layers.find((x) => x.id === targetLayer!.id);
+                if (l?.timeline) l.timeline.narrationSrc = undefined;
+              })
+            }
+          >
+            Remove
+          </button>
+        </p>
+      )}
       {narrationTracks.length > 0 && (
         <p className="caption-status ok" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           ✓ Narration track on this slide ({narrationTracks[0].name ?? 'Narration'}).

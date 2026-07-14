@@ -197,7 +197,7 @@ export function RibbonSlide() {
       </div>
 
       {audioOpen && (
-        <Modal title={`Narration - ${slide.name}`} onClose={() => setAudioOpen(false)} width="560px">
+        <Modal title={`Narration - ${slide.name}`} onClose={() => setAudioOpen(false)} width="min(860px, 92vw)">
           <BakeNarration slideId={slide.id} />
           <div className="divider" />
           <h4 className="panel-subtitle">Record your own</h4>

@@ -90,7 +90,15 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     moveTargets?: { id: string; origStart: number; origEnd: number | undefined }[];
   } | null>(null);
 
-  if (!slide.timeline) {
+  // Layer-timeline mode: when the SELECTED layer has its own timeline, this
+  // panel edits that timeline - rows come only from the layer, Length writes
+  // the layer's duration, and times are relative to the layer's reveal.
+  // Select the base layer (or a layer without one) to edit the slide timeline.
+  const selLayer = slide.layers.find((l) => l.id === selection.layerId);
+  const layerMode = Boolean(selLayer && slide.layers[0]?.id !== selLayer.id && selLayer.timeline);
+  const activeTl = layerMode ? selLayer!.timeline! : slide.timeline;
+
+  if (!activeTl) {
     return (
       <div className="timeline-panel empty" style={maxHeight ? { maxHeight, height: maxHeight } : undefined}>
         <div className="timeline-head">
@@ -113,8 +121,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   }
 
   // Find all blocks recursively (including grouped blocks)
-  const blocks = walkBlocks(slide.layers.flatMap((l) => l.blocks));
-  const duration = timelineDuration(slide.timeline, blocks);
+  const shownLayers = layerMode ? [selLayer!] : slide.layers;
+  const blocks = walkBlocks(shownLayers.flatMap((l) => l.blocks));
+  const duration = timelineDuration(activeTl, blocks);
   // The AUTHOR-DECLARED length (the red "set" line/Length field) - distinct
   // from `duration` above, which grows to include whatever already overflows
   // it. Clamping/pinning must anchor to this, not the extended value: if
@@ -122,10 +131,17 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   // define `duration`, so checking a drag against `duration` makes every one
   // of them look "pinned to the end" at that shared (accidental) point
   // instead of the real one.
-  const setDuration = slide.timeline.duration;
-  const driven = Boolean(slide.timeline.narrationSrc);
+  const setDuration = activeTl.duration;
+  const driven = Boolean(activeTl.narrationSrc);
   const selectedRowIds = new Set(selectedIds(selection));
-  const cues = slide.timeline.cues ?? [];
+  const cues = activeTl.cues ?? [];
+  // Writes go to whichever timeline this panel is editing.
+  const mutateTl = (fn: (tl: NonNullable<typeof activeTl>) => void) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slide.id);
+      const target = layerMode ? s?.layers.find((l) => l.id === selLayer!.id)?.timeline : s?.timeline;
+      if (target) fn(target);
+    });
 
   const pxPerSec = () => ((trackRef.current?.clientWidth ?? 600) * timelineZoom) / duration;
   const q = (v: number) => (snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 100) / 100);
@@ -561,7 +577,24 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
   return (
     <div className="timeline-panel" style={maxHeight ? { maxHeight, height: maxHeight } : undefined}>
       <div className="timeline-head">
-        <span className="timeline-title">Timeline</span>
+        <span className="timeline-title">
+          {layerMode ? <>Timeline <span className="tl-layer-chip" title="Editing this layer's own timeline. It starts when the layer is shown. Select the base layer to edit the slide timeline.">\u23f1 {selLayer!.name}</span></> : 'Timeline'}
+        </span>
+        {layerMode && (
+          <label className="checkbox tiny" title="Pause the base timeline while this layer is visible (resumes when it hides)">
+            <input
+              type="checkbox"
+              checked={!!selLayer!.pauseBase}
+              onChange={(e) =>
+                mutate((p) => {
+                  const l = p.slides.find((sl) => sl.id === slide.id)?.layers.find((x) => x.id === selLayer!.id);
+                  if (l) l.pauseBase = e.target.checked || undefined;
+                })
+              }
+            />
+            <span>pause base</span>
+          </label>
+        )}
         {onCollapse && <button className="btn btn-ghost btn-icon" onClick={onCollapse} title="Hide the timeline">{'\u2013'}</button>}
         <button
           className={`btn btn-icon tl-play ${playing ? 'on' : ''}`}
@@ -584,14 +617,9 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             type="number"
             min={1}
             step={0.5}
-            value={slide.timeline.duration}
+            value={activeTl.duration}
             disabled={driven}
-            onChange={(e) =>
-              mutate((p) => {
-                const s = p.slides.find((sl) => sl.id === slide.id);
-                if (s?.timeline) s.timeline.duration = Math.max(1, Number(e.target.value) || 1);
-              })
-            }
+            onChange={(e) => mutateTl((tl) => { tl.duration = Math.max(1, Number(e.target.value) || 1); })}
           />
           s
         </label>
@@ -640,12 +668,12 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           <div className="timeline-header-cell ruler-header">
             <span>Blocks</span>
           </div>
-          {slide.layers.map((layer, li) => {
+          {shownLayers.map((layer, li) => {
             const ordered = [...layer.blocks].reverse();
             return (
               <div key={layer.id}>
                 <div className="timeline-layer-header-name">
-                  <span>{layer.name}{li === 0 ? ' (base)' : ''}</span>
+                  <span>{layer.name}{!layerMode && li === 0 ? ' (base)' : layerMode ? ' (own timeline)' : ''}</span>
                   <button
                     className={`tl-row-action-btn ${layer.locked ? 'on' : ''}`}
                     title={layer.locked ? 'Unlock this layer' : 'Lock this whole layer'}
@@ -706,17 +734,17 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             )}
 
             {/* Overflow Shading & Setmark */}
-            {duration > slide.timeline.duration + 0.01 && (
+            {duration > setDuration + 0.01 && (
               <>
-                <div className="timeline-overflow" style={{ left: pct(slide.timeline.duration) }} />
-                <div className="timeline-setmark" style={{ left: pct(slide.timeline.duration) }} title={`Set length: ${slide.timeline.duration}s (content runs to ${duration.toFixed(1)}s)`}>
-                  <span className="timeline-setmark-label">set {slide.timeline.duration}s</span>
+                <div className="timeline-overflow" style={{ left: pct(setDuration) }} />
+                <div className="timeline-setmark" style={{ left: pct(setDuration) }} title={`Set length: ${setDuration}s (content runs to ${duration.toFixed(1)}s)`}>
+                  <span className="timeline-setmark-label">set {setDuration}s</span>
                 </div>
               </>
             )}
 
             {/* Lanes */}
-            {slide.layers.map((layer) => {
+            {shownLayers.map((layer) => {
               const ordered = [...layer.blocks].reverse();
               return (
                 <div key={layer.id}>

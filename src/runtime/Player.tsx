@@ -108,6 +108,15 @@ export function Player({ project, adapter, startSlideId }: {
   const motionTweenRef = useRef<Map<string, gsap.core.Tween>>(new Map());
   // Slide-clock time each non-base layer was revealed at (its clock's zero).
   const layerRevealRef = useRef<Map<string, number>>(new Map());
+  // Own-timeline layers: a second clock drives the ACTIVE layer (topmost
+  // visible layer with layer.timeline). While it runs, the chrome seekbar and
+  // play button control it, and its media sync against it.
+  const layerClockRef = useRef<TimelineClock | null>(null);
+  const layerMediaRef = useRef<TimedMedia>(new TimedMedia());
+  const pausedBaseRef = useRef(false);
+  const [layerT, setLayerT] = useState(0);
+  const [layerPlaying, setLayerPlaying] = useState(false);
+  const [layerDuration, setLayerDuration] = useState(0);
   // Find a block anywhere in the course by id (motion lookup for playMotion).
   const findBlockOnSlide = (id: string) => {
     const walk = (blocks: typeof project.slides[number]['layers'][number]['blocks']): (typeof blocks)[number] | undefined => {
@@ -253,6 +262,46 @@ export function Player({ project, adapter, startSlideId }: {
   const effectiveTransition = slide.transition ?? project.slideTransition ?? 'none';
   // New slide: forget layer reveal times so its layers start fresh clocks.
   useEffect(() => { layerRevealRef.current.clear(); }, [slide.id]);
+
+  // The ACTIVE own-timeline layer: the topmost visible layer that has one.
+  // Its clock starts at 0 when it appears; the chrome seekbar/play button
+  // drive it while it's up; layer.pauseBase freezes the base clock meanwhile.
+  const activeTlLayer =
+    [...slide.layers].reverse().find((l) => l.id !== slide.layers[0]?.id && l.timeline && runtime.isLayerVisible(l.id)) ?? null;
+  const activeTlLayerId = activeTlLayer?.id ?? null;
+
+  useEffect(() => {
+    layerClockRef.current?.dispose();
+    layerClockRef.current = null;
+    layerMediaRef.current.reset();
+    setLayerT(0);
+    setLayerPlaying(false);
+    if (!activeTlLayerId) {
+      // Layer closed: resume the base timeline if we paused it.
+      if (pausedBaseRef.current) { clockRef.current?.play(); pausedBaseRef.current = false; }
+      return;
+    }
+    const layer = slide.layers.find((l) => l.id === activeTlLayerId);
+    const lt = layer?.timeline;
+    if (!layer || !lt) return;
+    if (layer.pauseBase && clockRef.current?.isPlaying) {
+      clockRef.current.pause();
+      pausedBaseRef.current = true;
+    }
+    const clock = new TimelineClock({
+      duration: Math.max(1, lt.duration || 1),
+      narrationSrc: lt.narrationSrc,
+      onTick: (tt) => { setLayerT(tt); layerMediaRef.current.sync(tt, layerClockRef.current?.isPlaying ?? true); },
+      onPlayState: (pl) => { setLayerPlaying(pl); layerMediaRef.current.sync(layerClockRef.current?.time ?? 0, pl); },
+      onEnd: () => { /* the layer stays up at its end frame until hidden */ },
+      onDuration: (d) => setLayerDuration(d)
+    });
+    layerClockRef.current = clock;
+    setLayerDuration(Math.max(1, lt.duration || 1));
+    clock.play();
+    return () => { clock.dispose(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTlLayerId, slide.id]);
 
   useEffect(() => {
     const el = stageAnimRef.current;
@@ -408,7 +457,16 @@ export function Player({ project, adapter, startSlideId }: {
             if (layerVisible && !reveals.has(layer.id)) reveals.set(layer.id, layer.visibleByDefault ? 0 : t);
             else if (!layerVisible && reveals.has(layer.id)) reveals.delete(layer.id);
           }
-          const layerT = layerIndex === 0 ? t : Math.max(0, t - (reveals.get(layer.id) ?? 0));
+          // Three clocks a layer can be on: the base slide clock (base layer),
+          // its OWN TimelineClock (layer.timeline; the active one ticks, others
+          // hold at 0), or the reveal-offset shim (plain layers).
+          const ownTl = layerIndex > 0 ? layer.timeline : undefined;
+          const layerClockT = ownTl
+            ? (layer.id === activeTlLayerId ? layerT : 0)
+            : layerIndex === 0 ? t : Math.max(0, t - (reveals.get(layer.id) ?? 0));
+          const layerDur = ownTl
+            ? Math.max(layer.id === activeTlLayerId ? layerDuration : 0, ownTl.duration || 1)
+            : duration;
           return layerVisible ? (
             <div key={layer.id} className="player-layer">
               {layer.blocks.map((block) => {
@@ -419,9 +477,9 @@ export function Player({ project, adapter, startSlideId }: {
                 const disabled = pState === 'disabled';
                 const acc = accessibilityFor(block);
                 const clickable = !disabled && (runtime.blockHasInteractionTrigger(block.id) || Boolean(block.stateStyles?.selected || block.stateStyles?.visited));
-                const tState = hasTimeline ? blockStateAt(layerT, block.timing, duration, block.motion) : null;
+                const tState = hasTimeline || ownTl ? blockStateAt(layerClockT, block.timing, layerDur, block.motion) : null;
                 const attachedAudio = block.audio?.src;
-                const timedMedia = hasTimeline && block.timing &&
+                const timedMedia = (hasTimeline || ownTl) && block.timing &&
                   (block.type === 'audio' || block.type === 'video' || Boolean(attachedAudio));
                 // Effective style: persistent state first, transient pointer
                 // states layered on top when interactive.
@@ -470,7 +528,9 @@ export function Player({ project, adapter, startSlideId }: {
                         style={{ width: '100%', height: '100%', ...shadowStyle(block) }}
                         ref={(el) => {
                           if (timedMedia) {
-                            timedMediaRef.current.register(
+                            // Media on an own-timeline layer syncs to the
+                            // LAYER clock, not the base one.
+                            (ownTl ? layerMediaRef : timedMediaRef).current.register(
                               block.id,
                               el?.querySelector('audio, video') ?? null,
                               block.timing!.start
@@ -478,7 +538,7 @@ export function Player({ project, adapter, startSlideId }: {
                           }
                         }}
                       >
-                        <def.Runtime block={block} runtime={runtime} stateStyle={stateStyle} t={hasTimeline ? t : undefined} tState={tState} />
+                        <def.Runtime block={block} runtime={runtime} stateStyle={stateStyle} t={hasTimeline || ownTl ? layerClockT : undefined} tState={tState} />
                         {/* Block-attached audio (Add/Bake audio) rides the
                             same pipeline as audio blocks: TimedMedia drives
                             it when the block has a timeline bar; otherwise it
@@ -511,26 +571,40 @@ export function Player({ project, adapter, startSlideId }: {
             {(settings.navPosition ?? 'right') === 'left' && (
               <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
             )}
-            {hasTimeline && (
+            {(hasTimeline || activeTlLayerId) && (() => {
+              // While an own-timeline layer is up, the transport reflects and
+              // controls THAT layer's clock (Storyline behavior); otherwise
+              // the base slide timeline.
+              const onLayer = Boolean(activeTlLayerId);
+              const uiT = onLayer ? layerT : t;
+              const uiDur = onLayer ? Math.max(0.1, layerDuration) : duration;
+              const uiPlaying = onLayer ? layerPlaying : playing;
+              const uiClock = () => (onLayer ? layerClockRef.current : clockRef.current);
+              return (
               <div className="player-controls">
+                {onLayer && (
+                  <span className="player-layer-chip" title="The seekbar is on this layer's timeline while the layer is open">
+                    ⏱ {activeTlLayer!.name}
+                  </span>
+                )}
                 <button
                   className="player-play"
-                  onClick={() => (playing ? clockRef.current?.pause() : clockRef.current?.play())}
-                  aria-label={playing ? 'Pause' : 'Play'}
+                  onClick={() => (uiPlaying ? uiClock()?.pause() : uiClock()?.play())}
+                  aria-label={uiPlaying ? 'Pause' : 'Play'}
                 >
-                  {playing ? '||' : '>'}
+                  {uiPlaying ? '||' : '>'}
                 </button>
                 <input
                   className="player-seek"
                   type="range"
                   min={0}
-                  max={duration}
+                  max={uiDur}
                   step={0.05}
-                  value={Math.min(t, duration)}
-                  onChange={(e) => clockRef.current?.seek(Number(e.target.value))}
+                  value={Math.min(uiT, uiDur)}
+                  onChange={(e) => uiClock()?.seek(Number(e.target.value))}
                 />
                 <span className="player-time">
-                  {t.toFixed(1)}s / {duration.toFixed(1)}s
+                  {uiT.toFixed(1)}s / {uiDur.toFixed(1)}s
                 </span>
                 {(settings.captionsButton ?? true) && cues.length > 0 && (
                   <button
@@ -543,7 +617,8 @@ export function Player({ project, adapter, startSlideId }: {
                   </button>
                 )}
               </div>
-            )}
+              );
+            })()}
             {(settings.titlePosition ?? 'bottom') === 'bottom' && (
               <div className="player-hud">
                 <span className="player-hud-title">{project.title}</span>

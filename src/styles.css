@@ -1900,6 +1900,24 @@ select.input { appearance: auto; }
 }
 
 
+/* Chips naming which timeline is active: in the editor timeline head and in
+   the player transport while an own-timeline layer is up. */
+.tl-layer-chip, .player-layer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-family: var(--mono);
+  color: var(--accent);
+  background: rgba(61, 220, 151, 0.1);
+  border: 1px solid rgba(61, 220, 151, 0.35);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.player-layer-chip { margin-left: 0; margin-right: 6px; }
+
 .color-field { display: flex; flex-direction: column; gap: 6px; }
 .brand-swatches { display: flex; flex-wrap: wrap; gap: 5px; }
 .brand-swatch {
