@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // Editor-only state. Deliberately separate from the project store: nothing in
 // here is part of the document, so it never touches undo history or saves.
 
-export type RibbonTab = 'home' | 'slide' | 'insert' | 'format' | 'animations' | 'triggers' | 'variables';
+export type RibbonTab = 'home' | 'slide' | 'layer' | 'insert' | 'format' | 'animations' | 'triggers' | 'variables';
 
 interface UiStore {
   hiddenLayerIds: Record<string, boolean>; // editor-only eye toggle
@@ -38,6 +38,8 @@ interface UiStore {
   previewOpen: boolean;
   previewStartSlideId: string | null;
   toggleLayerHidden: (layerId: string) => void;
+  soloLayer: (layerId: string, allLayerIds: string[]) => void;
+  showAllLayers: () => void;
   setRibbonTab: (tab: RibbonTab) => void;
   setPreviewOpen: (open: boolean, startSlideId?: string | null) => void;
   // Editor timeline playhead (seconds). null = no scrub preview; the canvas
@@ -65,6 +67,13 @@ export const useUiStore = create<UiStore>((set) => ({
     set((s) => ({
       hiddenLayerIds: { ...s.hiddenLayerIds, [layerId]: !s.hiddenLayerIds[layerId] }
     })),
+  // Isolate: hide every layer on the canvas except this one, so overlapping
+  // layers stop occluding each other while you work.
+  soloLayer: (layerId, allLayerIds) =>
+    set(() => ({
+      hiddenLayerIds: Object.fromEntries(allLayerIds.map((id) => [id, id !== layerId]))
+    })),
+  showAllLayers: () => set(() => ({ hiddenLayerIds: {} })),
   setRibbonTab: (tab) => set({ ribbonTab: tab }),
   setSnapEnabled: (on) => set({ snapEnabled: on }),
   setTimelineSnap: (on) => set({ timelineSnap: on }),

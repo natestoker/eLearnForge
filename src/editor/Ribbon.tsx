@@ -2,6 +2,7 @@ import { useUiStore, RibbonTab } from '../state/uiStore';
 import { Toolbar } from './Toolbar';
 import { RibbonHome } from './ribbon/RibbonHome';
 import { RibbonSlide } from './ribbon/RibbonSlide';
+import { RibbonLayer } from './ribbon/RibbonLayer';
 import { RibbonInsert } from './ribbon/RibbonInsert';
 import { RibbonFormat } from './ribbon/RibbonFormat';
 import { RibbonAnimations } from './ribbon/RibbonAnimations';
@@ -12,6 +13,7 @@ const TABS: { id: RibbonTab; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'insert', label: 'Insert' },
   { id: 'slide', label: 'Slide' },
+  { id: 'layer', label: 'Layer' },
   { id: 'format', label: 'Format' },
   { id: 'animations', label: 'Animations' },
   { id: 'triggers', label: 'Triggers' },
@@ -58,6 +60,7 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
         <div className="ribbon-body">
           {activeTab === 'home' && <RibbonHome />}
           {activeTab === 'slide' && <RibbonSlide />}
+          {activeTab === 'layer' && <RibbonLayer />}
           {activeTab === 'insert' && <RibbonInsert />}
           {activeTab === 'format' && <RibbonFormat />}
           {activeTab === 'animations' && <RibbonAnimations />}
