@@ -186,7 +186,7 @@ function PreviewModal({ onClose, startSlideId }: { onClose: () => void; startSli
         <span>Preview - runtime engine live</span>
         <button className="btn btn-ghost" onClick={onClose}>Close (Esc)</button>
       </div>
-      <Player project={snapshot} startSlideId={startSlideId ?? undefined} />
+      <Player project={snapshot} startSlideId={startSlideId ?? undefined} debug />
     </div>
   );
 }

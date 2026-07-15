@@ -24,11 +24,13 @@ import { parseVtt, cueAt } from './captions';
 
 import type { TrackingAdapter } from '../tracking/adapter';
 
-export function Player({ project, adapter, startSlideId }: {
+export function Player({ project, adapter, startSlideId, debug }: {
   project: Project;
   adapter?: TrackingAdapter;
   startSlideId?: string;
+  debug?: boolean; // Preview only: show the live variable/state inspector.
 }) {
+  const [showInspector, setShowInspector] = useState(false);
   const runtime = useMemo(() => {
     const rt = new Runtime(project);
     if (startSlideId && project.slides.some((s) => s.id === startSlideId)) {
@@ -369,6 +371,31 @@ export function Player({ project, adapter, startSlideId }: {
     `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}` +
     ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${emphasisActive ? (settings.buttonEmphasis ?? 'none') : 'none'}`;
 
+  // Live state inspector (Preview only). Reads straight from the runtime on
+  // every render - useSyncExternalStore above re-renders us on any state
+  // change, so these values track the running course in real time. Variables
+  // list the whole course; block states are scoped to the current slide and
+  // limited to blocks that can actually change state (interactive or with
+  // authored state styles), which is what an author wants to watch.
+  const snapVars = runtime.getSnapshot().variables;
+  const inspectorVars = debug
+    ? project.variables.map((v) => ({
+        id: v.id,
+        name: v.name,
+        type: v.type,
+        value: snapVars[v.id] ?? v.defaultValue
+      }))
+    : [];
+  const inspectorBlocks = debug
+    ? slide.layers.flatMap((l) => l.blocks)
+        .filter((b) => runtime.blockHasInteractionTrigger(b.id) || Boolean(b.stateStyles))
+        .map((b) => ({
+          id: b.id,
+          name: b.name || b.type,
+          state: runtime.getBlockState(b.id)
+        }))
+    : [];
+
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>
       <div className="player-body">
@@ -392,6 +419,44 @@ export function Player({ project, adapter, startSlideId }: {
           >
             <span /><span /><span />
           </button>
+          {debug && (
+            <button
+              className={`player-inspector-btn ${showInspector ? 'on' : ''}`}
+              onClick={() => setShowInspector((v) => !v)}
+              aria-pressed={showInspector}
+              title="Show live variable & state values"
+            >
+              {`{x}`} States
+            </button>
+          )}
+          {debug && showInspector && (
+            <div className="player-inspector" role="dialog" aria-label="State inspector">
+              <div className="player-inspector-head">
+                <span>Live values</span>
+                <button className="player-info-close" aria-label="Close" onClick={() => setShowInspector(false)}>×</button>
+              </div>
+              <div className="player-inspector-body">
+                <div className="player-inspector-section">Variables</div>
+                {inspectorVars.length === 0 && <div className="player-inspector-empty">No variables.</div>}
+                {inspectorVars.map((v) => (
+                  <div key={v.id} className="player-inspector-row">
+                    <span className="player-inspector-name" title={v.name}>%{v.name}%</span>
+                    <span className={`player-inspector-val val-${v.type}`}>
+                      {typeof v.value === 'boolean' ? (v.value ? 'true' : 'false') : String(v.value)}
+                    </span>
+                  </div>
+                ))}
+                <div className="player-inspector-section">Block states — {slide.name}</div>
+                {inspectorBlocks.length === 0 && <div className="player-inspector-empty">No stateful blocks on this slide.</div>}
+                {inspectorBlocks.map((b) => (
+                  <div key={b.id} className="player-inspector-row">
+                    <span className="player-inspector-name" title={b.id}>{b.name}</span>
+                    <span className={`player-inspector-val state-${b.state}`}>{b.state}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {(resources.length > 0 || glossary.length > 0) && (
             <div className="player-info-tabs">
               {resources.length > 0 && (
