@@ -743,6 +743,20 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
               </>
             )}
 
+            {/* Narration audio that drives this timeline (slide or layer)
+                doesn't live on a block, so draw its waveform as a faint band
+                behind the lanes - you can see where the voice is. */}
+            {driven && activeTl.narrationSrc && (
+              <div
+                className="timeline-narration-band"
+                style={{ width: `${Math.min(100, (activeTl.duration / duration) * 100)}%` }}
+                title="Narration audio drives this timeline"
+              >
+                <span className="tl-narr-label">{layerMode ? '🔊 layer narration' : '🔊 narration'}</span>
+                <BarWaveform src={activeTl.narrationSrc} />
+              </div>
+            )}
+
             {/* Lanes */}
             {shownLayers.map((layer) => {
               const ordered = [...layer.blocks].reverse();

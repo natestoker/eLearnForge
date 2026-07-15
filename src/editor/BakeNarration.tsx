@@ -18,7 +18,16 @@ export function BakeNarration({ slideId }: { slideId: string }) {
   const selLayer = slide?.layers.find((l) => l.id === selection.layerId);
   const targetLayer = selLayer && slide && slide.layers[0]?.id !== selLayer.id ? selLayer : null;
 
-  const notes = slide?.notes?.trim() ?? '';
+  // Script + narration are per-target: a layer keeps its OWN notes, separate
+  // from the slide's speaker notes.
+  const notes = (targetLayer ? targetLayer.notes : slide?.notes)?.trim() ?? '';
+  const setNotes = (v: string) =>
+    mutate((p) => {
+      const s = p.slides.find((sl) => sl.id === slideId);
+      if (!s) return;
+      if (targetLayer) { const l = s.layers.find((x) => x.id === targetLayer.id); if (l) l.notes = v || undefined; }
+      else s.notes = v || undefined;
+    }, false);
   const baseName = `${(slide?.name ?? 'narration').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
 
   const setAsNarration = (result: BakeResult) => {
@@ -69,18 +78,15 @@ export function BakeNarration({ slideId }: { slideId: string }) {
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-        <span className="field-label">Speaker notes (the narration script)</span>
+        <span className="field-label">
+          {targetLayer ? `Narration script for the "${targetLayer.name}" layer` : 'Speaker notes (the slide narration script)'}
+        </span>
         <textarea
           className="input textarea narration-notes"
           rows={8}
-          placeholder="Type what the narrator should say on this slide..."
-          value={slide?.notes ?? ''}
-          onChange={(e) =>
-            mutate((p) => {
-              const s = p.slides.find((sl) => sl.id === slideId);
-              if (s) s.notes = e.target.value || undefined;
-            }, false)
-          }
+          placeholder={targetLayer ? `What the narrator says while the "${targetLayer.name}" layer is up...` : 'Type what the narrator should say on this slide...'}
+          value={(targetLayer ? targetLayer.notes : slide?.notes) ?? ''}
+          onChange={(e) => setNotes(e.target.value)}
         />
       </div>
       {targetLayer && (

@@ -484,6 +484,9 @@ export interface Layer {
   timeline?: SlideTimeline;
   // While this layer is visible, pause the base timeline (resumes on hide).
   pauseBase?: boolean;
+  // The layer's own narration script (separate from the slide's speaker
+  // notes), baked into layer.timeline.narrationSrc.
+  notes?: string;
 }
 
 export type VariableValue = string | number | boolean;

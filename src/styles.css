@@ -1904,6 +1904,29 @@ select.input { appearance: auto; }
 
 /* Chips naming which timeline is active: in the editor timeline head and in
    the player transport while an own-timeline layer is up. */
+/* Narration waveform band across the timeline (when audio drives the clock). */
+.timeline-narration-band {
+  position: relative;
+  height: 26px;
+  margin: 2px 0 4px;
+  border-radius: 5px;
+  background: rgba(255, 179, 104, 0.1);
+  border: 1px solid rgba(255, 179, 104, 0.3);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.timeline-narration-band .tl-wave { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; opacity: 0.5; color: var(--audio, #ffb368); }
+.tl-narr-label {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--audio, #ffb368);
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
 .tl-layer-chip, .player-layer-chip {
   display: inline-flex;
   align-items: center;
