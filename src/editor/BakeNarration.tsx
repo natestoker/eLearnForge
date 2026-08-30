@@ -23,6 +23,9 @@ export function BakeNarration({ slideId }: { slideId: string }) {
       const vName = voiceName(result.voiceId);
       s.timeline = s.timeline ?? { duration: Math.max(1, seconds), autoAdvance: false };
       s.timeline.duration = Math.max(s.timeline.duration, seconds);
+      // Remove any existing narration audio blocks (hideInPlayer=true) from layer 0
+      // to prevent duplicate audio playback if user clicks "Set as narration" multiple times.
+      s.layers[0].blocks = s.layers[0].blocks.filter((b) => !(b.type === 'audio' && (b.props as AudioProps).hideInPlayer));
       const block = createBlock('audio', 40, s.height - 96);
       // Name the track after the voice it was baked with, so the timeline and
       // layers list show which narrator this clip is.

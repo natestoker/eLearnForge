@@ -409,6 +409,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
     // event routed here regardless of what's under the cursor or how the
     // browser wants to treat the gesture.
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    stopPlay(); // Stop timeline playback when user starts dragging rows
     const sel = useProjectStore.getState().selection;
     const ids = selectedIds(sel).includes(b.id) ? selectedIds(sel) : [b.id];
     select({ blockId: b.id, blockIds: ids.filter((id) => id !== b.id) });

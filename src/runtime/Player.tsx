@@ -249,7 +249,7 @@ export function Player({ project, adapter, startSlideId }: {
       const shade = document.createElement('div');
       shade.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:20;opacity:0;background:linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0) 65%);';
       el.appendChild(shade);
-      gsap.timeline({
+      let tl = gsap.timeline({
         onComplete: () => { shade.remove(); if (area) gsap.set(area, { clearProps: 'perspective,perspectiveOrigin' }); },
       })
         .set(el, { rotationY: -78, scaleX: 0.5, skewY: 30, autoAlpha: 0.4, filter: 'brightness(0.45)' })
@@ -258,6 +258,8 @@ export function Player({ project, adapter, startSlideId }: {
         .to(el, { rotationY: -15, scaleX: 0.9, skewY: 6, autoAlpha: 0.92, filter: 'brightness(0.85)', duration: 0.22, ease: 'power1.out' })
         .to([el, shade], { rotationY: 0, scaleX: 1, skewY: 0, autoAlpha: 1, filter: 'brightness(1)', opacity: 0, duration: 0.26, ease: 'back.out(1.7)' })
         .set(el, { clearProps: 'transform,filter' });
+      // Cleanup if slide changes before animation completes
+      return () => { tl.kill(); shade.remove(); if (area) gsap.set(area, { clearProps: 'perspective,perspectiveOrigin' }); };
     }
   }, [slide.id, effectiveTransition]);
 
