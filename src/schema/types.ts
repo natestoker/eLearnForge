@@ -584,6 +584,9 @@ export interface Trigger {
   watchState?: BlockState;  // onStateAll
   cueId?: string;           // onCuePoint
   key?: string;             // onKeyPress: a KeyboardEvent.key value ('Enter', ' ', 'ArrowRight', 'a')
+  // Authoring switch: false skips the trigger in the player without deleting
+  // it. Absent = on.
+  enabled?: boolean;
   conditions: Condition[];
   // How the conditions combine. 'and' (default) requires all; 'or' requires
   // any one. Absent = 'and' for older projects.
@@ -724,6 +727,9 @@ export interface CompletionSettings {
   // up to date as the learner answers. When false/absent the score only
   // changes through the Set score trigger action.
   autoScore?: boolean;
+  // How many times a learner may answer each graded question. Absent or 0 =
+  // unlimited. After the last attempt the question locks.
+  maxAttempts?: number;
 }
 
 export interface Project {

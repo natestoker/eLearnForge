@@ -36,6 +36,7 @@ export interface ResumeState {
   viewedSlideIds: string[];
   score?: number;
   answers?: Record<string, boolean>;
+  attempts?: Record<string, number>;
 }
 
 export class Runtime {
@@ -147,10 +148,24 @@ export class Runtime {
       latencyMs: Math.max(0, Date.now() - this.slideEnteredAt),
       ...(detail ? { detail } : {})
     });
+    // Question blocks read attemptsExhausted on render, so tell them.
+    this.emit();
     if (this.project.completion?.autoScore) {
       this.answers[blockId] = correct;
       this.recomputeAutoScore();
     }
+  }
+
+  // Attempt limit from Publish > Max attempts. 0 / absent = unlimited.
+  maxAttempts(): number {
+    const n = this.project.completion?.maxAttempts;
+    return typeof n === 'number' && n > 0 ? Math.floor(n) : 0;
+  }
+
+  // True once a question has been answered as many times as allowed.
+  attemptsExhausted(blockId: string): boolean {
+    const max = this.maxAttempts();
+    return max > 0 && (this.attempts[blockId] ?? 0) >= max;
   }
 
   // Score = percent of graded questions whose latest answer is correct.
@@ -217,7 +232,8 @@ export class Runtime {
       variables: byName,
       viewedSlideIds: [...this.viewedSlideIds],
       ...(this.scoreSet ? { score: this.lastScore } : {}),
-      ...(Object.keys(this.answers).length ? { answers: { ...this.answers } } : {})
+      ...(Object.keys(this.answers).length ? { answers: { ...this.answers } } : {}),
+      ...(Object.keys(this.attempts).length ? { attempts: { ...this.attempts } } : {})
     };
   }
 
@@ -230,6 +246,7 @@ export class Runtime {
     // Restore quietly: the LMS already holds the score it was sent.
     if (typeof state.score === 'number') { this.lastScore = state.score; this.scoreSet = true; }
     if (state.answers) this.answers = { ...state.answers };
+    if (state.attempts) this.attempts = { ...state.attempts };
     if (state.slideId && this.project.slides.some((s) => s.id === state.slideId)) {
       this.enterSlide(state.slideId);
     } else {
@@ -497,6 +514,7 @@ export class Runtime {
       return;
     }
     for (const trigger of triggers) {
+      if (trigger.enabled === false) continue;
       if (!this.conditionsPass(trigger.conditions, trigger.conditionLogic ?? 'and')) continue;
       for (const action of trigger.actions) this.applyAction(action, depth + 1, trigger.sourceBlockId);
     }

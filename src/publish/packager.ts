@@ -94,12 +94,25 @@ export async function buildPackage(project: Project, target: PublishTarget | 'ri
   }
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  return { filename: packageFilename(project, target), blob };
+}
+
+// The file a publish will produce, so the dialog can show it up front.
+export function packageFilename(project: Project, target: PublishTarget | 'rise'): string {
+  const base = slugFile(project.title);
+  if (target === 'web') return `${base}.html`;
   const suffix =
     target === 'scorm12' ? 'scorm12' :
     target === 'scorm2004' ? 'scorm2004' :
     target === 'xapi' ? 'xapi' :
     target === 'rise' ? 'rise-code-block' : 'storyline-webobject';
-  return { filename: `${base}-${suffix}.zip`, blob };
+  return `${base}-${suffix}.zip`;
+}
+
+// Size of the player runtime that every package carries (bytes).
+export function playerRuntimeBytes(): number {
+  // The dev server has no baked player; use the size of a current build.
+  return playerHtml.length > 0 ? playerHtml.length : 490_000;
 }
 
 export function downloadBlob(result: PublishResult): void {

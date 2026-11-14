@@ -7,6 +7,7 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
   const props = block.props as MultipleChoiceProps;
   const [selected, setSelected] = useState<string[]>([]);
   const [result, setResult] = useState<null | boolean>(null);
+  const locked = runtime.attemptsExhausted(block.id);
 
   const toggle = (id: string) => {
     if (result !== null) return;
@@ -76,9 +77,10 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
       ) : (
         <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`}>
           <p>{result ? props.feedbackCorrect : props.feedbackIncorrect}</p>
-          {!result && (
+          {!result && !locked && (
             <button className="mc-submit live" onClick={retry}>Try again</button>
           )}
+          {locked && !result && <p className="attempts-note">No attempts left.</p>}
         </div>
       )}
     </div>

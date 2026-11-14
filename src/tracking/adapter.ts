@@ -43,6 +43,7 @@ export interface ResumeData {
   // Score so far, and each graded block's latest result (blockId -> correct).
   score?: number;
   answers?: Record<string, boolean>;
+  attempts?: Record<string, number>;
 }
 
 export interface TrackingAdapter {
@@ -64,11 +65,13 @@ export function encodeResume(state: ResumeData): string {
   // Too big: drop variables first, keep position, never exceed the cap.
   // The score and the answers behind it matter more than other variables, so
   // they outlast them. Last resort: position and score only.
-  const keep = { slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, answers: state.answers };
+  const keep = { slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, answers: state.answers, attempts: state.attempts };
   const noVars = JSON.stringify({ ...keep, variables: {} });
   if (noVars.length <= 4000) return noVars;
-  const noAnswers = JSON.stringify({ slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, variables: {} });
+  const noAnswers = JSON.stringify({ slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, attempts: state.attempts, variables: {} });
   if (noAnswers.length <= 4000) return noAnswers;
+  const tiny = JSON.stringify({ slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, variables: {} });
+  if (tiny.length <= 4000) return tiny;
   return JSON.stringify({ slideId: state.slideId, variables: {}, viewedSlideIds: [], score: state.score });
 }
 

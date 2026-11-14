@@ -44,6 +44,10 @@ interface UiStore {
   // shows every block at rest. Transient, never saved.
   scrubT: number | null;
   setScrubT: (t: number | null) => void;
+  // A trigger the Triggers panel should open and show (set by the Publish
+  // checks' "Open trigger" button). The panel clears it once handled.
+  focusTriggerId: string | null;
+  setFocusTriggerId: (id: string | null) => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -116,5 +120,7 @@ export const useUiStore = create<UiStore>((set) => ({
   welcomeOpen: false,
   setWelcomeOpen: (open) => set({ welcomeOpen: open }),
   scrubT: null,
-  setScrubT: (t) => set({ scrubT: t })
+  setScrubT: (t) => set({ scrubT: t }),
+  focusTriggerId: null,
+  setFocusTriggerId: (id) => set({ focusTriggerId: id })
 }));

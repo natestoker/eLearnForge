@@ -1295,3 +1295,50 @@ Closes most of the Storyline trigger gap found in the November audit.
   the window, and shows an end screen for hosts where closing isn't allowed.
   The xAPI `terminated` statement is only sent once.
 
+
+# v6.15
+
+## Triggers panel and Publish dialog redesign
+From the Claude Design pass. Colors are the new chrome tokens (all pairs
+clear WCAG AA) and icons are Lucide (ISC), inlined in `src/editor/lucide.tsx`
+so the editor stays offline.
+
+**Triggers panel.** A trigger reads as a sentence: WHEN <source> <event>,
+IF <conditions>, THEN <actions>. Collapsed it is one line ("Start button
+clicked -> go to slide 2  +1"); expanded, every part is a chip and clicking a
+chip opens a picker tray under the trigger, so long block names wrap instead
+of truncating. Everything the old panel could do is still there (all events,
+all 13 condition operators, block-state conditions, AND/OR, all actions).
+- Empty state with three starter triggers.
+- Header shows the trigger count and an issues badge. A target that was
+  deleted (block, layer, slide, variable, cue) shows a red struck-through chip
+  and an error line; a target never chosen shows a dashed "choose..." chip.
+- Each trigger has an Enabled switch (a disabled trigger is skipped in the
+  player but kept), move up/down (triggers run top to bottom), duplicate, delete.
+- New actions get an empty target and open the picker straight away.
+
+**Publish dialog.** Target cards, a completion-rule radio list, pass mark
+slider, Max attempts stepper, and a **Calculate score from answers** card
+(not in the mockup, but without it the pass-gated rules have no score source).
+- **Publish checks** run against the real project: triggers pointing at deleted
+  things (error, blocks publishing), a completion rule nothing can satisfy, a
+  pass-gated rule with no score source or no scored questions (errors); images
+  without alt text (skipping ones marked decorative), large embedded media,
+  pass mark 0%, SCORM 1.2 resume-data size, slides a learner can't reach
+  (warnings); plus passes. "Open trigger", "Add alt text" and "Go to slide"
+  take you to the problem.
+- **Package size** estimate by category from the embedded data.
+- Publish stays locked while there are errors. Warnings don't block.
+- The Storyline and Rise targets keep the completion controls: their bridge
+  posts the same completion and pass/fail events.
+
+**Max attempts.** New engine setting (0 = unlimited). Each graded question
+may be answered that many times; after the last one it locks (no Try again,
+no further dragging or typing) and says "No attempts left." The count survives
+resume.
+
+Not done from the design: the editor-wide contrast pass (Home ribbon, Layers,
+Timeline) and swapping the emoji lock/eye icons in those rows for Lucide. The
+new panels carry the tokens; the rest of the chrome still uses the old ones.
+Large-media "Compress" is not built; the check only warns.
+

@@ -10,6 +10,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
   const [activeLeft, setActiveLeft] = useState<string | null>(null);
   const [links, setLinks] = useState<Record<string, string>>({}); // leftId -> rightId
   const [checked, setChecked] = useState(false);
+  const locked = runtime.attemptsExhausted(block.id);
 
   const rights = useMemo(() => {
     const arr = props.pairs.map((p) => ({ id: p.id, text: p.right }));
@@ -84,7 +85,8 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
       ) : (
         <div className={`match-feedback ${correct ? 'ok' : 'no'}`}>
           {correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}
-          {!correct && <button className="btn match-retry" onClick={() => { setChecked(false); setLinks({}); }}>Try again</button>}
+          {!correct && !locked && <button className="btn match-retry" onClick={() => { setChecked(false); setLinks({}); }}>Try again</button>}
+          {locked && !correct && <p className="attempts-note">No attempts left.</p>}
         </div>
       )}
     </div>

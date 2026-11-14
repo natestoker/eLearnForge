@@ -22,9 +22,10 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
   const props = block.props as SequenceProps;
   const [order, setOrder] = useState<string[]>(() => shuffled(props.items.map((i) => i.id)));
   const [result, setResult] = useState<null | boolean>(null);
+  const locked = runtime.attemptsExhausted(block.id);
 
   const moveRow = (idx: number, dir: -1 | 1) => {
-    if (result === true) return;
+    if (result === true || locked) return;
     const to = idx + dir;
     if (to < 0 || to >= order.length) return;
     setOrder((o) => {
@@ -64,17 +65,18 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
             <span className="seq-num">{i + 1}</span>
             <span className="seq-text">{it.text}</span>
             <span className="seq-arrows">
-              <button onClick={() => moveRow(i, -1)} disabled={i === 0 || result === true} aria-label={`Move "${it.text}" up`}>▲</button>
-              <button onClick={() => moveRow(i, 1)} disabled={i === order.length - 1 || result === true} aria-label={`Move "${it.text}" down`}>▼</button>
+              <button onClick={() => moveRow(i, -1)} disabled={i === 0 || result === true || locked} aria-label={`Move "${it.text}" up`}>▲</button>
+              <button onClick={() => moveRow(i, 1)} disabled={i === order.length - 1 || result === true || locked} aria-label={`Move "${it.text}" down`}>▼</button>
             </span>
           </div>
         );
       })}
-      {result !== true && <button className="seq-check" onClick={check}>Check</button>}
+      {result !== true && !locked && <button className="seq-check" onClick={check}>Check</button>}
       {result !== null && (
         <div className={`seq-feedback ${result ? 'correct' : 'incorrect'}`}>
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
-          {!result && <button className="seq-retry" onClick={reset}>Shuffle & retry</button>}
+          {!result && !locked && <button className="seq-retry" onClick={reset}>Shuffle & retry</button>}
+          {locked && !result && <p className="attempts-note">No attempts left.</p>}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
   const props = block.props as FillBlankProps;
   const [value, setValue] = useState('');
   const [result, setResult] = useState<null | boolean>(null);
+  const locked = runtime.attemptsExhausted(block.id);
   const parts = props.question.split('___');
 
   const check = () => {
@@ -39,17 +40,18 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
           className="fb-input"
           value={value}
           placeholder="Type your answer"
-          disabled={result === true}
+          disabled={result === true || locked}
           onChange={(e) => { setValue(e.target.value); if (result !== null) setResult(null); }}
           onKeyDown={(e) => { if (e.key === 'Enter') check(); }}
         />
-        {result !== true && <button className="fb-check" onClick={check} disabled={!value.trim()}>Check</button>}
+        {result !== true && !locked && <button className="fb-check" onClick={check} disabled={!value.trim()}>Check</button>}
       </div>
       {result !== null && (
         <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`}>
           {result ? props.feedbackCorrect : props.feedbackIncorrect}
         </p>
       )}
+      {locked && !result && <p className="attempts-note">No attempts left.</p>}
     </div>
   );
 }

@@ -43,7 +43,7 @@ Missing against Storyline: keyboard-key events, "when timeline starts", "when va
 - Alt text exists as a field; there's no publish-time check that flags images with empty alt.
 - A Section 508/WCAG check in the Publish dialog would be an easy win for the training crowd.
 
-### 6. Authoring hygiene a designer expects
+### 6. Authoring hygiene a designer expects (publish checks and size meter DONE in v6.15)
 - No review/QA pass. Add a "Publish checks" step: orphan variables, triggers pointing at deleted blocks, slides with no way forward, missing alt text, media over a size threshold.
 - Embedded media is stored as data URLs. There's no size warning, so a few narration clips and a video can push the project and the SCORM zip past what an LMS will accept or IndexedDB will hold. Show a size meter and warn at publish.
 - Auto-generated variable names like `mc_blk_nhuf5di8xm_correct` are unreadable in the Variables panel. Derive them from the block's Name field.

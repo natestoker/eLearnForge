@@ -17,9 +17,10 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   );
   const [result, setResult] = useState<null | boolean>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const locked = runtime.attemptsExhausted(block.id);
 
   const move = (itemId: string, zone: string) => {
-    if (result === true) return;
+    if (result === true || locked) return;
     setPlacement((p) => ({ ...p, [itemId]: zone }));
     if (result !== null) setResult(null);
   };
@@ -54,7 +55,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   const reset = () => { setPlacement(Object.fromEntries(props.items.map((i) => [i.id, 'bank']))); setResult(null); };
 
   const startDrag = (e: React.PointerEvent, itemId: string) => {
-    if (result === true || e.button > 0) return;
+    if (result === true || locked || e.button > 0) return;
     e.preventDefault();
     e.stopPropagation();
     const el = e.currentTarget as HTMLElement;
@@ -127,13 +128,14 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
           </div>
         ))}
       </div>
-      {result === null || result === false ? (
+      {!locked && (result === null || result === false) ? (
         <button className="dd-check" onClick={check} disabled={!allPlaced}>Check</button>
       ) : null}
       {result !== null && (
         <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`}>
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
-          {!result && <button className="dd-retry" onClick={reset}>Reset</button>}
+          {!result && !locked && <button className="dd-retry" onClick={reset}>Reset</button>}
+          {locked && !result && <p className="attempts-note">No attempts left.</p>}
         </div>
       )}
     </div>

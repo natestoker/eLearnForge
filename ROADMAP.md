@@ -52,7 +52,7 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 
 ## Also queued (from the November 2026 audit)
 See `AUDIT.md` for detail.
-- Publish checks and a package size meter.
 - Player accessibility: ARIA on the question blocks, focus handling, keyboard paths for drag-and-drop and matching.
-- Design pass from Claude Design: Triggers panel, Publish dialog, contrast, icons.
+- Rest of the Claude Design pass: apply the new chrome colors (WCAG AA) and the Lucide icon family to the Home ribbon, Layers panel and Timeline rows, replacing the emoji lock and eye icons. Triggers panel and Publish dialog are done (v6.15).
+- Media compression from the Publish checks (the design's Compress button).
 - Repo cleanup and a tests folder.
