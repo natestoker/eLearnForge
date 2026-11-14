@@ -6,6 +6,7 @@ import { ShapePicker } from '../../blocks/shape/ShapePicker';
 import { ShapeSvg } from '../../blocks/shape/Canvas';
 import { SHAPE_LABELS } from '../../blocks/shape/geometry';
 import { Lucide } from '../lucide';
+import { insertSvgText } from '../svgInsert';
 
 // Insert shelf, laid out per the design artifact: horizontal groups with a
 // compact icon+label button per insertable. The shape grid shows the core
@@ -38,6 +39,7 @@ const ICON_NAMES: Record<string, string> = {
   line: 'minus',
   arrow: 'arrow-up-right',
   pen: 'pen-tool',
+  svg: 'upload',
   flashcards: 'layers',
   sequence: 'list-ordered',
   slider: 'sliders-horizontal',
@@ -77,6 +79,7 @@ function MBtn({ icon, label, onClick }: { icon: string; label: string; onClick: 
 
 export function RibbonInsert() {
   const addBlock = useProjectStore((s) => s.addBlock);
+  const svgInput = useRef<HTMLInputElement>(null);
   // The shelf clips overflow (overflow-x: auto), so the popover renders with
   // position: fixed at the button's screen position instead of absolute.
   const [allShapesOpen, setAllShapesOpen] = useState<{ left: number; top: number } | null>(null);
@@ -130,6 +133,26 @@ export function RibbonInsert() {
           <div className="rbn-col">
             <MBtn icon="line" label="Line" onClick={() => insertLine(addBlock, false)} />
             <MBtn icon="arrow" label="Arrow" onClick={() => insertLine(addBlock, true)} />
+            <MBtn icon="svg" label="SVG" onClick={() => svgInput.current?.click()} />
+            <input
+              ref={svgInput}
+              type="file"
+              accept=".svg,image/svg+xml"
+              hidden
+              aria-label="Import an SVG file as shapes"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                try {
+                  const { notes, shapes } = insertSvgText(await f.text());
+                  const msg = `Imported ${shapes} shape${shapes === 1 ? '' : 's'}.` + (notes.length ? `\n\n${notes.join('\n')}` : '');
+                  if (notes.length) window.alert(msg);
+                } catch (err) {
+                  window.alert((err as Error).message || 'Could not read that SVG.');
+                }
+              }}
+            />
             <MBtn
               icon="pen"
               label="Custom"

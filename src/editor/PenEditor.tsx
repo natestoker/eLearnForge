@@ -5,6 +5,8 @@ import type { ImageProps, PathNode, ShapeProps } from '../schema/types';
 import {
   SHAPE_POINTS, SHAPE_PATHS, nodesFromPoints, nodesFromPresetPath, pathFromNodes
 } from '../blocks/shape/geometry';
+import { freehandToNodes, polygonNodes, starNodes } from '../blocks/shape/pathTools';
+import { largestOutline, parseSvgText } from '../blocks/shape/svgImport';
 
 // The vector editor behind BOTH custom shapes and custom image clips - one
 // engine, two targets (ShapeProps.nodes / ImageProps.clipNodes). It edits
@@ -94,15 +96,79 @@ export function PenEditor() {
 
   const [nodes, setNodes] = useState<PathNode[]>([]);
   const [sel, setSel] = useState<number | null>(null);
+  const [freehand, setFreehand] = useState(false);
+  const [stroke, setStroke] = useState<{ x: number; y: number }[] | null>(null);
+  const [sides, setSides] = useState(5);
+  const [message, setMessage] = useState('');
   const dragRef = useRef<DragTarget>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Undo / redo. nodesRef mirrors state so history can be pushed outside React
+  // updaters; drags snapshot once at pointer-down, not per move.
+  const nodesRef = useRef<PathNode[]>([]);
+  const past = useRef<PathNode[][]>([]);
+  const future = useRef<PathNode[][]>([]);
+  const edit = (fn: (ns: PathNode[]) => PathNode[], record = true) => {
+    const next = fn(nodesRef.current);
+    if (record) { past.current.push(nodesRef.current); if (past.current.length > 100) past.current.shift(); future.current = []; }
+    nodesRef.current = next;
+    setNodes(next);
+  };
+  const undo = () => {
+    const prev = past.current.pop();
+    if (!prev) return;
+    future.current.push(nodesRef.current);
+    nodesRef.current = prev; setNodes(prev); setSel(null);
+  };
+  const redo = () => {
+    const next = future.current.pop();
+    if (!next) return;
+    past.current.push(nodesRef.current);
+    nodesRef.current = next; setNodes(next); setSel(null);
+  };
 
   // Seed when the target changes.
   useEffect(() => {
-    if (penEditor && block) setNodes(seedNodes(penEditor.mode, block.props as ShapeProps | ImageProps));
-    setSel(null);
+    if (penEditor && block) {
+      const seeded = seedNodes(penEditor.mode, block.props as ShapeProps | ImageProps);
+      nodesRef.current = seeded; setNodes(seeded);
+    }
+    past.current = []; future.current = [];
+    setSel(null); setFreehand(false); setStroke(null); setMessage('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [penEditor?.blockId, penEditor?.mode]);
+
+  useEffect(() => {
+    if (!penEditor) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      // Capture phase, and stop the event: the editor's own Ctrl+Z and Delete
+      // would otherwise undo or delete the block this dialog is editing.
+      const mod = e.ctrlKey || e.metaKey;
+      const own = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      if (mod && e.key.toLowerCase() === 'z') { own(); e.shiftKey ? redo() : undo(); }
+      else if (mod && e.key.toLowerCase() === 'y') { own(); redo(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && sel !== null) {
+        own();
+        edit((ns) => ns.filter((_, i) => i !== sel)); setSel(null);
+      } else if (e.key === 'Escape') { own(); close(); }
+      else if (sel !== null && e.key.startsWith('Arrow')) {
+        own();
+        const step = e.shiftKey ? 5 : 0.5;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        edit((ns) => ns.map((n, i) => i !== sel ? n : {
+          ...n, x: n.x + dx, y: n.y + dy,
+          h1: n.h1 ? { x: n.h1.x + dx, y: n.h1.y + dy } : undefined,
+          h2: n.h2 ? { x: n.h2.x + dx, y: n.h2.y + dy } : undefined
+        }));
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [penEditor, sel, close]);
 
   if (!penEditor || !block) return null;
 
@@ -117,17 +183,17 @@ export function PenEditor() {
   // space appends one at the end of the path.
   const onCanvasClick = (e: React.MouseEvent) => {
     const cls = (e.target as Element).classList;
-    if (cls.contains('pen-node') || cls.contains('pen-handle')) return;
+    if (freehand || cls.contains('pen-node') || cls.contains('pen-handle')) return;
     const p = toLocal(e);
     if (nodes.length >= 2) {
       const hit = nearestOnPath(nodes, p, 3.5);
       if (hit) {
-        setNodes((ns) => insertOnSegment(ns, hit.seg, hit.t));
+        edit((ns) => insertOnSegment(ns, hit.seg, hit.t));
         setSel(hit.seg + 1);
         return;
       }
     }
-    setNodes((ns) => [...ns, p]);
+    edit((ns) => [...ns, p]);
     setSel(nodes.length);
   };
 
@@ -135,6 +201,8 @@ export function PenEditor() {
     e.stopPropagation();
     try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* stale pointer */ }
     dragRef.current = t;
+    // One undo step per drag.
+    past.current.push(nodesRef.current); future.current = [];
     setSel(t.index);
   };
 
@@ -142,7 +210,7 @@ export function PenEditor() {
     const d = dragRef.current;
     if (!d) return;
     const p = toLocal(e);
-    setNodes((ns) =>
+    edit((ns) =>
       ns.map((node, i) => {
         if (i !== d.index) return node;
         if (d.kind === 'anchor') {
@@ -162,19 +230,37 @@ export function PenEditor() {
         }
         return next;
       })
-    );
+    , false);
   };
-  const onUp = () => { dragRef.current = null; };
+  const onMoveAll = (e: React.PointerEvent) => {
+    if (stroke) { const p = toLocal(e); setStroke((st) => (st ? [...st, p] : st)); return; }
+    onMove(e);
+  };
+  const onDown = (e: React.PointerEvent) => {
+    if (!freehand) return;
+    const cls = (e.target as Element).classList;
+    if (cls.contains('pen-node') || cls.contains('pen-handle')) return;
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* stale pointer */ }
+    setStroke([toLocal(e)]);
+  };
+  const onUp = () => {
+    dragRef.current = null;
+    if (stroke) {
+      const drawn = freehandToNodes(stroke, 0.9);
+      setStroke(null);
+      if (drawn) { edit(() => drawn); setSel(null); setMessage('Drawn as a smooth outline. Drag points to refine, or switch to Corner to sharpen one.'); }
+    }
+  };
 
   const removeNode = (i: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNodes((ns) => ns.filter((_, idx) => idx !== i));
+    edit((ns) => ns.filter((_, idx) => idx !== i));
     setSel(null);
   };
 
   const convertSel = (to: 'smooth' | 'corner' | 'straight') => {
     if (sel === null) return;
-    setNodes((ns) =>
+    edit((ns) =>
       ns.map((node, i) => {
         if (i !== sel) return node;
         if (to === 'smooth') return node.h1 || node.h2 ? { ...node, smooth: true } : smoothNode(ns, i);
@@ -182,6 +268,31 @@ export function PenEditor() {
         return { x: node.x, y: node.y }; // straight: drop the handles
       })
     );
+  };
+
+  const importSvg = async (file: File) => {
+    try {
+      const svg = parseSvgText(await file.text());
+      const outline = largestOutline(svg, block.w, block.h);
+      edit(() => outline); setSel(null);
+      const extra = svg.shapes.filter((x) => x.nodes.length >= 3).length - 1;
+      setMessage(
+        `SVG imported as one outline.` +
+        (extra > 0 ? ` The file has ${extra} more shape${extra === 1 ? '' : 's'}; a custom shape holds one path, so only the largest came in. Use Insert > SVG to bring the whole drawing in.` : '')
+      );
+    } catch (err) {
+      setMessage((err as Error).message || 'Could not read that SVG.');
+    }
+  };
+  // Regular shapes look regular even when the block isn't square.
+  const radii = () => {
+    const m = Math.min(block.w, block.h);
+    return { rx: 50 * (m / block.w), ry: 50 * (m / block.h) };
+  };
+  const generate = (kind: 'polygon' | 'star') => {
+    const { rx, ry } = radii();
+    edit(() => (kind === 'polygon' ? polygonNodes(sides, rx, ry) : starNodes(sides, 0.45, rx, ry)));
+    setSel(null); setMessage('');
   };
 
   const apply = () => {
@@ -243,7 +354,7 @@ export function PenEditor() {
           <span>Pen tool - {penEditor.mode === 'imageClip' ? 'custom image clip' : 'custom shape'}</span>
           <span className="pen-hint">
             Click to add points (on the outline inserts mid-segment). Drag points and handles.
-            Double-click a point to remove it.
+            Double-click or press Delete to remove a point. Arrows nudge, Ctrl+Z undoes.
           </span>
         </div>
         <svg
@@ -253,8 +364,10 @@ export function PenEditor() {
           height={EH}
           viewBox={`0 0 ${EW} ${EH}`}
           onClick={onCanvasClick}
-          onPointerMove={onMove}
+          onPointerDown={onDown}
+          onPointerMove={onMoveAll}
           onPointerUp={onUp}
+          style={freehand ? { cursor: 'crosshair', touchAction: 'none' } : undefined}
         >
           {imgSrc && (
             <image
@@ -277,6 +390,13 @@ export function PenEditor() {
                 vectorEffect="non-scaling-stroke"
               />
             </g>
+          )}
+          {stroke && stroke.length > 1 && (
+            <polyline
+              points={stroke.map((q) => `${toSvgX(q.x)},${toSvgY(q.y)}`).join(' ')}
+              fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+              style={{ stroke: 'var(--accent)' }}
+            />
           )}
           {/* Handles of the selected anchor */}
           {selNode && (['h1', 'h2'] as const).map((hk) => {
@@ -310,13 +430,42 @@ export function PenEditor() {
             />
           ))}
         </svg>
+        <div className="pen-actions pen-tools">
+          <label className="pen-sides">
+            <span>Sides</span>
+            <input
+              type="number" min={3} max={24} value={sides}
+              onChange={(e) => setSides(Math.max(3, Math.min(24, Math.round(Number(e.target.value) || 5))))}
+              className="input input-number"
+              aria-label="Number of sides or points"
+            />
+          </label>
+          <button className="btn btn-ghost" onClick={() => generate('polygon')} title="Replace the path with a regular polygon">Polygon</button>
+          <button className="btn btn-ghost" onClick={() => generate('star')} title="Replace the path with a star">Star</button>
+          <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Replace the path with the largest outline in an SVG file">Import SVG</button>
+          <input
+            ref={fileRef} type="file" accept=".svg,image/svg+xml" hidden aria-label="Import an SVG outline"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importSvg(f); }}
+          />
+          {message && <span className="pen-message" role="status">{message}</span>}
+        </div>
         <div className="pen-actions">
-          <button className="btn btn-ghost" onClick={() => { setNodes([]); setSel(null); }}>Clear</button>
+          <button className="btn btn-ghost" disabled={!past.current.length} onClick={undo} title="Undo (Ctrl+Z)">Undo</button>
+          <button className="btn btn-ghost" disabled={!future.current.length} onClick={redo} title="Redo (Ctrl+Shift+Z)">Redo</button>
+          <button className="btn btn-ghost" onClick={() => { edit(() => []); setSel(null); }}>Clear</button>
+          <button
+            className={`btn btn-ghost${freehand ? ' active' : ''}`}
+            aria-pressed={freehand}
+            title="Draw freehand: drag on the canvas and release; the stroke is simplified and smoothed"
+            onClick={() => setFreehand((v) => !v)}
+          >
+            Freehand
+          </button>
           <button
             className="btn btn-ghost"
             title="Give every point smooth curve handles"
             disabled={nodes.length < 3}
-            onClick={() => setNodes((ns) => ns.map((_, i) => smoothNode(ns, i)))}
+            onClick={() => edit((ns) => ns.map((_, i) => smoothNode(ns, i)))}
           >
             Smooth all
           </button>

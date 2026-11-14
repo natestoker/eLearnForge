@@ -50,6 +50,25 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 - Phase 1: the sample files open, the report is honest, and a Storyline engineer agrees the logic came across.
 - Phase 2: a title, notes or text edit made here appears in Storyline after reopening the saved file, and nothing else in the course changed.
 
+## Next: review site (comments from reviewers, stored in their own Drive or Dropbox)
+
+**Goal.** Let someone review a course without an account on our side: they open a review page, see the course, and leave comments pinned to a slide (or a moment on its timeline). Comments live in the reviewer's own Google Drive or Dropbox, next to the course file, and the author sees them in the editor.
+
+**Why it's feasible.** The output is already one HTML file, and both Drive and Dropbox offer browser sign-in (OAuth with PKCE) that needs no server of ours. Drive and Dropbox won't render a course as a web page themselves, so the review page has to be hosted separately (GitHub Pages works) and read the course through the provider's API.
+
+**Order.**
+1. Reviewer mode in the player: comment pins per slide, saved to a JSON file that reviewers export and send back. No accounts, no network. Lets us settle the comment format and how the editor shows comments.
+2. Google Drive: sign in with the narrow "files this app opens or creates" scope, load the course from a Drive file, keep comments in a JSON file beside it.
+3. Dropbox, the same way.
+
+**Open questions.** Who owns the OAuth app (one we ship, or each team's own) and what the sign-in screen looks like for each; how to merge comments from several reviewers without a server.
+
+## Later: Rust where it earns its keep
+Not a rewrite. Two places it would help: compile hot paths to WebAssembly (a faster video encoder for Compress, the `.story` parser), which keeps everything online and in one file; and wrap the existing app in Tauri for a desktop build if `.story` write-back needs real file access. Revisit when we start on `.story` Phase 2.
+
+## Later: combine and subtract shapes
+The pen tool edits one path at a time. Union, subtract, intersect and exclude need a path-clipping library (small, but it flattens curves) and a design for compound paths with holes, which the shape block can't hold yet.
+
 ## Also queued
 `AUDIT.md` has what the November 2026 review found. Everything in it is done. What's left is checking on things I couldn't get at from the build environment. These two were deferred on purpose, to be picked up later:
 - Test the player with NVDA, JAWS or VoiceOver on a real machine. Orca, a real screen reader, was run against the published course and found and fixed real problems (see AUDIT.md, item 5), but the three commercial ones need Windows or a Mac.

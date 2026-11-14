@@ -1463,3 +1463,38 @@ Large-media "Compress" is not built; the check only warns.
   (`tests/lms-moodle/`). SCORM 1.2 and 2004 data was stored and graded.
 - **Session time.** SCORM 1.2 and 2004 now report `session_time` on exit, so an
   LMS can show time spent.
+
+
+# v6.20
+
+## Custom shapes, SVG import, real thumbnails, accent everywhere
+- **SVG import.** Insert > SVG turns a drawing into editable shapes: paths,
+  rects (with rounded corners), circles, ellipses, lines, polylines and
+  polygons, nested transforms, and fill / stroke from attributes or `style`.
+  One outline becomes a shape; several become a group that keeps each fill.
+  Gradients, text, images and `<use>` aren't carried across; the importer says
+  what it skipped. Inside the pen tool, Import SVG replaces the path with the
+  file's largest outline.
+- **Pen tool.** Freehand drawing (the stroke is simplified and smoothed into
+  Bezier anchors), Polygon and Star generators with a sides/points field,
+  Undo and Redo (Ctrl+Z, Ctrl+Shift+Z), Delete and arrow-key nudging. These
+  keys no longer reach the editor behind the dialog, where Ctrl+Z used to
+  undo the block being edited.
+- **Real slide thumbnails.** The Slides panel renders the actual slide (the
+  same renderers as the canvas, scaled down) instead of a wireframe. They load
+  as you scroll, refresh after you pause, and draw video and audio as plain
+  placeholders.
+- **The accent colors the editor.** The course accent (Home > Accent) now
+  drives the editor's buttons, tabs, selection, timeline and focus rings as
+  well as the course. The color is lightened if needed to stay at least 4.5:1
+  on the dark panels, and the text on top of it is chosen for contrast. The
+  player's own accent now reaches its chrome too (some player rules had stayed
+  mint).
+- **Margins.** Ribbon groups no longer shrink to fit (the Slide tab clipped
+  "BACKGROUND" to "ACKGROUND"), every tab is the same height, and the empty
+  Format, Animations, Triggers and Variables tabs share one layout. The Animate
+  tab in the right panel had no inset and now matches Properties and Effects.
+- **Tests.** 24 unit checks for the path tools (`tests/path-tools.test.ts`) and
+  a browser suite for the shape tool, thumbnails, accent contrast and layout
+  (`tests/e2e/custom-shapes.e2e.mjs`).
+

@@ -3743,3 +3743,10 @@ select.input { appearance: auto; }
 
 .pd-squeeze { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; font: 500 12px var(--mono); color: var(--pd-text2); }
 .pd-fix:disabled { color: var(--pd-text3); cursor: default; }
+
+/* Pen tool: generator row, freehand toggle, status message */
+.pen-tools { flex-wrap: wrap; }
+.pen-sides { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.pen-sides .input-number { width: 56px; }
+.pen-message { flex: 1 1 100%; font-size: 12px; color: var(--muted); }
+.pen-actions .btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }

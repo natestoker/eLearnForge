@@ -9,7 +9,7 @@ publishes to a single offline file.
 
     npm install
     npm run dev        # editor at localhost:5173, player at /player.html
-    npm test           # unit tests (scoring, tracking, triggers, resume, checks)
+    npm test           # unit tests (scoring, tracking, triggers, resume, checks, path tools)
     npm run test:e2e   # browser suites in real Chromium (needs: npx playwright install chromium)
                        # the xAPI suite also needs a running LRS; see tests/e2e/xapi-lrs.e2e.mjs
     npm run build      # production build to dist/ (editor and player)
