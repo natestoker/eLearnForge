@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { googleFontsHref } from '../shared/fonts';
 import type { Project } from '../schema/types';
 import type { PublishTarget } from '../tracking';
+import { completionNeedsPass, passingScoreOf } from '../engine/scoring';
 import { activityIdFor, scorm12Manifest, scorm2004Manifest, tincanXml } from './manifests';
 import { storylineReadme, storylineSnippet } from './storylineSnippet';
 import { riseReadme, riseSnippet } from './riseSnippet';
@@ -72,10 +73,10 @@ export async function buildPackage(project: Project, target: PublishTarget | 'ri
 
   switch (target) {
     case 'scorm12':
-      zip.file('imsmanifest.xml', scorm12Manifest(project.title));
+      zip.file('imsmanifest.xml', scorm12Manifest(project.title, manifestPassMark(project)));
       break;
     case 'scorm2004':
-      zip.file('imsmanifest.xml', scorm2004Manifest(project.title));
+      zip.file('imsmanifest.xml', scorm2004Manifest(project.title, manifestPassMark(project)));
       break;
     case 'xapi':
       zip.file('tincan.xml', tincanXml(project.title, activityIdFor(project.title)));
@@ -110,4 +111,13 @@ export function downloadBlob(result: PublishResult): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// Pass mark to declare in the manifest. Only when the author asked for one
+// (a pass-gated completion rule, or an explicit pass mark): declaring a
+// mastery score hands pass/fail to the LMS, which would change how existing
+// score-reporting courses are graded.
+function manifestPassMark(project: Project): number | undefined {
+  const explicit = typeof project.completion?.passingScore === 'number';
+  return completionNeedsPass(project) || explicit ? passingScoreOf(project) : undefined;
 }

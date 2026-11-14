@@ -40,10 +40,10 @@ export class StorylineAdapter implements TrackingAdapter {
         this.post('interaction', { blockId: event.blockId, response: event.response, correct: event.correct });
         break;
       case 'scored':
-        this.post('scored', { score: event.score });
+        this.post('scored', { score: event.score, passed: event.passed });
         break;
       case 'completed':
-        this.post('completed', { complete: true });
+        this.post('completed', { complete: true, ...(event.passed !== undefined ? { passed: event.passed } : {}) });
         break;
     }
   }

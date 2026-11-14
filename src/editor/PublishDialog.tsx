@@ -6,7 +6,8 @@ type DialogTarget = PublishTarget | 'rise';
 import { buildPackage, downloadBlob, publishAvailable } from '../publish/packager';
 import { storylineSnippet } from '../publish/storylineSnippet';
 import type { CompletionMode } from '../schema/types';
-import { Field, SelectInput } from './fields';
+import { gradedBlockIds, passingScoreOf, completionNeedsPass } from '../engine/scoring';
+import { CheckboxInput, Field, NumberInput, SelectInput } from './fields';
 
 const TARGETS: { value: DialogTarget; label: string; blurb: string }[] = [
   { value: 'web', label: 'Web (single HTML file)', blurb: 'One self-contained HTML file. Host it anywhere or open it from disk. Resumes via the browser.' },
@@ -26,6 +27,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   const ready = publishAvailable();
   const completionMode: CompletionMode = project.completion?.mode ?? 'allSlides';
   const info = TARGETS.find((t) => t.value === target)!;
+  const gradedCount = gradedBlockIds(project).length;
 
   const publish = async () => {
     setBusy(true);
@@ -72,11 +74,38 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
             value={completionMode}
             options={[
               { value: 'allSlides', label: 'When every slide has been viewed' },
+              { value: 'passed', label: 'When the learner reaches the pass mark' },
+              { value: 'viewedAndPassed', label: 'When every slide is viewed AND the pass mark is reached' },
               { value: 'explicit', label: 'Only via a Complete course trigger action' }
             ]}
-            onChange={(v) => mutate((p) => { p.completion = { mode: v as CompletionMode }; })}
+            onChange={(v) => mutate((p) => { p.completion = { ...p.completion, mode: v as CompletionMode }; })}
           />
         </Field>
+
+        <Field label="Pass mark (%)">
+          <NumberInput
+            value={passingScoreOf(project)}
+            min={0}
+            max={100}
+            onChange={(n) => mutate((p) => { p.completion = { mode: completionMode, ...p.completion, passingScore: n }; })}
+          />
+        </Field>
+
+        <Field label="Score">
+          <CheckboxInput
+            label={`Calculate from answers (${gradedCount} scored question${gradedCount === 1 ? '' : 's'})`}
+            checked={!!project.completion?.autoScore}
+            onChange={(v) => mutate((p) => { p.completion = { mode: completionMode, ...p.completion, autoScore: v }; })}
+          />
+        </Field>
+        <p className="publish-blurb">
+          {project.completion?.autoScore
+            ? 'Score = percent of multiple choice, fill-in, drag-drop, sequence and matching questions answered correctly. Unanswered questions count as wrong until answered; a retry replaces the earlier answer.'
+            : 'The score only changes when a Set score trigger runs.'}
+          {completionNeedsPass(project) && !project.completion?.autoScore && gradedCount > 0
+            ? ' This completion rule needs a score, so consider turning on Calculate from answers.'
+            : ''}
+        </p>
 
         {target === 'storyline' && (
           <button className="btn" onClick={copySnippet}>Copy Storyline bridge code</button>

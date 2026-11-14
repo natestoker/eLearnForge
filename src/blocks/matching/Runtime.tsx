@@ -5,7 +5,7 @@ import type { MatchingProps } from '../../schema/types';
 // Click-to-connect matching. Learner picks a left prompt, then a right
 // answer; they link. Submitting checks every link against the authored
 // pairs. Right-column order is shuffled so it isn't a giveaway.
-export function MatchingRuntime({ block }: RuntimeRendererProps) {
+export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
   const props = block.props as MatchingProps;
   const [activeLeft, setActiveLeft] = useState<string | null>(null);
   const [links, setLinks] = useState<Record<string, string>>({}); // leftId -> rightId
@@ -66,7 +66,13 @@ export function MatchingRuntime({ block }: RuntimeRendererProps) {
         </div>
       </div>
       {!checked ? (
-        <button className="btn btn-accent match-submit" disabled={!allLinked} onClick={() => setChecked(true)}>Check</button>
+        <button className="btn btn-accent match-submit" disabled={!allLinked} onClick={() => {
+          setChecked(true);
+          const response = props.pairs
+            .map((p) => `${p.left} = ${props.pairs.find((q) => q.id === links[p.id])?.right ?? '?'}`)
+            .join('; ');
+          runtime.reportInteraction(block.id, response, correct);
+        }}>Check</button>
       ) : (
         <div className={`match-feedback ${correct ? 'ok' : 'no'}`}>
           {correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}

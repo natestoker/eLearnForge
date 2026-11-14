@@ -97,10 +97,10 @@ export class XapiAdapter implements TrackingAdapter {
         );
         break;
       case 'scored':
-        this.send(VERBS.scored, { result: { score: { raw: event.score, min: 0, max: 100, scaled: event.score / 100 } } });
+        this.send(VERBS.scored, { result: { score: { raw: event.score, min: 0, max: 100, scaled: event.score / 100 }, success: event.passed } });
         break;
       case 'completed':
-        this.send(VERBS.completed, { result: { completion: true } });
+        this.send(VERBS.completed, { result: { completion: true, ...(event.passed !== undefined ? { success: event.passed } : {}) } });
         break;
     }
   }

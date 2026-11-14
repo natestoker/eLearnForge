@@ -17,7 +17,7 @@ function slug(s: string): string {
   return cleaned || 'course';
 }
 
-export function scorm12Manifest(title: string): string {
+export function scorm12Manifest(title: string, masteryScore?: number): string {
   const id = slug(title);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="${id}-manifest" version="1.2"
@@ -35,7 +35,8 @@ export function scorm12Manifest(title: string): string {
     <organization identifier="${id}-org">
       <title>${esc(title)}</title>
       <item identifier="${id}-item" identifierref="${id}-resource">
-        <title>${esc(title)}</title>
+        <title>${esc(title)}</title>${masteryScore === undefined ? '' : `
+        <adlcp:masteryscore>${Math.round(masteryScore)}</adlcp:masteryscore>`}
       </item>
     </organization>
   </organizations>
@@ -48,7 +49,7 @@ export function scorm12Manifest(title: string): string {
 `;
 }
 
-export function scorm2004Manifest(title: string): string {
+export function scorm2004Manifest(title: string, passingScore?: number): string {
   const id = slug(title);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="${id}-manifest" version="1"
@@ -71,7 +72,14 @@ export function scorm2004Manifest(title: string): string {
     <organization identifier="${id}-org">
       <title>${esc(title)}</title>
       <item identifier="${id}-item" identifierref="${id}-resource">
-        <title>${esc(title)}</title>
+        <title>${esc(title)}</title>${passingScore === undefined ? '' : `
+        <imsss:sequencing>
+          <imsss:objectives>
+            <imsss:primaryObjective objectiveID="PRIMARYOBJ" satisfiedByMeasure="true">
+              <imsss:minNormalizedMeasure>${(passingScore / 100).toFixed(2)}</imsss:minNormalizedMeasure>
+            </imsss:primaryObjective>
+          </imsss:objectives>
+        </imsss:sequencing>`}
       </item>
     </organization>
   </organizations>

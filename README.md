@@ -1212,3 +1212,30 @@ player via Resources / Glossary buttons.
   animating individually.
 - Reminder: drag a row's **⋮⋮ grip** (or its name) to restack z-order live —
   no need for the up/down arrows.
+
+
+# v6.12
+
+## Scoring and pass/fail
+- **Pass mark.** Publish > Pass mark (%) replaces the SCORM 2004 hardcoded
+  80. It drives `cmi.success_status` (2004), is declared in the manifest as
+  `adlcp:masteryscore` (1.2) or `imsss:minNormalizedMeasure` (2004), and is
+  sent as `success` in xAPI and as `passed` to the Storyline/Rise bridge.
+  The manifest only declares a pass mark when you set one or pick a
+  pass-gated completion rule, so existing score-reporting courses keep being
+  graded by the course, not the LMS.
+- **Completion rules.** Two new modes next to "every slide viewed" and
+  "explicit trigger": **passed** and **viewedAndPassed**. In 1.2 a pass-gated
+  course writes `passed` / `failed` to `lesson_status` (it has one status
+  field); other courses still write `completed`.
+- **Calculate from answers.** Opt-in score = percent of graded questions
+  (multiple choice, fill-in, drag-drop, sequence, matching) whose latest
+  answer is correct. Unanswered counts as wrong, a retry replaces the old
+  answer, and scenario is not graded. Set score triggers still work and
+  override it.
+- **Resume** now carries the score and each question's latest result, and
+  they outlast other variables when suspend_data is tight.
+- Matching now reports its result like the other question blocks.
+- Logic lives in `src/engine/scoring.ts` and the runtime's `applyScore` /
+  `checkCompletion`.
+

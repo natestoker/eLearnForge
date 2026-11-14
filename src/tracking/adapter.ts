@@ -8,13 +8,19 @@ import type { VariableValue } from '../schema/types';
 export type TrackingEvent =
   | { type: 'slideViewed'; slideId: string; index: number; total: number }
   | { type: 'interaction'; blockId: string; response: string; correct: boolean }
-  | { type: 'scored'; score: number }
-  | { type: 'completed' };
+  // passed: score >= the course pass mark. gated: finishing the course
+  // depends on passing, so an LMS status of passed/failed is meaningful.
+  | { type: 'scored'; score: number; passed: boolean; gated: boolean }
+  // passed is only set when completion is gated on the score.
+  | { type: 'completed'; passed?: boolean };
 
 export interface ResumeData {
   slideId: string;
   variables: Record<string, VariableValue>;
   viewedSlideIds: string[];
+  // Score so far, and each graded block's latest result (blockId -> correct).
+  score?: number;
+  answers?: Record<string, boolean>;
 }
 
 export interface TrackingAdapter {
@@ -34,8 +40,14 @@ export function encodeResume(state: ResumeData): string {
   const json = JSON.stringify(state);
   if (json.length <= 4000) return json;
   // Too big: drop variables first, keep position, never exceed the cap.
-  const slim = JSON.stringify({ slideId: state.slideId, variables: {}, viewedSlideIds: state.viewedSlideIds });
-  return slim.length <= 4000 ? slim : JSON.stringify({ slideId: state.slideId, variables: {}, viewedSlideIds: [] });
+  // The score and the answers behind it matter more than other variables, so
+  // they outlast them. Last resort: position and score only.
+  const keep = { slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, answers: state.answers };
+  const noVars = JSON.stringify({ ...keep, variables: {} });
+  if (noVars.length <= 4000) return noVars;
+  const noAnswers = JSON.stringify({ slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, variables: {} });
+  if (noAnswers.length <= 4000) return noAnswers;
+  return JSON.stringify({ slideId: state.slideId, variables: {}, viewedSlideIds: [], score: state.score });
 }
 
 export function decodeResume(raw: string | null | undefined): ResumeData | null {

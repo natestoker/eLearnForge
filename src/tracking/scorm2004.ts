@@ -75,7 +75,7 @@ export class Scorm2004Adapter implements TrackingAdapter {
         this.call(() => this.api!.SetValue('cmi.score.max', '100'));
         this.call(() => this.api!.SetValue('cmi.score.raw', String(event.score)));
         this.call(() => this.api!.SetValue('cmi.score.scaled', String(event.score / 100)));
-        this.call(() => this.api!.SetValue('cmi.success_status', event.score >= 80 ? 'passed' : 'failed'));
+        this.call(() => this.api!.SetValue('cmi.success_status', event.passed ? 'passed' : 'failed'));
         this.call(() => this.api!.Commit(''));
         break;
       case 'completed':

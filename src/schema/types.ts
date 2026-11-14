@@ -700,12 +700,21 @@ export interface PlayerSettings {
   captionsButton?: boolean;
 }
 
-export type CompletionMode = 'allSlides' | 'explicit';
+export type CompletionMode = 'allSlides' | 'explicit' | 'passed' | 'viewedAndPassed';
 
 export interface CompletionSettings {
   // allSlides: complete when every slide has been viewed.
   // explicit: complete only via a completeCourse trigger action.
+  // passed: complete once the score reaches passingScore.
+  // viewedAndPassed: every slide viewed AND the score reaches passingScore.
   mode: CompletionMode;
+  // Percent (0-100) needed to pass. Absent = 80, the old SCORM 2004 default.
+  passingScore?: number;
+  // When true, the score is the percent of graded questions (multiple choice,
+  // fill-in, drag-drop, sequence, matching) currently answered correctly, kept
+  // up to date as the learner answers. When false/absent the score only
+  // changes through the Set score trigger action.
+  autoScore?: boolean;
 }
 
 export interface Project {

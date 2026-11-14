@@ -3,6 +3,7 @@ import type {
 } from '../schema/types';
 import { SELF_TARGET } from '../schema/types';
 import type { TrackingEvent } from '../tracking/adapter';
+import { completionNeedsPass, gradedBlockIds, passingScoreOf } from './scoring';
 
 // Trigger engine v1: deliberately thin per the brief.
 // Events: onClick / onSlideLoad / onVariableChange.
@@ -33,6 +34,8 @@ export interface ResumeState {
   slideId: string;
   variables: Record<string, VariableValue>; // by variable NAME (stable across edits)
   viewedSlideIds: string[];
+  score?: number;
+  answers?: Record<string, boolean>;
 }
 
 export class Runtime {
@@ -50,6 +53,12 @@ export class Runtime {
   private playerButtons = { next: true, back: true, submit: true };
   private completed = false;
   private lastScore = 0;
+  // True once any score has been recorded (0 is a legitimate score, so
+  // lastScore alone can't say whether one exists).
+  private scoreSet = false;
+  // Latest result per graded block: a retry replaces the earlier answer.
+  private answers: Record<string, boolean> = {};
+  private gradedIds: string[] | null = null;
 
   // Storyline-style built-in references, readable from text as %Name%
   // (alongside project variables by their names). Kept as a method so text
@@ -127,12 +136,59 @@ export class Runtime {
 
   reportInteraction(blockId: string, response: string, correct: boolean): void {
     this.track({ type: 'interaction', blockId, response, correct });
+    if (this.project.completion?.autoScore) {
+      this.answers[blockId] = correct;
+      this.recomputeAutoScore();
+    }
+  }
+
+  // Score = percent of graded questions whose latest answer is correct.
+  // Unanswered questions count against the learner, so the score climbs as
+  // they work through the course rather than starting at 100.
+  private recomputeAutoScore(): void {
+    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+    const total = this.gradedIds.length;
+    if (total === 0) return;
+    const right = this.gradedIds.filter((id) => this.answers[id]).length;
+    this.applyScore(Math.round((right / total) * 100));
+    this.emit();
+  }
+
+  private applyScore(raw: number): void {
+    const score = Math.max(0, Math.min(100, raw));
+    this.lastScore = score;
+    this.scoreSet = true;
+    this.track({
+      type: 'scored',
+      score,
+      passed: score >= passingScoreOf(this.project),
+      gated: completionNeedsPass(this.project)
+    });
+    this.checkCompletion();
+  }
+
+  // Applies the course's completion rule. Safe to call repeatedly.
+  private checkCompletion(): void {
+    if (this.completed) return;
+    const mode = this.project.completion?.mode ?? 'allSlides';
+    const allViewed = this.viewedSlideIds.size >= this.project.slides.length;
+    const passed = this.scoreSet && this.lastScore >= passingScoreOf(this.project);
+    if (mode === 'allSlides' && allViewed) this.completeCourse();
+    else if (mode === 'passed' && passed) this.completeCourse();
+    else if (mode === 'viewedAndPassed' && allViewed && passed) this.completeCourse();
   }
 
   completeCourse(): void {
     if (this.completed) return;
     this.completed = true;
-    this.track({ type: 'completed' });
+    const gated = completionNeedsPass(this.project);
+    this.track(gated
+      ? { type: 'completed', passed: this.scoreSet && this.lastScore >= passingScoreOf(this.project) }
+      : { type: 'completed' });
+  }
+
+  getScore(): number | null {
+    return this.scoreSet ? this.lastScore : null;
   }
 
   isCompleted(): boolean {
@@ -148,7 +204,9 @@ export class Runtime {
     return {
       slideId: this.snapshot.slideId,
       variables: byName,
-      viewedSlideIds: [...this.viewedSlideIds]
+      viewedSlideIds: [...this.viewedSlideIds],
+      ...(this.scoreSet ? { score: this.lastScore } : {}),
+      ...(Object.keys(this.answers).length ? { answers: { ...this.answers } } : {})
     };
   }
 
@@ -158,6 +216,9 @@ export class Runtime {
       if (v) this.snapshot.variables[v.id] = value;
     }
     for (const id of state.viewedSlideIds ?? []) this.viewedSlideIds.add(id);
+    // Restore quietly: the LMS already holds the score it was sent.
+    if (typeof state.score === 'number') { this.lastScore = state.score; this.scoreSet = true; }
+    if (state.answers) this.answers = { ...state.answers };
     if (state.slideId && this.project.slides.some((s) => s.id === state.slideId)) {
       this.enterSlide(state.slideId);
     } else {
@@ -213,12 +274,9 @@ export class Runtime {
     const index = this.project.slides.findIndex((s) => s.id === slideId);
     this.track({ type: 'slideViewed', slideId, index, total: this.project.slides.length });
     this.runTriggers(slide.triggers.filter((t) => t.event === 'onSlideLoad'), depth);
-    // Completion mode allSlides (the default): complete once every slide
-    // has been seen. Explicit mode only completes via the trigger action.
-    const mode = this.project.completion?.mode ?? 'allSlides';
-    if (mode === 'allSlides' && this.viewedSlideIds.size >= this.project.slides.length) {
-      this.completeCourse();
-    }
+    // Completion rule: allSlides (default), explicit (trigger only), or one
+    // of the pass-gated modes. See checkCompletion.
+    this.checkCompletion();
     this.emit();
   }
 
@@ -456,9 +514,7 @@ export class Runtime {
         this.completeCourse();
         break;
       case 'setScore': {
-        const score = Math.max(0, Math.min(100, action.score));
-        this.lastScore = score;
-        this.track({ type: 'scored', score });
+        this.applyScore(action.score);
         break;
       }
       case 'openUrl':

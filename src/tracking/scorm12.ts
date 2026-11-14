@@ -80,10 +80,16 @@ export class Scorm12Adapter implements TrackingAdapter {
         this.call(() => this.api!.LMSSetValue('cmi.core.score.min', '0'));
         this.call(() => this.api!.LMSSetValue('cmi.core.score.max', '100'));
         this.call(() => this.api!.LMSSetValue('cmi.core.score.raw', String(event.score)));
+        // 1.2 has one status field. Only write passed/failed when finishing
+        // the course depends on the score; otherwise leave status alone so
+        // courses that merely report a score behave as before.
+        if (event.gated) {
+          this.call(() => this.api!.LMSSetValue('cmi.core.lesson_status', event.passed ? 'passed' : 'failed'));
+        }
         this.call(() => this.api!.LMSCommit(''));
         break;
       case 'completed':
-        this.call(() => this.api!.LMSSetValue('cmi.core.lesson_status', 'completed'));
+        this.call(() => this.api!.LMSSetValue('cmi.core.lesson_status', event.passed ? 'passed' : 'completed'));
         this.call(() => this.api!.LMSCommit(''));
         break;
     }
