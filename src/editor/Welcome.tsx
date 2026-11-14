@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import { useFocusTrap } from '../shared/useFocusTrap';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { createDemoProject } from '../schema/factory';
@@ -13,7 +15,7 @@ const STEPS = [
   {
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
     title: 'Insert blocks',
-    body: 'Text, shapes, media, quizzes, drag & drop, flashcards, scenarios - 25 block types on the Insert tab.'
+    body: 'Text, shapes, media, quizzes, drag & drop, flashcards, scenarios - 26 block types on the Insert tab.'
   },
   {
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M4 15c3-6 6 1 9-2 2-2 1-5-1-4-1 .6-1 3 .5 4.5 1.4 1.4 4 1.8 6.5.5" /></svg>,
@@ -40,10 +42,18 @@ export function Welcome() {
     try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* ignore */ }
     setOpen(false);
   };
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="welcome-backdrop" onClick={close}>
-      <div className="welcome" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Welcome to eLearnForge">
+      <div className="welcome" ref={ref} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Welcome to eLearnForge">
         <button className="welcome-close" onClick={close} aria-label="Close">×</button>
         <div className="welcome-head">
           <span className="brand-mark" aria-hidden="true">eF</span>

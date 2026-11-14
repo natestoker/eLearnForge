@@ -5,6 +5,7 @@ import { BLOCKS } from '../../blocks/registry';
 import { Block, ShapeProps, TextProps } from '../../schema/types';
 import { ShadowSection } from '../ShadowSection';
 
+import { Lucide } from '../lucide';
 export function RibbonFormat() {
   const block = useSelectedBlock();
   const selection = useProjectStore((s) => s.selection);
@@ -47,7 +48,7 @@ export function RibbonFormat() {
               style={block.locked ? { color: 'var(--danger)' } : undefined}
               onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
             >
-              {block.locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked'}
+              <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Unlocked'}
             </button>
           </div>
         </div>
@@ -117,7 +118,7 @@ function MultiRibbonFormat({ ids }: { ids: string[] }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
             <button className="btn" style={anyLocked ? { color: 'var(--danger)' } : undefined} onClick={() => each((b) => { b.locked = anyLocked ? undefined : true; })}>
-              {anyLocked ? '\u{1F513} Unlock all' : '\u{1F512} Lock all'}
+              <Lucide name={anyLocked ? 'lock-open' : 'lock'} size={14} /> {anyLocked ? 'Unlock all' : 'Lock all'}
             </button>
           </div>
         </div>

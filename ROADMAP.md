@@ -50,9 +50,13 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 - Phase 1: the sample files open, the report is honest, and a Storyline engineer agrees the logic came across.
 - Phase 2: a title, notes or text edit made here appears in Storyline after reopening the saved file, and nothing else in the course changed.
 
-## Also queued (from the November 2026 audit)
-See `AUDIT.md` for detail.
-- Player accessibility: ARIA on the question blocks, focus handling, keyboard paths for drag-and-drop and matching.
-- Rest of the Claude Design pass: apply the new chrome colors (WCAG AA) and the Lucide icon family to the Home ribbon, Layers panel and Timeline rows, replacing the emoji lock and eye icons. Triggers panel and Publish dialog are done (v6.15).
+## Also queued
+See `AUDIT.md` for what the November 2026 review found and what has been done.
+- Question banks and randomized question pools (the one piece of audit item 1 not built).
+- Review the player menu drawer and the Resources and Glossary panels at phone width.
+- Check a real screen reader (NVDA or VoiceOver) against the question blocks and the dialogs.
+- Welcome modal: shorter copy (design list item 8).
+- Home ribbon tab grouping (design list item 2).
 - Media compression from the Publish checks (the design's Compress button).
-- Repo cleanup and a tests folder.
+- Run a published package through SCORM Cloud and an LRS; none of the reporting has been checked against a real LMS.
+- Playwright browser suites in the repo (the unit tests are in `tests/`).

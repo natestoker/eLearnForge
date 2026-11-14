@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && cross-env FORGE_ENTRY=player vite build && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

@@ -7,7 +7,8 @@ const TYPE_LABEL: Record<BlockType, string> = {
   fillBlank: 'Fill in the blank', progress: 'Progress bar', timer: 'Timer',
   dragDrop: 'Drag and drop', tabs: 'Tabs / accordion',
   flashcards: 'Flashcards', sequence: 'Sequence', slider: 'Slider', checklist: 'Checklist',
-  varDisplay: 'Score / value', labeledGraphic: 'Labeled graphic', scenario: 'Scenario'
+  varDisplay: 'Score / value', labeledGraphic: 'Labeled graphic', scenario: 'Scenario',
+  results: 'Results'
 };
 
 // A block's shown name: the author's label if set, else a humanized type.

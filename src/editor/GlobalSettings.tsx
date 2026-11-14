@@ -11,6 +11,7 @@ import { defaultPlayerSettings, uid } from '../schema/factory';
 import { defaultVariableValue, ValueInput } from './TriggersPanel';
 import { useState } from 'react';
 
+import { Lucide } from './lucide';
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
   { value: 'fade', label: 'Fade' },
@@ -370,7 +371,7 @@ export function PropertyPanel() {
             onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
             title="A locked block can be selected but not moved, resized, or retimed"
           >
-            {block.locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked'}
+            <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Unlocked'}
           </button>
         </Field>
       </Row>
@@ -579,7 +580,7 @@ function MultiPropertyPanel({ ids }: { ids: string[] }) {
             style={anyLocked ? { color: '#e94b5a' } : undefined}
             onClick={() => each((b) => { b.locked = anyLocked ? undefined : true; })}
           >
-            {anyLocked ? '\u{1F513} Unlock all' : '\u{1F512} Lock all'}
+            <Lucide name={anyLocked ? 'lock-open' : 'lock'} size={14} /> {anyLocked ? 'Unlock all' : 'Lock all'}
           </button>
         </Field>
       </Row>

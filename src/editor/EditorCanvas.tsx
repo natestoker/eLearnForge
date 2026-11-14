@@ -9,6 +9,7 @@ import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionPoints } from '../engine/motionPath';
 import { shadowStyle } from '../shared/shadow';
 
+import { Lucide } from './lucide';
 const GRID = 8;
 const MIN_SIZE = 40;
 // Pasteboard margin around the slide, in stage units: objects staged here
@@ -190,8 +191,8 @@ export function BlockNode({
           <div className="block-badge">{def.label}</div>
         </>
       )}
-      {isSelected && locked && <div className="block-badge locked">{'\u{1F512}'} {def.label} (locked)</div>}
-      {!isSelected && locked && <div className="lock-glyph" title="Locked - double-click to select; drag starts a marquee. Unlock from its timeline row or layer.">{'\u{1F512}'}</div>}
+      {isSelected && locked && <div className="block-badge locked"><Lucide name="lock" size={12} /> {def.label} (locked)</div>}
+      {!isSelected && locked && <div className="lock-glyph" title="Locked - double-click to select; drag starts a marquee. Unlock from its timeline row or layer."><Lucide name="lock" size={12} /></div>}
     </div>
   );
 }

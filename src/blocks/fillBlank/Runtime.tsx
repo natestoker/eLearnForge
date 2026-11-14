@@ -38,6 +38,7 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
       <div className="fb-row">
         <input
           className="fb-input"
+          aria-label="Your answer"
           value={value}
           placeholder="Type your answer"
           disabled={result === true || locked}
@@ -51,6 +52,7 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
           {result ? props.feedbackCorrect : props.feedbackIncorrect}
         </p>
       )}
+      <div className="sr-only" role="status" aria-live="polite">{result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect}</div>
       {locked && !result && <p className="attempts-note">No attempts left.</p>}
     </div>
   );

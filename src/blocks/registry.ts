@@ -69,6 +69,9 @@ import { ChecklistRuntime } from './checklist/Runtime';
 import { VarDisplayCanvas } from './varDisplay/Canvas';
 import { VarDisplayProperties } from './varDisplay/Properties';
 import { VarDisplayRuntime } from './varDisplay/Runtime';
+import { ResultsCanvas } from './results/Canvas';
+import { ResultsProperties } from './results/Properties';
+import { ResultsRuntime } from './results/Runtime';
 import { LabeledGraphicCanvas } from './labeledGraphic/Canvas';
 import { LabeledGraphicProperties } from './labeledGraphic/Properties';
 import { LabeledGraphicRuntime } from './labeledGraphic/Runtime';
@@ -127,6 +130,7 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
   sequence: { type: 'sequence', label: 'Sequence', glyph: '123', Canvas: SequenceCanvas, Properties: SequenceProperties, Runtime: SequenceRuntime },
   slider: { type: 'slider', label: 'Slider', glyph: 'SLD', Canvas: SliderCanvas, Properties: SliderProperties, Runtime: SliderRuntime },
   checklist: { type: 'checklist', label: 'Checklist', glyph: 'CL', Canvas: ChecklistCanvas, Properties: ChecklistProperties, Runtime: ChecklistRuntime },
+  results: { type: 'results', label: 'Results', glyph: 'RS', Canvas: ResultsCanvas, Properties: ResultsProperties, Runtime: ResultsRuntime },
   varDisplay: { type: 'varDisplay', label: 'Score / value', glyph: '%', Canvas: VarDisplayCanvas, Properties: VarDisplayProperties, Runtime: VarDisplayRuntime },
   labeledGraphic: { type: 'labeledGraphic', label: 'Labeled graphic', glyph: 'LG', Canvas: LabeledGraphicCanvas, Properties: LabeledGraphicProperties, Runtime: LabeledGraphicRuntime },
   scenario: { type: 'scenario', label: 'Scenario', glyph: 'SC', Canvas: ScenarioCanvas, Properties: ScenarioProperties, Runtime: ScenarioRuntime }

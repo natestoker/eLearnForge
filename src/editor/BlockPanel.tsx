@@ -6,6 +6,7 @@ import { EffectsPanel } from './EffectsPanel';
 import { AnimatePanel } from './AnimatePanel';
 import { BlockAudioSection } from './BlockAudioSection';
 
+import { Lucide } from './lucide';
 // The block editing home: a tabbed right-side panel restoring the original
 // Properties / Effects / Animate split. The ribbon keeps quick actions; the
 // deep editing (block options, shadow/reflection/states, entrance/exit
@@ -62,7 +63,7 @@ function PropertiesTab() {
           title={block.locked ? 'Unlock (allow moving and editing on canvas)' : 'Lock (prevent canvas edits)'}
           onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
         >
-          {block.locked ? '\u{1F512}' : '\u{1F513}'}
+          <Lucide name={block.locked ? 'lock' : 'lock-open'} size={15} />
         </button>
       </div>
 

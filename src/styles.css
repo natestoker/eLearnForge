@@ -34,7 +34,7 @@
   --border-soft: #212823;
   --text: #e7ece8;
   --muted: #93a598;
-  --faint: #62726a;
+  --faint: #869789; /* 5.2:1 or better on every panel background (WCAG AA) */
   --accent: #3ddc97;
   --accent-bright: #5cf0b4;
   --accent-dim: rgba(61, 220, 151, 0.14);
@@ -546,7 +546,8 @@ button { font-family: inherit; }
   transition: background 0.12s, color 0.12s;
 }
 .iconbtn:hover:not(:disabled) { background: var(--border-soft); color: var(--text); }
-.iconbtn:disabled { opacity: 0.35; cursor: default; }
+/* Disabled reads as disabled through color, not opacity, so it still clears 4.5:1. */
+.iconbtn:disabled { color: var(--faint); cursor: default; }
 
 .toolbar-group { display: flex; align-items: center; gap: 6px; }
 .toolbar-right { margin-left: auto; }
@@ -566,7 +567,8 @@ button { font-family: inherit; }
   transition: border-color 120ms, background 120ms, color 120ms;
 }
 .btn:hover:not(:disabled) { background: var(--border-soft); }
-.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:disabled { color: var(--faint); border-color: var(--border-soft); cursor: default; }
+.btn-accent:disabled { background: var(--panel-2); color: var(--faint); border-color: var(--border); }
 
 .btn-accent {
   background: var(--accent);
@@ -1550,7 +1552,7 @@ select.input { appearance: auto; }
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #62726a;
+  color: var(--faint);
 }
 
 .text-entry-canvas {
@@ -1750,7 +1752,7 @@ select.input { appearance: auto; }
   font-family: var(--mono);
   font-size: 9px;
 
-  color: #62726a;
+  color: var(--faint);
 }
 
 .timeline-row {
@@ -1809,7 +1811,7 @@ select.input { appearance: auto; }
 
 .empty-note {
   font-size: 11px;
-  color: #62726a;
+  color: var(--faint);
   margin: 8px 0 0;
 }
 
@@ -1850,7 +1852,7 @@ select.input { appearance: auto; }
 }
 .code-canvas-hint {
   font-size: 10px;
-  color: #62726a;
+  color: var(--faint);
 }
 
 .code-runtime {
@@ -1896,7 +1898,7 @@ select.input { appearance: auto; }
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: #62726a;
+  color: var(--faint);
   text-transform: uppercase;
   margin: 4px 0 2px;
 }
@@ -1984,7 +1986,7 @@ select.input { appearance: auto; }
   font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #62726a;
+  color: var(--faint);
   padding: 4px 8px 2px;
 }
 .menu-item {
@@ -2224,7 +2226,7 @@ select.input { appearance: auto; }
 
 .state-row { border-top: 1px solid #1d2430; padding: 8px 0; }
 .state-toggle strong { font-size: 12px; }
-.hint-inline { font-size: 10px; color: #62726a; margin-left: 6px; }
+.hint-inline { font-size: 10px; color: var(--faint); margin-left: 6px; }
 .check-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
 .check-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #c9d2ca; cursor: pointer; }
 .check-item input { accent-color: var(--accent); }
@@ -2424,7 +2426,7 @@ select.input { appearance: auto; }
 .timeline-row-controls { display: flex; flex-direction: column; flex: none; width: 16px; gap: 1px; }
 .tl-z {
   height: 11px; line-height: 9px; font-size: 7px; padding: 0;
-  border: 1px solid #3b463f; background: #161a17; color: #62726a;
+  border: 1px solid #3b463f; background: #161a17; color: var(--faint);
   border-radius: 3px; cursor: pointer;
 }
 .tl-z:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
@@ -2586,7 +2588,7 @@ select.input { appearance: auto; }
 
 .panel-subtitle {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #62726a; margin: 10px 0 6px; font-weight: 600;
+  color: var(--faint); margin: 10px 0 6px; font-weight: 600;
 }
 
 /* ---- audio chip ---- */
@@ -2607,7 +2609,7 @@ select.input { appearance: auto; }
 .audio-wave { display: flex; align-items: center; gap: 2px; height: 22px; }
 .audio-wave span { width: 3px; background: rgba(61,220,151,0.55); border-radius: 2px; }
 .audio-chip-warn { flex: none; font-size: 9px; color: #ff6b5e; }
-.audio-chip-tag { flex: none; font-size: 9px; color: #62726a; }
+.audio-chip-tag { flex: none; font-size: 9px; color: var(--faint); }
 
 /* ---- timeline audio waveform ---- */
 .tl-wave {
@@ -2913,7 +2915,7 @@ select.input { appearance: auto; }
   background: #f4f6f4;
   display: grid;
   place-items: center;
-  color: #62726a;
+  color: var(--faint);
   font-size: 12px;
 }
 .lg-pin {
@@ -2956,7 +2958,7 @@ select.input { appearance: auto; }
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
-  color: #62726a;
+  color: var(--faint);
   padding: 0 2px;
 }
 .lg-popup p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #4a574e; }
@@ -3046,7 +3048,7 @@ select.input { appearance: auto; }
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #62726a;
+  color: var(--faint);
 }
 
 /* ---------- flashcards ---------- */
@@ -3184,7 +3186,7 @@ select.input { appearance: auto; }
   justify-content: space-between;
   font-family: var(--mono);
   font-size: 10px;
-  color: #62726a;
+  color: var(--faint);
 }
 
 /* ---------- checklist ---------- */
@@ -3275,7 +3277,7 @@ select.input { appearance: auto; }
 }
 .tl-grip:hover { color: var(--accent); }
 .tl-grip:active { cursor: grabbing; }
-.timeline-header-row.locked .tl-block-name { color: #b06771; }
+.timeline-header-row.locked .tl-block-name { color: #e49aa4; }
 .tl-row-action-btn.on { color: #ff6b5e; opacity: 1; }
 .timeline-bar.locked {
   cursor: not-allowed;
@@ -3640,3 +3642,60 @@ select.input { appearance: auto; }
 .pd-publish:hover { background: #5ae290; }
 .pd-publish.locked { background: var(--pd-chip); border: 1px solid var(--pd-line2); color: var(--pd-text3); cursor: not-allowed; }
 .pd-publish.locked:hover { background: var(--pd-chip); }
+
+/* Results block */
+.rs-block { padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 4px; overflow: hidden; }
+.rs-heading { font-size: 15px; font-weight: 600; opacity: 0.85; }
+.rs-score { font-weight: 700; line-height: 1.1; }
+.rs-score.pass { color: #3dd97a; }
+.rs-score.fail { color: #ff8a8a; }
+.rs-passmark { font-size: 13px; opacity: 0.75; }
+.rs-message { margin: 6px 0 0; font-size: 15px; line-height: 1.4; }
+
+/* Modal layer: dims and blocks the slide behind it. */
+.player-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); pointer-events: auto; }
+
+/* Visually hidden, still read by screen readers (live feedback regions). */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.dd-item.picked { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dd-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dd-place { margin: 4px 0; padding: 4px 8px; border-radius: 6px; border: 1px dashed currentColor; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+
+/* Triggers and Variables tabs only point at the right-hand panel: keep their
+   shelf one line tall instead of reserving the full ribbon height. */
+.ribbon-body.compact { height: auto; min-height: 0; padding: 6px 16px; }
+
+/* Layers panel: row actions (rename, timeline, duplicate, delete) sit on a
+   second line and show on hover, focus or when the row is active, so the
+   layer name gets the room instead of being cut to "Bas...". */
+.layer-item { flex-wrap: wrap; }
+.layer-item .layer-actions { display: none; gap: 4px; align-items: center; }
+/* The group with several buttons takes its own line; a lone rename button stays inline. */
+.layer-item .layer-actions:has(button:nth-child(2)) { flex: 1 0 100%; flex-wrap: wrap; padding-left: 26px; }
+.layer-item:hover .layer-actions,
+.layer-item.active .layer-actions,
+.layer-item:focus-within .layer-actions { display: flex; }
+.layer-name { min-width: 60px; }
+
+/* Timeline header: nothing wraps; the long hint lives in a tooltip icon. */
+.timeline-length { white-space: nowrap; }
+.timeline-head { flex-wrap: nowrap; align-items: center; }
+.tl-help { display: inline-flex; align-items: center; color: var(--muted); margin-left: auto; cursor: help; border-radius: 4px; }
+.tl-help:hover, .tl-help:focus-visible { color: var(--text); }
+
+/* Player at phone width. These sit at the end of the file on purpose: the
+   base rules for .player-controls and .player-hud come later than the first
+   mobile block and used to override it, so the seek bar was cut off. Row 1 is
+   the slide name and Back/Next; row 2 is the full-width transport. */
+@media (max-width: 640px) {
+  .player-chrome-bar { flex-wrap: wrap; gap: 8px 10px; padding: 8px 10px; }
+  .player-hud { order: 1; flex: 1 1 0; min-width: 0; }
+  .player-hud-slide { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-chrome-bar > div[style] { order: 2; }
+  .player-chrome-bar .player-navbar { order: 2; }
+  .player-controls { order: 3; flex: 1 1 100%; min-width: 0; }
+  .player-time { display: inline-block; min-width: 0; }
+  .player-play { width: 40px; height: 40px; }
+  .player-chrome-btn { min-height: 40px; }
+  .player-seek { min-width: 0; }
+}

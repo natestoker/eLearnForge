@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { SequenceProps } from '../../schema/types';
 import { sequenceVariableName } from '../../schema/factory';
@@ -23,6 +23,8 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
   const [order, setOrder] = useState<string[]>(() => shuffled(props.items.map((i) => i.id)));
   const [result, setResult] = useState<null | boolean>(null);
   const locked = runtime.attemptsExhausted(block.id);
+  const qid = useId();
+  const [moved, setMoved] = useState('');
 
   const moveRow = (idx: number, dir: -1 | 1) => {
     if (result === true || locked) return;
@@ -33,6 +35,7 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
       [next[idx], next[to]] = [next[to], next[idx]];
       return next;
     });
+    setMoved(`${itemOf(order[idx])?.text ?? 'Item'} moved to position ${to + 1} of ${order.length}`);
     if (result !== null) setResult(null);
   };
 
@@ -54,8 +57,9 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
   const itemOf = (id: string) => props.items.find((i) => i.id === id);
 
   return (
-    <div className="seq-block live" onClick={(e) => e.stopPropagation()}>
-      <p className="seq-question">{props.question}</p>
+    <div className="seq-block live" role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
+      <p className="seq-question" id={qid}>{props.question}</p>
+      <div className="sr-only" role="status" aria-live="polite">{moved || (result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect)}</div>
       {order.map((id, i) => {
         const it = itemOf(id);
         if (!it) return null;

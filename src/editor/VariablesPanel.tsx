@@ -3,9 +3,12 @@ import { useProjectStore } from '../state/projectStore';
 import { uid } from '../schema/factory';
 import { SelectInput } from './fields';
 import { ValueInput } from './TriggersPanel';
+import { variableOwner } from '../shared/variableLabel';
+import { blockDisplayName } from '../shared/blockName';
 
 export function VariablesPanel() {
   const variables = useProjectStore((s) => s.project.variables);
+  const project = useProjectStore((s) => s.project);
   const mutate = useProjectStore((s) => s.mutate);
 
   const edit = (id: string, fn: (v: Variable) => void) =>
@@ -49,6 +52,12 @@ export function VariablesPanel() {
             value={v.name}
             onChange={(e) => edit(v.id, (vr) => { vr.name = e.target.value; })}
           />
+          {(() => {
+            const owner = variableOwner(project, v);
+            return owner ? (
+              <p className="hint var-owner">Set by the block "{blockDisplayName(owner.block)}" ({owner.what}). Keep the name as it is; the block looks it up by name.</p>
+            ) : null;
+          })()}
           <div className="trigger-row">
             <SelectInput
               value={v.type}

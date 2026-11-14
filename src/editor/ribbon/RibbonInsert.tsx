@@ -49,6 +49,7 @@ const ICONS: Record<string, JSX.Element> = {
   sequence: <Ic d="M5 6.5h2M10 6.5h9M5 12h2M10 12h9M5 17.5h2M10 17.5h9" />,
   slider: <Ic d="M4 12h16M9.5 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 8.5v7M20 8.5v7" />,
   checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />,
+  results: <Ic d="M5 19V9M10 19V5M15 19v-7M20 19v-4M3.5 19.5h18" />,
   varDisplay: <Ic d="M4 5.5h16v13H4zM7 15.5V12M12 15.5V9.5M17 15.5v-4" />,
   labeledGraphic: <Ic d="M4 5.5h16v13H4zM9 11a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM11 13v3M16 8.5a1.4 1.4 0 1 0 0-.1" />,
   scenario: <Ic d="M12 4.5v4M12 8.5L6 13M12 8.5l6 4.5M4 13h4v4H4zM16 13h4v4h-4zM10 4.5h4" />
@@ -211,6 +212,7 @@ export function RibbonInsert() {
             <MBtn icon="slider" label="Slider" onClick={() => addBlock('slider')} />
             <MBtn icon="checklist" label="Checklist" onClick={() => addBlock('checklist')} />
             <MBtn icon="varDisplay" label="Score" onClick={() => addBlock('varDisplay')} />
+            <MBtn icon="results" label="Results" onClick={() => addBlock('results')} />
           </div>
         </div>
         <span className="ribbon-group-title">Widgets</span>

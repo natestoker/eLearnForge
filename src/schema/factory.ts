@@ -102,6 +102,7 @@ export const DEFAULT_BLOCK_SIZE: Record<BlockType, { w: number; h: number }> = {
   slider: { w: 420, h: 90 },
   checklist: { w: 400, h: 280 },
   varDisplay: { w: 260, h: 130 },
+  results: { w: 440, h: 260 },
   labeledGraphic: { w: 560, h: 380 },
   scenario: { w: 560, h: 360 }
 };
@@ -254,6 +255,16 @@ export function defaultProps(type: BlockType): BlockProps {
         ]
       };
     }
+    case 'results':
+      return {
+        heading: 'Your results',
+        passMessage: 'Well done. You passed.',
+        failMessage: 'You did not reach the pass mark. Review the material and try again.',
+        noScoreMessage: 'Answer the questions to see your score.',
+        showPassMark: true,
+        fontSize: 64,
+        align: 'center'
+      };
     case 'varDisplay':
       return { reference: 'Score', label: 'Your score', suffix: '%', fontSize: 44, align: 'center', tile: true };
     case 'checklist':

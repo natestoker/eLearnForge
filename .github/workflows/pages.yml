@@ -32,6 +32,9 @@ jobs:
       # build only bundles the browser ONNX runtime, so the node binary is
       # never needed. esbuild's binary ships as an optional dep, not a script.
       - run: npm ci --ignore-scripts
+      # Unit tests (scoring, tracking, triggers, resume, publish checks) gate
+      # the deploy: a failing test stops a broken build reaching Pages.
+      - run: npm test
       - run: npm run build
       - uses: actions/configure-pages@v5
         with:

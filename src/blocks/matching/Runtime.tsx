@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { MatchingProps } from '../../schema/types';
 
@@ -11,6 +11,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
   const [links, setLinks] = useState<Record<string, string>>({}); // leftId -> rightId
   const [checked, setChecked] = useState(false);
   const locked = runtime.attemptsExhausted(block.id);
+  const qid = useId();
 
   const rights = useMemo(() => {
     const arr = props.pairs.map((p) => ({ id: p.id, text: p.right }));
@@ -36,14 +37,15 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
   const correct = props.pairs.every((p) => links[p.id] === p.id);
 
   return (
-    <div className="match-block runtime">
-      <div className="match-question">{props.question}</div>
+    <div className="match-block runtime" role="group" aria-labelledby={qid}>
+      <div className="match-question" id={qid}>{props.question}</div>
       <div className="match-cols">
         <div className="match-col">
           {props.pairs.map((p) => (
             <button
               key={p.id}
               className={`match-item left ${activeLeft === p.id ? 'active' : ''} ${links[p.id] ? 'linked' : ''} ${checked ? (links[p.id] === p.id ? 'right' : 'wrong') : ''}`}
+              aria-pressed={activeLeft === p.id}
               onClick={() => pickLeft(p.id)}
             >
               {p.left}
@@ -66,6 +68,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           })}
         </div>
       </div>
+      <div className="sr-only" role="status" aria-live="polite">{checked ? (correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')) : ''}</div>
       {!checked ? (
         <button className="btn btn-accent match-submit" disabled={!allLinked} onClick={() => {
           setChecked(true);

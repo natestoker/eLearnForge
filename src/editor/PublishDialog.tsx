@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from '../shared/useFocusTrap';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import type { PublishTarget } from '../tracking';
@@ -49,6 +50,8 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const ready = publishAvailable();
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(rootRef);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -121,7 +124,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="pd-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="pd-root" role="dialog" aria-modal="true" aria-labelledby="pd-title">
+      <div className="pd-root" ref={rootRef} role="dialog" aria-modal="true" aria-labelledby="pd-title">
         <div className="pd-head">
           <div className="pd-head-text">
             <div id="pd-title" className="pd-title">Publish course</div>

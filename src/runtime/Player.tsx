@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
 import { createForge, runAuthorJs } from '../engine/forge';
+import { useFocusTrap } from '../shared/useFocusTrap';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionOffsetAt } from '../engine/motionPath';
@@ -55,7 +56,7 @@ export function Player({ project, adapter, startSlideId }: {
     const resume = adapter.initialize(project.title);
     const off = runtime.onTrack((e) => adapter.handle(e));
     if (resume) runtime.restoreState(resume);
-    const save = () => adapter.saveResume(runtime.getResumeState());
+    const save = () => adapter.saveResume(runtime.exportResume());
     const onVis = () => { if (document.visibilityState === 'hidden') save(); };
     const onHide = () => { save(); adapter.terminate(); };
     document.addEventListener('visibilitychange', onVis);
@@ -98,9 +99,19 @@ export function Player({ project, adapter, startSlideId }: {
   // opened (an LMS pop-up usually is), so the course also swaps to an end
   // screen that works either way.
   const [exited, setExited] = useState(false);
+
+  // Screen readers: when the slide changes, move focus to a hidden heading
+  // naming the new slide so it is announced and keyboard users start at the
+  // top of it. Not on first load, so the course doesn't grab focus on open.
+  const slideHeadingRef = useRef<HTMLHeadingElement>(null);
+  const firstSlideRef = useRef(true);
+  useEffect(() => {
+    if (firstSlideRef.current) { firstSlideRef.current = false; return; }
+    slideHeadingRef.current?.focus({ preventScroll: true });
+  }, [slide.id]);
   const exitCourse = () => {
     try {
-      adapter?.saveResume(runtime.getResumeState());
+      adapter?.saveResume(runtime.exportResume());
       adapter?.terminate();
     } catch (err) {
       console.warn('eLearnForge exit failed to reach the host', err);
@@ -182,6 +193,7 @@ export function Player({ project, adapter, startSlideId }: {
       } else if (action.type === 'restartTimeline') {
         clockRef.current?.seek(0);
         clockRef.current?.play();
+        runtime.timelineStarted();
       } else if (action.type === 'pulseBlock') {
         const el = document.querySelector(`[data-block-id="${action.blockId}"] .block-fx`) as HTMLElement | null;
         if (el) {
@@ -286,6 +298,7 @@ export function Player({ project, adapter, startSlideId }: {
     });
     clockRef.current = clock;
     clock.play();
+    runtime.timelineStarted();
     return () => clock.dispose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide.id, hasTimeline]);
@@ -425,6 +438,7 @@ export function Player({ project, adapter, startSlideId }: {
           />
         </aside>
         <div className="player-main">
+          <h1 className="sr-only" ref={slideHeadingRef} tabIndex={-1}>{`${slide.name}, slide ${slideIndex + 1} of ${project.slides.length}`}</h1>
           <button
             className="player-hamburger"
             aria-label={navOpen ? 'Hide navigation' : 'Show navigation'}
@@ -448,7 +462,7 @@ export function Player({ project, adapter, startSlideId }: {
             </div>
           )}
           {infoPanel && (
-            <div className="player-info-panel" role="dialog" aria-label={infoPanel}>
+            <InfoPanelShell label={infoPanel} onClose={() => setInfoPanel(null)}>
               <div className="player-info-panel-head">
                 <span>{infoPanel === 'resources' ? 'Resources' : 'Glossary'}</span>
                 <button className="player-info-close" aria-label="Close" onClick={() => setInfoPanel(null)}>×</button>
@@ -467,7 +481,7 @@ export function Player({ project, adapter, startSlideId }: {
                   </div>
                 ))}
               </div>
-            </div>
+            </InfoPanelShell>
           )}
           {settings.titlePosition === 'top' && (
             <div className="player-titlebar">
@@ -488,6 +502,8 @@ export function Player({ project, adapter, startSlideId }: {
         >
         {slide.layers.map((layer, layerIndex) => {
           const layerVisible = runtime.isLayerVisible(layer.id);
+          // Topmost visible modal layer: everything under it is dimmed and inert.
+          const modalIndex = slide.layers.reduce((acc, l, i) => (l.modal && i > 0 && runtime.isLayerVisible(l.id) ? i : acc), -1);
           // Layers have their own clock, Storyline-style: it starts the moment
           // the layer is revealed (a hidden layer shown by a hotspot at t=5
           // plays its entrances THEN, not "already played at t=0"). Track the
@@ -509,7 +525,12 @@ export function Player({ project, adapter, startSlideId }: {
             ? Math.max(layer.id === activeTlLayerId ? layerDuration : 0, ownTl.duration || 1)
             : duration;
           return layerVisible ? (
-            <div key={layer.id} className="player-layer">
+            <div
+              key={layer.id}
+              className="player-layer"
+              {...(layerIndex < modalIndex ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
+            >
+              {layerIndex === modalIndex && <div className="player-modal-backdrop" />}
               {layer.blocks.map((block) => {
                 if (!runtime.isBlockVisible(block.id)) return null;
                 const def = BLOCKS[block.type];
@@ -693,6 +714,23 @@ function BlockFx({ emphasis, children }: { emphasis?: Emphasis; children: React.
   }, [emphasis]);
   return (
     <div ref={ref} className="block-fx" style={{ width: '100%', height: '100%' }}>
+      {children}
+    </div>
+  );
+}
+
+// The Resources / Glossary side panel: closes on Escape, keeps keyboard focus
+// inside while open and returns it to the button that opened it.
+function InfoPanelShell({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="player-info-panel" ref={ref} role="dialog" aria-label={label}>
       {children}
     </div>
   );

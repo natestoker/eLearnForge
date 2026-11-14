@@ -8,7 +8,7 @@ export type BlockType =
   | 'code' | 'matching' | 'group'
   | 'fillBlank' | 'progress' | 'timer' | 'dragDrop' | 'tabs'
   | 'flashcards' | 'sequence' | 'slider' | 'checklist' | 'varDisplay'
-  | 'labeledGraphic' | 'scenario';
+  | 'labeledGraphic' | 'scenario' | 'results';
 
 export type TextAnim = 'none' | 'fadeIn' | 'typewriter' | 'wordsUp' | 'lettersUp' | 'blurIn';
 
@@ -327,6 +327,19 @@ export interface VarDisplayProps {
   tile: boolean;       // true = card with border; false = bare text
 }
 
+// Results: the learner's score against the pass mark, with a pass or fail
+// message. Reads the course score (from Calculate from answers or a Set score
+// trigger) and the pass mark from Publish settings, so there is nothing to wire.
+export interface ResultsProps {
+  heading: string;
+  passMessage: string;
+  failMessage: string;
+  noScoreMessage: string; // shown until a score exists
+  showPassMark: boolean;
+  fontSize: number;       // score size
+  align: 'left' | 'center' | 'right';
+}
+
 export type BlockProps =
   | TextProps | ImageProps | StatementProps | MultipleChoiceProps
   | ButtonProps | HotspotProps | ShapeProps | VideoProps | AudioProps
@@ -334,7 +347,7 @@ export type BlockProps =
   | TextEntryProps | CodeProps | GroupProps
   | FillBlankProps | ProgressProps | TimerProps | DragDropProps | TabsProps
   | FlashcardsProps | SequenceProps | SliderProps | ChecklistProps | VarDisplayProps
-  | LabeledGraphicProps | ScenarioProps;
+  | LabeledGraphicProps | ScenarioProps | ResultsProps;
 
 // One entry per EFFECT; direction is an option, not a separate animation.
 // Legacy per-direction values (slideUp, wipeUp, flipX...) still parse -
@@ -474,6 +487,9 @@ export interface Layer {
   id: string;
   name: string;
   visibleByDefault: boolean;
+  // Modal layer (the lightbox equivalent): while it is showing, the slide
+  // behind it is dimmed and can't be clicked or tabbed to.
+  modal?: boolean;
   // Authoring lock for the whole layer (see Block.locked).
   locked?: boolean;
   blocks: Block[];
@@ -496,7 +512,7 @@ export interface Variable {
 }
 
 export type TriggerEvent =
-  | 'onClick' | 'onSlideLoad' | 'onVariableChange' | 'onTimelineEnd'
+  | 'onClick' | 'onSlideLoad' | 'onVariableChange' | 'onTimelineEnd' | 'onTimelineStart'
   | 'onBlockEnters'        // the block's timeline bar starts (enters the frame)
   | 'onAnimationComplete'  // the block's animate-in finishes
   | 'onStateAll'           // every watched block reached the watched state

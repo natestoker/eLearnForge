@@ -1,5 +1,6 @@
 import { useUiStore, RibbonTab } from '../state/uiStore';
 import { Toolbar } from './Toolbar';
+import { Lucide } from './lucide';
 import { RibbonHome } from './ribbon/RibbonHome';
 import { RibbonSlide } from './ribbon/RibbonSlide';
 import { RibbonInsert } from './ribbon/RibbonInsert';
@@ -49,13 +50,13 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
           title={collapsed ? 'Expand the ribbon' : 'Collapse the ribbon (tabs stay)'}
           aria-expanded={!collapsed}
         >
-          {collapsed ? '⌄' : '⌃'}
+          <Lucide name={collapsed ? 'chevron-down' : 'chevron-up'} size={15} />
         </button>
       </div>
 
       {/* Ribbon body content */}
       {!collapsed && (
-        <div className="ribbon-body">
+        <div className={`ribbon-body${activeTab === 'triggers' || activeTab === 'variables' ? ' compact' : ''}`}>
           {activeTab === 'home' && <RibbonHome />}
           {activeTab === 'slide' && <RibbonSlide />}
           {activeTab === 'insert' && <RibbonInsert />}

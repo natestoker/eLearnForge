@@ -3,7 +3,7 @@ import { gradedBlockIds, completionNeedsPass, passingScoreOf } from '../engine/s
 import { projectTriggerIssues } from '../engine/validate';
 import type { TriggerIssue } from '../engine/validate';
 import { encodeResume } from '../tracking/adapter';
-import type { ResumeData } from '../tracking/adapter';
+import type { CompactResume } from '../tracking/adapter';
 
 // Pre-publish checks and a size estimate, shown in the Publish dialog.
 // Errors block publishing (the course would be broken); warnings do not.
@@ -104,14 +104,17 @@ function unreachableSlides(project: Project): Slide[] {
 }
 
 function suspendEstimate(project: Project): number {
-  const state: ResumeData = {
-    slideId: project.slides[0]?.id ?? '',
-    viewedSlideIds: project.slides.map((s) => s.id),
-    // Worst case: every variable off its default.
-    variables: Object.fromEntries(project.variables.map((v) => [v.name, v.type === 'string' ? 'xxxxxxxxxx' : v.type === 'number' ? 99999 : !v.defaultValue])),
-    score: 100,
-    answers: Object.fromEntries(gradedBlockIds(project).map((id) => [id, true])),
-    attempts: Object.fromEntries(gradedBlockIds(project).map((id) => [id, 1]))
+  const graded = gradedBlockIds(project).length;
+  const state: CompactResume = {
+    v: 2,
+    si: project.slides.length - 1,
+    n: [project.slides.length, graded],
+    vw: '1'.repeat(project.slides.length),
+    // Worst case: every question answered and every variable off its default.
+    an: '1'.repeat(graded),
+    at: '1'.repeat(graded),
+    sc: 100,
+    vr: Object.fromEntries(project.variables.map((v) => [v.name, v.type === 'string' ? 'xxxxxxxxxx' : v.type === 'number' ? 99999 : !v.defaultValue]))
   };
   return JSON.stringify(state).length;
 }
@@ -161,6 +164,23 @@ export function runChecks(project: Project, target: string): Check[] {
     });
   } else if (project.slides.some((s) => slideBlocks(s).some((b) => b.type === 'image'))) {
     out.push({ sev: 'pass', title: 'All images have alt text' });
+  }
+
+  // 2b. Videos with no captions (WCAG 1.2.2).
+  const noCaptions: { slide: Slide; block: Block }[] = [];
+  for (const s of project.slides) {
+    for (const b of slideBlocks(s)) {
+      const v = b.props as { src?: string; captionsVtt?: string };
+      if (b.type === 'video' && v.src && !v.captionsVtt?.trim()) noCaptions.push({ slide: s, block: b });
+    }
+  }
+  if (noCaptions.length) {
+    out.push({
+      sev: 'warn',
+      title: `${noCaptions.length} video${noCaptions.length === 1 ? '' : 's'} without captions`,
+      detail: noCaptions.slice(0, 3).map((x) => `Slide ${slideNo(x.slide.id)}`).join(', ') + '. Captions are needed for learners who are deaf or hard of hearing.',
+      fix: { label: 'Add captions', slideId: noCaptions[0].slide.id, blockId: noCaptions[0].block.id }
+    });
   }
 
   // 3. Big embedded files.

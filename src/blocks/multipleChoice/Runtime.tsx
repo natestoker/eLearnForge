@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { MultipleChoiceProps } from '../../schema/types';
 import { mcVariableName } from '../../schema/factory';
@@ -8,6 +8,7 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
   const [selected, setSelected] = useState<string[]>([]);
   const [result, setResult] = useState<null | boolean>(null);
   const locked = runtime.attemptsExhausted(block.id);
+  const qid = useId();
 
   const toggle = (id: string) => {
     if (result !== null) return;
@@ -50,8 +51,8 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
   };
 
   return (
-    <div className="mc-block live" onClick={(e) => e.stopPropagation()}>
-      <p className="mc-question">{props.question}</p>
+    <div className="mc-block live" role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
+      <p className="mc-question" id={qid}>{props.question}</p>
       <div className="mc-choices">
         {props.choices.map((c) => {
           const isSelected = selected.includes(c.id);
@@ -59,6 +60,8 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
             <button
               key={c.id}
               className={`mc-choice live ${isSelected ? 'selected' : ''}`}
+              role={props.allowMultiple ? 'checkbox' : 'radio'}
+              aria-checked={isSelected}
               onClick={() => toggle(c.id)}
               disabled={result !== null}
             >
@@ -70,6 +73,7 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
           );
         })}
       </div>
+      <div className="sr-only" role="status" aria-live="polite">{result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect}</div>
       {result === null ? (
         <button className="mc-submit live" onClick={submit} disabled={selected.length === 0}>
           Submit

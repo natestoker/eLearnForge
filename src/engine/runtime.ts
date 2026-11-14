@@ -2,7 +2,8 @@ import type {
   Action, Block, BlockState, Condition, Project, Slide, Trigger, VariableValue
 } from '../schema/types';
 import { SELF_TARGET } from '../schema/types';
-import type { InteractionDetail, TrackingEvent } from '../tracking/adapter';
+import type { CompactResume, InteractionDetail, ResumeData, TrackingEvent } from '../tracking/adapter';
+import { isCompact } from '../tracking/adapter';
 import { completionNeedsPass, gradedBlockIds, passingScoreOf } from './scoring';
 
 // Trigger engine v1: deliberately thin per the brief.
@@ -237,7 +238,58 @@ export class Runtime {
     };
   }
 
-  restoreState(state: ResumeState): void {
+  // The small, position-based form the player stores (see CompactResume).
+  exportResume(): CompactResume {
+    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+    const slides = this.project.slides;
+    const idx = slides.findIndex((s) => s.id === this.snapshot.slideId);
+    const rich = this.getResumeState();
+    const out: CompactResume = {
+      v: 2,
+      si: Math.max(0, idx),
+      n: [slides.length, this.gradedIds.length],
+      vw: slides.map((s) => (this.viewedSlideIds.has(s.id) ? '1' : '0')).join('')
+    };
+    if (this.gradedIds.length && (Object.keys(this.answers).length || Object.keys(this.attempts).length)) {
+      out.an = this.gradedIds.map((id) => (id in this.answers ? (this.answers[id] ? '1' : '0') : '-')).join('');
+      out.at = this.gradedIds.map((id) => String(Math.min(9, this.attempts[id] ?? 0))).join('');
+    }
+    if (this.scoreSet) out.sc = this.lastScore;
+    if (Object.keys(rich.variables).length) out.vr = rich.variables;
+    return out;
+  }
+
+  // Accepts either stored shape; anything saved by a different version of the
+  // course (different slide or question count) is applied only where it still
+  // lines up.
+  restoreState(input: ResumeData): void {
+    let state: ResumeState;
+    if (isCompact(input)) {
+      const slides = this.project.slides;
+      if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+      const sameSlides = input.n[0] === slides.length;
+      const sameQuestions = input.n[1] === this.gradedIds.length;
+      const answers: Record<string, boolean> = {};
+      const attempts: Record<string, number> = {};
+      if (sameQuestions) {
+        this.gradedIds.forEach((id, i) => {
+          const a = input.an?.[i];
+          if (a === '1' || a === '0') answers[id] = a === '1';
+          const n = Number(input.at?.[i] ?? 0);
+          if (n > 0) attempts[id] = n;
+        });
+      }
+      state = {
+        slideId: sameSlides ? (slides[input.si]?.id ?? '') : '',
+        variables: input.vr ?? {},
+        viewedSlideIds: sameSlides ? slides.filter((_, i) => input.vw[i] === '1').map((s) => s.id) : [],
+        ...(typeof input.sc === 'number' ? { score: input.sc } : {}),
+        answers,
+        attempts
+      };
+    } else {
+      state = input;
+    }
     for (const [name, value] of Object.entries(state.variables ?? {})) {
       const v = this.project.variables.find((vr) => vr.name === name);
       if (v) this.snapshot.variables[v.id] = value;
@@ -377,6 +429,16 @@ export class Runtime {
         (t.watchVariableId === undefined || t.watchVariableId === '' || t.watchVariableId === variableId)
     );
     this.runTriggers(matches, depth);
+    this.emit();
+  }
+
+  // The player's clock calls this when a slide's timeline starts playing
+  // (including after a restart); onTimelineStart triggers fire.
+  timelineStarted(): void {
+    const slide = this.currentSlide();
+    const matches = slide.triggers.filter((t) => t.event === 'onTimelineStart');
+    if (!matches.length) return;
+    this.runTriggers(matches, 0);
     this.emit();
   }
 

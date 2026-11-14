@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
+import { Lucide } from './lucide';
 import { selectedIds, useCurrentSlide, useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { timelineDuration } from '../engine/timeline';
@@ -481,8 +482,8 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             startRowDrag(e, b, parent, idx, layerBlocks.length);
           }}
         >
-          <span className="tl-grip" title="Drag the row up or down to restack (selected rows move together)">
-            {'\u22EE\u22EE'}
+          <span className="tl-grip" title="Drag the row up or down to restack (selected rows move together)" aria-label="Drag to restack">
+            <Lucide name="grip-vertical" size={14} />
           </span>
           {b.type === 'group' ? (
             <button
@@ -504,12 +505,13 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             <button
               className={`tl-row-action-btn ${b.locked ? 'on' : ''}`}
               title={b.locked ? 'Unlock (allow editing)' : 'Lock (prevent moves, resizes, retiming)'}
+              aria-label={b.locked ? 'Unlock object' : 'Lock object'}
               onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, (blk) => { blk.locked = blk.locked ? undefined : true; }); }}
             >
-              {b.locked ? '\u{1F512}' : '\u{1F513}'}
+              <Lucide name={b.locked ? 'lock' : 'lock-open'} size={14} />
             </button>
-            <button className="tl-row-action-btn" style={{ opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false); }}>
-              {b.editorHidden ? '\uD83D\uDD76\uFE0F' : '\uD83D\uDC41\uFE0F'}
+            <button className="tl-row-action-btn" style={{ opacity: b.editorHidden ? 0.5 : 1 }} title="Toggle visibility in editor" aria-label="Toggle visibility in editor" onPointerDown={(e) => { e.stopPropagation(); updateBlock(b.id, blk => { blk.editorHidden = !blk.editorHidden; }, false); }}>
+              <Lucide name={b.editorHidden ? 'eye-off' : 'eye'} size={14} />
             </button>
             {/* Rows list top-most first (the lists are reversed), so index 0
                 is already frontmost - it can't come further forward. */}
@@ -601,14 +603,14 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
           title={playing ? 'Pause the preview' : 'Play the timeline: previews animations and audio on the canvas (from the playhead, or the start)'}
           onClick={() => (playing ? stopPlay(scrubT ?? undefined) : startPlay())}
         >
-          {playing ? '\u23f8' : '\u25b6'}
+          <Lucide name={playing ? 'pause' : 'play'} size={14} />
         </button>
         <button
           className="btn btn-ghost btn-icon"
           title="Add a cue marker at the playhead (usable in triggers)"
           onClick={addCue}
         >
-          {'\u25c7'}
+          <Lucide name="flag" size={14} />
         </button>
         <label className="timeline-length" title="How many seconds this slide's timeline runs">
           Length (s)
@@ -643,7 +645,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             })
           }
         >
-          {slide.layers.every((l) => l.locked) ? '\u{1F512} all' : '\u{1F513} all'}
+          <Lucide name={slide.layers.every((l) => l.locked) ? 'lock' : 'lock-open'} size={14} />{' '}all
         </button>
         {scrubT !== null && (
           <button
@@ -651,14 +653,17 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
             title="Clear the playhead (show everything at rest)"
             onClick={() => setScrubT(null)}
           >
-            {'⏱'} {scrubT.toFixed(1)}s {'✕'}
+            <Lucide name="timer" size={13} /> {scrubT.toFixed(1)}s <Lucide name="x" size={12} />
           </button>
         )}
         <span
-          className="hint"
-          title={driven ? undefined : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
+          className="tl-help"
+          tabIndex={0}
+          role="img"
+          aria-label={driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
+          title={driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
         >
-          {driven ? 'Length is set by the narration on this slide.' : 'Drag bars to move; ends to trim; the ticks set animate-in/out. Hold Shift while dragging to snap to cue points.'}
+          <Lucide name="info" size={15} />
         </span>
       </div>
 
@@ -685,7 +690,7 @@ export function TimelinePanel({ maxHeight, onCollapse }: { maxHeight?: number; o
                       });
                     }}
                   >
-                    {layer.locked ? '\u{1F512}' : '\u{1F513}'}
+                    <Lucide name={layer.locked ? 'lock' : 'lock-open'} size={14} />
                   </button>
                 </div>
                 {ordered.map((b) => renderHeaderRow(b, ordered, 0, { layerId: layer.id }))}

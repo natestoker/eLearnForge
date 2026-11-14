@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useCurrentSlide, useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
+import { Lucide } from './lucide';
 
 export function LayersPanel() {
   const slide = useCurrentSlide();
@@ -87,20 +88,22 @@ export function LayersPanel() {
                   title="Drag to reorder layer"
                   onPointerDown={(e) => startLayerDrag(e, layer.id)}
                 >
-                  {'⋮⋮'}
+                  <Lucide name="grip-vertical" size={14} />
                 </span>
               )}
               <button
                 className={`btn btn-ghost btn-icon eye ${editorHidden ? 'off' : ''}`}
                 title={editorHidden ? 'Show on canvas' : 'Hide on canvas (editor only)'}
+                aria-label={editorHidden ? 'Show layer on canvas' : 'Hide layer on canvas'}
                 onClick={(e) => { e.stopPropagation(); toggleLayerHidden(layer.id); }}
               >
-                {editorHidden ? '-' : 'o'}
+                <Lucide name={editorHidden ? 'eye-off' : 'eye'} size={15} />
               </button>
               <button
                 className="btn btn-ghost btn-icon"
                 style={layer.locked ? { color: 'var(--danger)' } : undefined}
                 title={layer.locked ? 'Unlock this layer' : 'Lock this layer (blocks can be selected but not edited)'}
+                aria-label={layer.locked ? 'Unlock layer' : 'Lock layer'}
                 onClick={(e) => {
                   e.stopPropagation();
                   mutate((p) => {
@@ -110,7 +113,7 @@ export function LayersPanel() {
                   });
                 }}
               >
-                {layer.locked ? '\u{1F512}' : '\u{1F513}'}
+                <Lucide name={layer.locked ? 'lock' : 'lock-open'} size={15} />
               </button>
               {renamingId === layer.id ? (
                 <input
@@ -148,9 +151,10 @@ export function LayersPanel() {
                 <button
                   className="btn btn-ghost btn-icon"
                   title="Rename layer"
+                  aria-label="Rename layer"
                   onClick={() => { setRenamingId(layer.id); setDraft(layer.name); }}
                 >
-                  {'\u270e'}
+                  <Lucide name="pencil" size={14} />
                 </button>
               </div>
               {isBase ? (
@@ -171,6 +175,20 @@ export function LayersPanel() {
                     />
                     <span>default</span>
                   </label>
+                  <label className="checkbox tiny" title="Modal: dim the slide behind this layer and stop clicks reaching it, like a lightbox">
+                    <input
+                      type="checkbox"
+                      checked={!!layer.modal}
+                      onChange={(e) =>
+                        mutate((p) => {
+                          const s = p.slides.find((sl) => sl.id === slide.id);
+                          const l = s?.layers.find((ly) => ly.id === layer.id);
+                          if (l) l.modal = e.target.checked || undefined;
+                        })
+                      }
+                    />
+                    <span>modal</span>
+                  </label>
                   <button
                     className="btn btn-ghost btn-icon"
                     style={layer.timeline ? { color: 'var(--accent)' } : undefined}
@@ -189,21 +207,23 @@ export function LayersPanel() {
                       select({ layerId: layer.id, blockId: null });
                     }}
                   >
-                    {'⏱'}
+                    <Lucide name="timer" size={15} />
                   </button>
                   <button
                     className="btn btn-ghost btn-icon"
                     title="Duplicate this layer (and everything on it)"
+                    aria-label="Duplicate layer"
                     onClick={() => duplicateLayer(slide.id, layer.id)}
                   >
-                    {'⧉'}
+                    <Lucide name="copy" size={14} />
                   </button>
                   <button
                     className="btn btn-ghost btn-icon btn-danger"
                     title="Delete layer"
+                    aria-label="Delete layer"
                     onClick={() => deleteLayer(slide.id, layer.id)}
                   >
-                    x
+                    <Lucide name="trash-2" size={14} />
                   </button>
                 </div>
               )}

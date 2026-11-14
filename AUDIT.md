@@ -14,7 +14,7 @@ Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so
 
 ## Fix in code (ordered by how much it hurts)
 
-### 1. Scoring and pass/fail is the biggest gap (both personas)
+### 1. Scoring and pass/fail is the biggest gap (both personas) (DONE: v6.12 pass mark, completion rules, auto score; v6.15 max attempts; v6.16 Results block. Not built: question banks / randomized pools)
 - SCORM 2004 hardcodes pass at 80 (`src/tracking/scorm2004.ts:78`). SCORM 1.2 never writes passed/failed at all. There's no passing-score setting anywhere.
 - Completion is "all slides viewed" or an explicit trigger. There's no "completed AND passed" rule, which is what most LMS compliance courses require.
 - `setScore` takes a hand-typed number. There's no quiz model: no question bank, no results slide, no attempts limit, no "score = % correct across these questions." Authors have to wire variables by hand.
@@ -26,16 +26,16 @@ Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so
 - Matching never calls `reportInteraction`, so those answers don't reach the LMS. MC, fill-blank, drag-drop, sequence and scenario do.
 - Fix: carry an interaction type on the event (choice, matching, fill-in, performance), reuse the index per block id, add `latency`, `timestamp`, `correct_responses`.
 
-### 3. Resume loses state
+### 3. Resume loses state (DONE v6.16: positions stored instead of ids; a 250-slide course went from 11,227 to 2,269 characters. Old saved states still load.)
 - If suspend_data goes over 4000 characters, variables are dropped first (`adapter.ts:35`). A course with a score variable and a few flags can silently lose the score on resume.
 - Fix: compress the state (short keys, only non-default values; the README says that's done, but verify against a big course) and warn at publish time when a course is likely to overflow.
 
-### 4. Storyline-engineer trigger gaps (mostly DONE, v6.14: Execute JavaScript, Exit course, resets, next/prev/restart slide, key press. Still missing: lightbox, set-to-text actions, "when timeline starts")
+### 4. Storyline-engineer trigger gaps (DONE v6.14 and v6.16: Execute JavaScript, Exit course, resets, next/prev/restart slide, key press, "when timeline starts". Lightbox is covered by modal layers, a layer option that dims and blocks the slide behind it, rather than a separate lightbox slide. Set-to-text already existed as Set variable with a string value.)
 Missing against Storyline: keyboard-key events, "when timeline starts", "when variable = X" on a layer, Execute JavaScript as a trigger action (there is a Code block, but not a trigger action), Exit course, Reset-to-initial-state, jump to previous/next/restart slide as actions, lightbox slide, and text-variable input via actions (set to "text").
 - Biggest ones to add first: Execute JavaScript, Exit course, Reset to initial state, Previous/Next slide actions, key-press event.
 - Triggers panel is too cramped to author in (see design section), which makes everything above feel worse.
 
-### 5. Accessibility in the player
+### 5. Accessibility in the player (DONE v6.16: question blocks have groups, radio/checkbox roles and spoken feedback; drag-and-drop has a keyboard path; dialogs trap and return focus; slide changes move focus to a heading naming the slide; Publish checks flag missing alt text and uncaptioned video. Not tested with a real screen reader.)
 - No `aria-label`, role or live-region on the Multiple choice, Matching or Drag-and-drop runtimes. Feedback ("Correct!") isn't announced to screen readers.
 - Modal has Escape-to-close but no focus trap or focus return.
 - Drag-and-drop and Matching need a keyboard path (select item, then select target).
@@ -46,28 +46,29 @@ Missing against Storyline: keyboard-key events, "when timeline starts", "when va
 ### 6. Authoring hygiene a designer expects (publish checks and size meter DONE in v6.15)
 - No review/QA pass. Add a "Publish checks" step: orphan variables, triggers pointing at deleted blocks, slides with no way forward, missing alt text, media over a size threshold.
 - Embedded media is stored as data URLs. There's no size warning, so a few narration clips and a video can push the project and the SCORM zip past what an LMS will accept or IndexedDB will hold. Show a size meter and warn at publish.
-- Auto-generated variable names like `mc_blk_nhuf5di8xm_correct` are unreadable in the Variables panel. Derive them from the block's Name field.
-- Welcome modal reappears on every load; remember dismissal.
-- Tests: the repo has no test directory and no `test` script, though the project notes mention Playwright suites. Either those live elsewhere and should be committed, or they're gone. CI only builds and deploys.
+- Auto-generated variable names like `mc_blk_nhuf5di8xm_correct` are unreadable in the Variables panel. DONE v6.16: the name has to stay (the player looks it up by name), so pickers and the Variables panel now show "Knowledge check: correct" and say which block owns it.
+- ~~Welcome modal reappears on every load; remember dismissal.~~ False alarm: it already remembers dismissal (`elearnforge.welcomed` in localStorage); it only looked repeated in a fresh test browser. It now also closes on Escape and traps focus.
+- Tests: DONE v6.16. `tests/` holds 7 unit-test files run by `npm test`, and CI runs them before building. The Playwright suites mentioned in the project notes are still not in the repo; the browser checks from this review were one-off scripts.
 
-### 7. Cleanup in the repo root
-- `new_stitch.html`, `stitch_screen.html`, `fetch.cjs`, `extract_icons.cjs`, `icons.json` look like leftover design/scratch files. Both PPTX files are test fixtures and could move to a `fixtures/` folder.
-- `dist/` is committed. Fine if Pages needs it, otherwise it's 1.9 MB of churn per commit.
-- `README.md` is 1,200 lines of release notes. Split into a short README plus `CHANGELOG.md`.
+### 7. Cleanup in the repo root (DONE v6.16)
+- Removed `new_stitch.html`, `stitch_screen.html`, `fetch.cjs`, `extract_icons.cjs`, `icons.json` (one-off Stitch download scripts; one held a signed URL and a local Windows path; nothing referenced them). PPTX files moved to `fixtures/`.
+- `dist/` stays committed on purpose: the editor is distributed as one file people open from disk. Pages rebuilds it anyway. README now says so.
+- README is 89 lines; release notes moved to `CHANGELOG.md`.
+- Left alone: `src/assets/icons/*.svg`, which no code imports. Delete them if you don't plan to use them.
 
-## Send to Claude Design
+## Send to Claude Design (status: items 1, 3 to 6 and 9 done; 2 and 7 partly; 8 not)
 
 These are visual and layout problems, with no logic change needed. Screenshots are in the scratchpad shots folder.
 
-1. **Right-hand panel is too narrow for triggers.** The event, source and action dropdowns truncate to "When blo", "Go to slid", "Pulse". A trigger should read as a sentence ("When Start button is clicked, go to slide 2"), not three clipped selects. Ask for a sentence-style row, or a wider resizable panel with a stacked layout.
-2. **Ribbon has dead space and unclear grouping.** Triggers and Variables tabs show a one-line message in a 130px tall bar. Home tab mixes theme colors, grid settings and course settings. Ask for a tighter ribbon with clear group labels, and cut the tall empty tabs.
-3. **Dark-on-dark contrast.** Section labels (COURSE THEME, SLIDES, LAYERS), the grey helper text, and the disabled undo/redo sit near unreadable. Ask for a contrast pass to WCAG AA on the editor chrome.
-4. **Layers panel.** The base layer name is truncated to "Bas...", the icons (o, lock, pencil) have no labels, and rows are crowded. Ask for a clearer layer row.
-5. **Timeline header.** Length, Zoom, snap, lock-all and a long hint sentence collide and wrap ("Length (s)" splits across two lines). Ask for a cleaner toolbar and move the hint to a tooltip.
-6. **Publish dialog is sparse.** Just a target dropdown and a completion dropdown. If we add pass mark, attempts and publish checks it needs a real layout: tabs or steps, a checks list, a size summary.
-7. **Player chrome.** Not reviewed in this pass; worth a look at the bottom bar, the menu drawer, and the Resources and Glossary panels at phone width, since learners use phones even if authors don't.
-8. **Welcome modal.** Works, but the four cards are text heavy. Lower priority.
-9. **Icon set.** Mix of emoji (eye, lock) and SVG across the layers and timeline. Ask for one consistent icon family.
+1. (DONE v6.15) **Right-hand panel is too narrow for triggers.** The event, source and action dropdowns truncate to "When blo", "Go to slid", "Pulse". A trigger should read as a sentence ("When Start button is clicked, go to slide 2"), not three clipped selects. Ask for a sentence-style row, or a wider resizable panel with a stacked layout.
+2. (PARTLY DONE v6.16: the Triggers and Variables tabs now use a one-line shelf. The Home tab grouping is unchanged.) **Ribbon has dead space and unclear grouping.** Triggers and Variables tabs show a one-line message in a 130px tall bar. Home tab mixes theme colors, grid settings and course settings. Ask for a tighter ribbon with clear group labels, and cut the tall empty tabs.
+3. (DONE v6.16: the faint text color went from about 3.4:1 to 5.2:1, the locked-row label from 4.2:1 to 7:1, disabled controls keep 4.5:1 through color instead of opacity. Checked by calculation, not with an automated audit tool.) **Dark-on-dark contrast.** Section labels (COURSE THEME, SLIDES, LAYERS), the grey helper text, and the disabled undo/redo sit near unreadable. Ask for a contrast pass to WCAG AA on the editor chrome.
+4. (DONE v6.16) **Layers panel.** The base layer name is truncated to "Bas...", the icons (o, lock, pencil) have no labels, and rows are crowded. Ask for a clearer layer row.
+5. (DONE v6.16) **Timeline header.** Length, Zoom, snap, lock-all and a long hint sentence collide and wrap ("Length (s)" splits across two lines). Ask for a cleaner toolbar and move the hint to a tooltip.
+6. (DONE v6.15) **Publish dialog is sparse.** Just a target dropdown and a completion dropdown. If we add pass mark, attempts and publish checks it needs a real layout: tabs or steps, a checks list, a size summary.
+7. (PARTLY DONE v6.16: reviewed at 390px wide. The bottom bar was cutting off the seek bar and now wraps into two rows. The menu drawer and the Resources and Glossary panels were not reviewed at phone width.) **Player chrome.** Not reviewed in this pass; worth a look at the bottom bar, the menu drawer, and the Resources and Glossary panels at phone width, since learners use phones even if authors don't.
+8. (NOT DONE) **Welcome modal.** Works, but the four cards are text heavy. Lower priority.
+9. (DONE for Layers, Timeline, undo/redo, lock buttons and the Triggers and Publish screens v6.15/v6.16. The Insert ribbon's own line icons were left as they were.) **Icon set.** Mix of emoji (eye, lock) and SVG across the layers and timeline. Ask for one consistent icon family.
 
 Suggested Claude Design prompt: *"Redesign the right-hand Triggers panel and the Publish dialog of a dark-theme eLearning authoring tool. Keep the mint accent (#3dd97a). Triggers should read as sentences with chips, not truncated dropdowns. Publish should have target, completion rule, pass mark, attempts, and a pre-publish checks list with pass/warn states. Meet WCAG AA contrast."* Attach `11-Triggers.png` and `12-publish.png`.
 

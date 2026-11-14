@@ -10,6 +10,7 @@ import { uid } from '../schema/factory';
 import { SELF_TARGET } from '../schema/types';
 import { slideTriggerIssues } from '../engine/validate';
 import { SelectInput } from './fields';
+import { variableLabel } from '../shared/variableLabel';
 import { Lucide } from './lucide';
 
 // Triggers panel. Each trigger reads as a sentence: WHEN <source> <event>,
@@ -146,7 +147,8 @@ const EVENTS: Record<TriggerEvent, EventDef> = {
   onDoubleClick: { label: 'is double-clicked', short: 'double-clicked', icon: 'mouse-pointer-2', scope: 'block' },
   onBlockEnters: { label: 'enters the frame', short: 'enters the frame', icon: 'play', scope: 'block' },
   onAnimationComplete: { label: 'finishes animating in', short: 'finishes animating', icon: 'activity', scope: 'block' },
-  onSlideLoad: { label: 'loads', short: 'loads', icon: 'play', scope: 'slide' },
+  onSlideLoad: { label: 'loads', short: 'loads', icon: 'presentation', scope: 'slide' },
+  onTimelineStart: { label: 'timeline starts', short: 'timeline starts', icon: 'play', scope: 'slide' },
   onTimelineEnd: { label: 'timeline ends', short: 'timeline ends', icon: 'timer', scope: 'slide' },
   onSubmit: { label: 'Submit is pressed', short: 'Submit pressed', icon: 'check', scope: 'slide' },
   onKeyPress: { label: 'a key is pressed', short: 'key pressed', icon: 'keyboard', scope: 'slide' },
@@ -399,7 +401,7 @@ export function TriggersPanel() {
         const id = anyA.variableId as string;
         if (!id) return { text: 'choose…', empty: true };
         const v = variables.find((x) => x.id === id);
-        return v ? { text: v.name } : { text: 'deleted variable', deleted: true };
+        return v ? { text: variableLabel(project, v) } : { text: 'deleted variable', deleted: true };
       }
       case 'value': {
         const v = anyA.value as VariableValue;
@@ -435,13 +437,14 @@ export function TriggersPanel() {
     }
     const v = variables.find((x) => x.id === c.variableId);
     if (!v) return { text: c.variableId ? 'deleted variable' : 'choose variable…', bad: true };
+    const vname = variableLabel(project, v);
     const op = c.operator ?? 'eq';
     const opLabel = OPERATORS.find((o) => o.value === op)?.label ?? op;
     const val = (x: VariableValue | undefined) => (typeof x === 'string' ? `"${x}"` : String(x ?? ''));
     const value = c.value !== undefined ? c.value : c.equals;
-    if (op === 'isEmpty' || op === 'notEmpty') return { text: `${v.name} ${opLabel}`, bad: false };
-    if (op === 'between') return { text: `${v.name} between ${val(c.value)} and ${val(c.value2)}`, bad: false };
-    return { text: `${v.name} ${opLabel} ${val(value)}`, bad: false };
+    if (op === 'isEmpty' || op === 'notEmpty') return { text: `${vname} ${opLabel}`, bad: false };
+    if (op === 'between') return { text: `${vname} between ${val(c.value)} and ${val(c.value2)}`, bad: false };
+    return { text: `${vname} ${opLabel} ${val(value)}`, bad: false };
   };
 
   // ---- trays --------------------------------------------------------------------
@@ -522,7 +525,7 @@ export function TriggersPanel() {
         return list('Watch variable', [
           { label: 'Any variable', icon: 'variable', selected: !t.watchVariableId, pick: () => edit(t.id, (x) => { x.watchVariableId = undefined; }) },
           ...variables.map((v) => ({
-            label: v.name, icon: 'variable', selected: t.watchVariableId === v.id,
+            label: variableLabel(project, v), icon: 'variable', selected: t.watchVariableId === v.id,
             pick: () => edit(t.id, (x) => { x.watchVariableId = v.id; })
           }))
         ]);
@@ -553,7 +556,7 @@ export function TriggersPanel() {
                 value={subject}
                 options={[
                   ...(c.variableId || c.blockId ? [] : [{ value: 'var:', label: 'Choose…' }]),
-                  ...variables.map((v) => ({ value: `var:${v.id}`, label: v.name })),
+                  ...variables.map((v) => ({ value: `var:${v.id}`, label: variableLabel(project, v) })),
                   ...blocks.map(({ block, layerName }) => ({ value: `blk:${block.id}`, label: `state of ${blockLabel(block)} (${layerName})` }))
                 ]}
                 onChange={(raw) => edit(t.id, (x) => {
@@ -656,7 +659,7 @@ export function TriggersPanel() {
           })));
         case 'variable':
           return list('Choose variable', variables.map((v) => ({
-            label: v.name, icon: 'variable', selected: anyA.variableId === v.id,
+            label: variableLabel(project, v), icon: 'variable', selected: anyA.variableId === v.id,
             pick: () => edit(t.id, (x) => {
               const act = x.actions[ai] as unknown as Record<string, unknown>;
               act.variableId = v.id;
@@ -827,7 +830,7 @@ export function TriggersPanel() {
                       })()}
                       {t.event === 'onVariableChange' && (
                         <Chip icon="variable" chevron active={isOpen(t.id, 'watchVar')} onClick={() => toggleOpen(t.id, 'watchVar')}>
-                          {variables.find((v) => v.id === t.watchVariableId)?.name ?? 'any variable'}
+                          {(() => { const wv = variables.find((v) => v.id === t.watchVariableId); return wv ? variableLabel(project, wv) : 'any variable'; })()}
                         </Chip>
                       )}
                       {t.event === 'onStateAll' && (

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { DragDropProps } from '../../schema/types';
 import { dragDropVariableName } from '../../schema/factory';
@@ -18,6 +18,11 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   const [result, setResult] = useState<null | boolean>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const locked = runtime.attemptsExhausted(block.id);
+  const qid = useId();
+  // Keyboard path: Enter or Space picks an item up, then a Place button on the
+  // zone you want drops it. Dragging with a pointer works as before.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [note, setNote] = useState('');
 
   const move = (itemId: string, zone: string) => {
     if (result === true || locked) return;
@@ -97,27 +102,54 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
     window.addEventListener('pointerup', onUp);
   };
 
+  const zoneLabel = (zone: string) => (zone === 'bank' ? 'the item bank' : props.targets.find((t) => t.id === zone)?.label ?? zone);
+  const place = (zone: string) => {
+    if (!picked) return;
+    const item = props.items.find((i) => i.id === picked);
+    move(picked, zone);
+    setNote(`${item?.text ?? 'Item'} placed in ${zoneLabel(zone)}`);
+    setPicked(null);
+  };
+  const pickable = result !== true && !locked;
   const renderItem = (i: { id: string; text: string }) => (
     <div
       key={i.id}
-      className="dd-item"
+      className={`dd-item${picked === i.id ? ' picked' : ''}`}
       style={{ touchAction: 'none' }}
+      role="button"
+      tabIndex={pickable ? 0 : -1}
+      aria-pressed={picked === i.id}
+      aria-label={`${i.text}, in ${zoneLabel(placement[i.id] ?? 'bank')}`}
       onPointerDown={(e) => startDrag(e, i.id)}
+      onKeyDown={(e) => {
+        if (!pickable || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        const next = picked === i.id ? null : i.id;
+        setPicked(next);
+        setNote(next ? `${i.text} picked up. Choose a place for it.` : `${i.text} put down.`);
+      }}
     >
       {i.text}
     </div>
   );
+  const placeButton = (zone: string) =>
+    picked && placement[picked] !== zone ? (
+      <button type="button" className="dd-place" onClick={() => place(zone)}>Place in {zoneLabel(zone)}</button>
+    ) : null;
 
   return (
-    <div className="dd-block live" ref={rootRef} onClick={(e) => e.stopPropagation()}>
-      <p className="dd-question">{props.question}</p>
+    <div className="dd-block live" ref={rootRef} role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
+      <p className="dd-question" id={qid}>{props.question}</p>
+      <div className="sr-only" role="status" aria-live="polite">{note || (result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect)}</div>
       <div className="dd-bank" data-zone="bank">
         {bank.length === 0 ? <span className="dd-bank-empty">All placed</span> : bank.map(renderItem)}
+        {placeButton('bank')}
       </div>
       <div className="dd-targets">
         {props.targets.map((t) => (
           <div key={t.id} className="dd-target" data-zone={t.id}>
             <div className="dd-target-label">{t.label}</div>
+            {placeButton(t.id)}
             <div className="dd-target-items">
               {inTarget(t.id).map((i) => (
                 <div key={i.id} className={result !== null ? (placement[i.id] === i.targetId ? 'dd-graded ok' : 'dd-graded no') : ''}>

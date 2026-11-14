@@ -11,6 +11,7 @@ import { createDemoProject, createProject } from '../schema/factory';
 import { PublishDialog } from './PublishDialog';
 import { importPptx } from '../publish/pptxImport';
 
+import { Lucide } from './lucide';
 // Toolbar layout principle: the bar itself holds only the always-on editing
 // actions (Insert, Undo/Redo); everything project-level lives in two menus -
 // File (open/save/import) and Run (preview/publish/export) - so new targets
@@ -117,8 +118,8 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       </div>
 
       <div className="toolbar-group">
-        <button className="iconbtn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)"><Icon.undo /></button>
-        <button className="iconbtn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)"><Icon.redo /></button>
+        <button className="iconbtn" disabled={!canUndo} onClick={undo} title={canUndo ? 'Undo (Ctrl+Z)' : 'Nothing to undo'} aria-label="Undo"><Lucide name="undo-2" size={18} /></button>
+        <button className="iconbtn" disabled={!canRedo} onClick={redo} title={canRedo ? 'Redo (Ctrl+Shift+Z)' : 'Nothing to redo'} aria-label="Redo"><Lucide name="redo-2" size={18} /></button>
         <div className="toolbar-divider" />
         {/* Fast inserts for the three most-reached-for blocks; the full
             catalog lives on the Insert tab. */}
