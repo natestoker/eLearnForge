@@ -1355,7 +1355,8 @@ select.input { appearance: auto; }
   padding: 5px 12px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  /* Opaque: these buttons float over the slide, which can be any color. */
+  background: #141814;
   color: var(--text);
   font-size: 12px;
   cursor: pointer;
@@ -3726,3 +3727,6 @@ select.input { appearance: auto; }
 .player-lightbox-close:hover { background: rgba(0, 0, 0, 0.85); }
 
 .rbn-course-btn { min-width: 58px; padding: 6px; }
+
+.pd-squeeze { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; font: 500 12px var(--mono); color: var(--pd-text2); }
+.pd-fix:disabled { color: var(--pd-text3); cursor: default; }

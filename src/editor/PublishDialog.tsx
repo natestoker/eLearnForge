@@ -7,6 +7,7 @@ import { buildPackage, downloadBlob, packageFilename, playerRuntimeBytes, publis
 import { formatBytes, runChecks, sizeEstimate, SIZE_LIMIT_BYTES } from '../publish/checks';
 import type { Check } from '../publish/checks';
 import { storylineSnippet } from '../publish/storylineSnippet';
+import { compressMedia, getAtPath, setAtPath } from '../publish/compress';
 import { gradedBlockIds, passingScoreOf } from '../engine/scoring';
 import type { CompletionMode } from '../schema/types';
 import { Lucide } from './lucide';
@@ -51,6 +52,11 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState('');
   const ready = publishAvailable();
   const rootRef = useRef<HTMLDivElement>(null);
+  // Media compression: which file is being shrunk, how far along, and what the
+  // last one saved. Video can take as long as it plays, so it can be cancelled.
+  const [squeeze, setSqueeze] = useState<{ key: string; pct: number } | null>(null);
+  const [squeezed, setSqueezed] = useState<string[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
   useFocusTrap(rootRef);
 
   useEffect(() => {
@@ -90,6 +96,32 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
       setMessage(err instanceof Error ? err.message : 'Publish failed.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const compress = async (c: Check) => {
+    if (!c.compress || squeeze) return;
+    const key = c.compress.path.join('.');
+    const original = getAtPath(project, c.compress.path);
+    if (typeof original !== 'string') return;
+    const abort = new AbortController();
+    abortRef.current = abort;
+    setSqueeze({ key, pct: 0 });
+    setMessage('');
+    try {
+      const res = await compressMedia(original, (f) => setSqueeze({ key, pct: Math.round(f * 100) }), abort.signal);
+      if (res.after < res.before) {
+        // One undo step: replace just that file inside the project.
+        mutate((p) => { setAtPath(p, c.compress!.path, res.dataUrl); });
+        setSqueezed((s) => [`${c.compress!.mime}: ${formatBytes(res.before)} to ${formatBytes(res.after)}`, ...s]);
+      } else {
+        setMessage(res.note ?? 'Nothing to save: it is already compact.');
+      }
+    } catch (err) {
+      setMessage(err instanceof DOMException && err.name === 'AbortError' ? 'Compression cancelled.' : (err instanceof Error ? err.message : 'Compression failed.'));
+    } finally {
+      abortRef.current = null;
+      setSqueeze(null);
     }
   };
 
@@ -252,6 +284,12 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
                 <span className="pd-count pass"><Lucide name="circle-check" size={13} />{nPass}</span>
               </div>
               <div className="pd-checks">
+                {squeezed.map((s, i) => (
+                  <div key={'sq' + i} className="pd-check-row pass">
+                    <Lucide name="circle-check" size={16} className="pd-check-icon" />
+                    <div className="pd-check-main"><span className="pd-check-title">Compressed {s}</span></div>
+                  </div>
+                ))}
                 {checks.map((c, i) => (
                   <div key={i} className={`pd-check-row ${SEV[c.sev].cls}`}>
                     <Lucide name={SEV[c.sev].icon} size={16} className="pd-check-icon" />
@@ -260,6 +298,14 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
                       {c.detail && <span className="pd-check-detail">{c.detail}</span>}
                     </div>
                     {c.fix && <button type="button" className="pd-fix" onClick={() => fix(c)}>{c.fix.label}</button>}
+                    {c.compress && (squeeze && squeeze.key === c.compress.path.join('.')
+                      ? (
+                        <span className="pd-squeeze">
+                          <span role="status">{squeeze.pct}%</span>
+                          <button type="button" className="pd-fix" onClick={() => abortRef.current?.abort()}>Cancel</button>
+                        </span>
+                      )
+                      : <button type="button" className="pd-fix" disabled={!!squeeze} onClick={() => compress(c)}>Compress</button>)}
                   </div>
                 ))}
               </div>

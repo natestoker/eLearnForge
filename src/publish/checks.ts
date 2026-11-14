@@ -4,6 +4,7 @@ import { projectTriggerIssues } from '../engine/validate';
 import type { TriggerIssue } from '../engine/validate';
 import { encodeResume } from '../tracking/adapter';
 import type { CompactResume } from '../tracking/adapter';
+import { isCompressible } from './compress';
 
 // Pre-publish checks and a size estimate, shown in the Publish dialog.
 // Errors block publishing (the course would be broken); warnings do not.
@@ -16,6 +17,8 @@ export interface Check {
   detail?: string;
   // Where the Fix button takes the author.
   fix?: { label: string; slideId: string; blockId?: string; triggerId?: string };
+  // A "Compress" button: the project path of the media file to shrink.
+  compress?: { path: (string | number)[]; mime: string };
 }
 
 export interface SizePart { label: string; bytes: number; color: string }
@@ -31,29 +34,28 @@ function walk(blocks: Block[]): Block[] {
 }
 const slideBlocks = (s: Slide) => s.layers.flatMap((l) => walk(l.blocks));
 
-interface Media { kind: 'media' | 'image' | 'font'; bytes: number; slideIndex: number | null; mime: string }
+export interface Media { kind: 'media' | 'image' | 'font'; bytes: number; slideIndex: number | null; mime: string; path: (string | number)[] }
 
 // Every embedded file travels as a data URL inside the project JSON, so the
 // size of the package is mostly the length of those strings.
-function collectMedia(project: Project): { media: Media[]; dataBytes: number } {
+export function collectMedia(project: Project): { media: Media[]; dataBytes: number } {
   const media: Media[] = [];
   let dataBytes = 0;
-  const visit = (v: unknown, slideIndex: number | null) => {
+  const visit = (v: unknown, slideIndex: number | null, path: (string | number)[]) => {
     if (typeof v === 'string') {
       if (v.startsWith('data:')) {
         const mime = v.slice(5, v.indexOf(';') > 0 ? v.indexOf(';') : v.indexOf(',')) || 'application/octet-stream';
         const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') || mime.startsWith('video/') ? 'media' : mime.includes('font') ? 'font' : 'media';
-        media.push({ kind, bytes: v.length, slideIndex, mime });
+        media.push({ kind, bytes: v.length, slideIndex, mime, path });
         dataBytes += v.length;
       }
       return;
     }
-    if (Array.isArray(v)) { v.forEach((x) => visit(x, slideIndex)); return; }
-    if (v && typeof v === 'object') for (const x of Object.values(v)) visit(x, slideIndex);
+    if (Array.isArray(v)) { v.forEach((x, i) => visit(x, slideIndex, [...path, i])); return; }
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) visit(x, slideIndex, [...path, k]);
   };
-  project.slides.forEach((s, i) => visit(s, i));
-  const { slides: _s, ...rest } = project;
-  visit(rest, null);
+  project.slides.forEach((s, i) => visit(s, i, ['slides', i]));
+  for (const [k, v] of Object.entries(project)) if (k !== 'slides') visit(v, null, [k]);
   return { media, dataBytes };
 }
 
@@ -189,7 +191,8 @@ export function runChecks(project: Project, target: string): Check[] {
     out.push({
       sev: 'warn',
       title: 'Large media file',
-      detail: `${m.mime} ${m.slideIndex !== null ? `on slide ${n(m.slideIndex)}` : 'in the course settings'} is ${formatBytes(m.bytes)}. Large files slow the course and can hit LMS upload limits. Consider compressing it before adding it.`
+      detail: `${m.mime} ${m.slideIndex !== null ? `on slide ${n(m.slideIndex)}` : 'in the course settings'} is ${formatBytes(m.bytes)}. Large files slow the course and can hit LMS upload limits.`,
+      compress: isCompressible(m.mime) ? { path: m.path, mime: m.mime } : undefined
     });
   }
 

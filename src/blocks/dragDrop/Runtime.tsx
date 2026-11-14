@@ -1,4 +1,5 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { DragDropProps } from '../../schema/types';
 import { dragDropVariableName } from '../../schema/factory';
@@ -23,6 +24,12 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   // zone you want drops it. Dragging with a pointer works as before.
   const [picked, setPicked] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const feedbackRef = useFocusOnResult<HTMLDivElement>(result === true);
+  // Picking an item up moves focus to the first Place button, so a keyboard or
+  // screen-reader user doesn't have to Tab past every other item to reach it.
+  useEffect(() => {
+    if (picked) rootRef.current?.querySelector<HTMLElement>('.dd-place')?.focus({ preventScroll: true });
+  }, [picked]);
 
   const move = (itemId: string, zone: string) => {
     if (result === true || locked) return;
@@ -106,14 +113,18 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   const place = (zone: string) => {
     if (!picked) return;
     const item = props.items.find((i) => i.id === picked);
+    const id = picked;
     move(picked, zone);
     setNote(`${item?.text ?? 'Item'} placed in ${zoneLabel(zone)}`);
     setPicked(null);
+    // Back to the item, now in its new place.
+    window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>(`[data-dd-item="${id}"]`)?.focus({ preventScroll: true }), 30);
   };
   const pickable = result !== true && !locked;
   const renderItem = (i: { id: string; text: string }) => (
     <div
       key={i.id}
+      data-dd-item={i.id}
       className={`dd-item${picked === i.id ? ' picked' : ''}`}
       style={{ touchAction: 'none' }}
       role="button"
@@ -140,7 +151,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   return (
     <div className="dd-block live" ref={rootRef} role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
       <p className="dd-question" id={qid}>{props.question}</p>
-      <div className="sr-only" role="status" aria-live="polite">{note || (result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect)}</div>
+      <div className="sr-only" role="status" aria-live="polite">{note || (result === false ? props.feedbackIncorrect : '')}</div>
       <div className="dd-bank" data-zone="bank">
         {bank.length === 0 ? <span className="dd-bank-empty">All placed</span> : bank.map(renderItem)}
         {placeButton('bank')}
@@ -164,7 +175,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
         <button className="dd-check" onClick={check} disabled={!allPlaced}>Check</button>
       ) : null}
       {result !== null && (
-        <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`}>
+        <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
           {!result && !locked && <button className="dd-retry" onClick={reset}>Reset</button>}
           {locked && !result && <p className="attempts-note">No attempts left.</p>}

@@ -2,12 +2,14 @@ import { useId, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { MultipleChoiceProps } from '../../schema/types';
 import { mcVariableName } from '../../schema/factory';
+import { useFocusOnResult } from '../../shared/useFocusOnResult';
 
 export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) {
   const props = block.props as MultipleChoiceProps;
   const [selected, setSelected] = useState<string[]>([]);
   const [result, setResult] = useState<null | boolean>(null);
   const locked = runtime.attemptsExhausted(block.id);
+  const feedbackRef = useFocusOnResult<HTMLDivElement>(result !== null);
   const qid = useId();
 
   const toggle = (id: string) => {
@@ -73,13 +75,12 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
           );
         })}
       </div>
-      <div className="sr-only" role="status" aria-live="polite">{result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect}</div>
       {result === null ? (
         <button className="mc-submit live" onClick={submit} disabled={selected.length === 0}>
           Submit
         </button>
       ) : (
-        <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`}>
+        <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
           <p>{result ? props.feedbackCorrect : props.feedbackIncorrect}</p>
           {!result && !locked && (
             <button className="mc-submit live" onClick={retry}>Try again</button>

@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react';
+import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { MatchingProps } from '../../schema/types';
 
@@ -12,6 +13,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
   const [checked, setChecked] = useState(false);
   const locked = runtime.attemptsExhausted(block.id);
   const qid = useId();
+  const feedbackRef = useFocusOnResult<HTMLDivElement>(checked);
 
   const rights = useMemo(() => {
     const arr = props.pairs.map((p) => ({ id: p.id, text: p.right }));
@@ -68,7 +70,6 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           })}
         </div>
       </div>
-      <div className="sr-only" role="status" aria-live="polite">{checked ? (correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')) : ''}</div>
       {!checked ? (
         <button className="btn btn-accent match-submit" disabled={!allLinked} onClick={() => {
           setChecked(true);
@@ -86,7 +87,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           });
         }}>Check</button>
       ) : (
-        <div className={`match-feedback ${correct ? 'ok' : 'no'}`}>
+        <div className={`match-feedback ${correct ? 'ok' : 'no'}`} ref={feedbackRef} tabIndex={-1}>
           {correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}
           {!correct && !locked && <button className="btn match-retry" onClick={() => { setChecked(false); setLinks({}); }}>Try again</button>}
           {locked && !correct && <p className="attempts-note">No attempts left.</p>}

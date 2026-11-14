@@ -51,11 +51,9 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 - Phase 2: a title, notes or text edit made here appears in Storyline after reopening the saved file, and nothing else in the course changed.
 
 ## Also queued
-See `AUDIT.md` for what the November 2026 review found and what has been done. The review is complete except for two checks that need things this environment doesn't have:
-- Test the player with a real screen reader (NVDA or VoiceOver). axe-core and the accessibility tree look clean, but that is not the same as listening to it.
+See `AUDIT.md` for what the November 2026 review found and what has been done. Every item in it is done, with two checks that need things this environment doesn't have:
+- Test the player with NVDA, JAWS or VoiceOver on a real machine. Orca and Chrome's accessibility events were checked (see AUDIT.md), which found and fixed real problems, but that is not the same as a person using a commercial screen reader.
 - Run a published package through SCORM Cloud and an LRS. None of the reporting has been checked against a real LMS.
 
 Smaller follow-ups:
-- Animations inside lightbox slides (they open as a still view today).
-- Media compression from the Publish checks (the design's Compress button).
-- Playwright browser suites in the repo, including the axe-core run (the unit tests are in `tests/`).
+- Video compression runs in real time (a 3-minute video takes about 3 minutes). A faster encoder would need a WebAssembly build of ffmpeg, which is large.

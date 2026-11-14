@@ -36,6 +36,11 @@ jobs:
       # the deploy: a failing test stops a broken build reaching Pages.
       - run: npm test
       - run: npm run build
+      # Browser suites: real Chromium against the built app (quiz tracking,
+      # triggers, publish checks, accessibility with axe-core, banks and
+      # lightbox, phone layout, media compression). They gate the deploy.
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/run-e2e.mjs
       - uses: actions/configure-pages@v5
         with:
           enablement: true

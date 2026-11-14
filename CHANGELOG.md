@@ -1414,3 +1414,25 @@ Large-media "Compress" is not built; the check only warns.
 - **Home and Insert ribbons.** Home is regrouped (Course theme, Transition,
   Canvas, Course); Insert uses Lucide icons; the welcome copy is shorter.
 
+
+# v6.18
+
+## Compress, lightbox animation, screen-reader findings, browser suites
+- **Compress** in the Publish checks. A "Large media file" warning now has a
+  Compress button. Images are scaled to at most 1920px and saved as WebP;
+  audio is decoded, mixed to mono and saved as 96 kbps MP3; video is
+  re-encoded at about 1.5 Mbps with a progress readout and a Cancel button
+  (it runs in real time). A result is only used if it is smaller. It is one
+  undo step, and the dialog lists what was saved.
+- **Lightbox slides run their timeline.** Entrances, exits, motion paths and
+  looping emphasis play inside a lightbox as they do on a normal slide.
+- **Screen-reader findings, fixed.** Recording Chrome's accessibility events
+  while stepping through a course showed that after Submit, keyboard focus fell
+  back to the page; it now moves to the feedback. In drag and drop, picking up
+  an item now moves focus straight to the Place buttons and returns it to the
+  item afterwards. Live announcements are kept only where focus does not move,
+  so feedback isn't read twice. The Resources and Glossary buttons failed
+  colour contrast over light slides and are now opaque.
+- **Browser suites in the repo** (`tests/e2e`, `npm run test:e2e`, also in CI):
+  8 Playwright suites in real Chromium.
+

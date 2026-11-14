@@ -4,6 +4,7 @@ import { Runtime } from '../engine/runtime';
 import { createForge, runAuthorJs } from '../engine/forge';
 import { useFocusTrap } from '../shared/useFocusTrap';
 import { Lightbox } from './Lightbox';
+import { BlockFx } from './BlockFx';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionOffsetAt } from '../engine/motionPath';
@@ -713,23 +714,6 @@ export function Player({ project, adapter, startSlideId }: {
   );
 }
 
-
-// A stable inner layer for looping GSAP emphasis. Because React never sets a
-// transform on this element, GSAP owns it outright - the timeline transform
-// lives on the parent .player-block, so the two never overwrite each other.
-function BlockFx({ emphasis, children }: { emphasis?: Emphasis; children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current && emphasis && emphasis !== 'none') {
-      return runEmphasis(ref.current, emphasis);
-    }
-  }, [emphasis]);
-  return (
-    <div ref={ref} className="block-fx" style={{ width: '100%', height: '100%' }}>
-      {children}
-    </div>
-  );
-}
 
 // The Resources / Glossary side panel: closes on Escape, keeps keyboard focus
 // inside while open and returns it to the button that opened it.

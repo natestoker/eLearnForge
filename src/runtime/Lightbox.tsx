@@ -1,18 +1,27 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Runtime } from '../engine/runtime';
-import type { Slide } from '../schema/types';
+import type { Block, Slide } from '../schema/types';
 import { BLOCKS } from '../blocks/registry';
+import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { accessibilityFor } from './accessibility';
 import { slideBackgroundStyle } from '../shared/background';
 import { shadowStyle } from '../shared/shadow';
 import { useFocusTrap } from '../shared/useFocusTrap';
 import { Lucide } from '../editor/lucide';
+import { TimelineClock } from './TimelineClock';
+import { BlockFx } from './BlockFx';
+
+function allBlocks(slide: Slide): Block[] {
+  const walk = (blocks: Block[]): Block[] =>
+    blocks.flatMap((b) => (b.type === 'group' ? [b, ...walk((b.props as { blocks: Block[] }).blocks)] : [b]));
+  return slide.layers.flatMap((l) => walk(l.blocks));
+}
 
 // A lightbox slide shown as a popup over the current slide. It draws the
-// slide's visible layers and blocks and routes clicks to its own triggers.
-// It is a still view: timeline entrances and animations are not played, so
-// everything is simply there when it opens. Escape or the close button closes
-// it; keyboard focus stays inside while it is open.
+// slide's visible layers and blocks, runs its own timeline (entrances, exits,
+// motion paths and looping emphasis play as they do on a normal slide), and
+// routes clicks to its own triggers. Escape or the close button closes it;
+// keyboard focus stays inside while it is open.
 export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime; slide: Slide; stageW: number; stageH: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useFocusTrap(ref);
@@ -21,6 +30,25 @@ export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime;
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [runtime]);
+
+  // Its own clock: starts at 0 each time the lightbox opens.
+  const duration = timelineDuration(slide.timeline, allBlocks(slide));
+  const hasTimeline = duration > 0;
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    setT(0);
+    if (!hasTimeline) return;
+    const clock = new TimelineClock({
+      duration,
+      narrationSrc: slide.timeline?.narrationSrc,
+      onTick: setT,
+      onPlayState: () => { /* no transport in a lightbox */ },
+      onEnd: () => { /* stays open at its end state */ }
+    });
+    clock.play();
+    return () => clock.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide.id, hasTimeline]);
 
   const fit = Math.min(1, (stageW * 0.92) / slide.width, (stageH * 0.92) / slide.height);
   return (
@@ -52,6 +80,8 @@ export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime;
                 const acc = accessibilityFor(block);
                 const clickable = state !== 'disabled' && runtime.blockHasInteractionTrigger(block.id);
                 const stateStyle = state !== 'normal' ? block.stateStyles?.[state as 'selected' | 'visited' | 'disabled'] : undefined;
+                const tState = hasTimeline ? blockStateAt(t, block.timing, duration, block.motion) : null;
+                const timed = tState ? styleFor(tState) : {};
                 return (
                   <div
                     key={block.id}
@@ -59,7 +89,8 @@ export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime;
                     className={`player-block ${clickable ? 'clickable' : ''}`}
                     style={{
                       left: block.x, top: block.y, width: block.w, height: block.h,
-                      ...(block.rotation ? { transform: `rotate(${block.rotation}deg)` } : {}),
+                      ...timed,
+                      ...(block.rotation ? { transform: `${timed.transform ?? ''} rotate(${block.rotation}deg)`.trim() } : {}),
                       ...(stateStyle?.opacity !== undefined ? { opacity: stateStyle.opacity } : {})
                     }}
                     tabIndex={clickable ? 0 : undefined}
@@ -72,9 +103,11 @@ export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime;
                     onClick={clickable ? () => runtime.clickBlock(block.id) : undefined}
                     onDoubleClick={() => runtime.doubleClickBlock(block.id)}
                   >
-                    <div style={{ width: '100%', height: '100%', ...shadowStyle(block) }}>
-                      <def.Runtime block={block} runtime={runtime} stateStyle={stateStyle} />
-                    </div>
+                    <BlockFx emphasis={stateStyle?.emphasis ?? block.emphasis}>
+                      <div style={{ width: '100%', height: '100%', ...shadowStyle(block) }}>
+                        <def.Runtime block={block} runtime={runtime} stateStyle={stateStyle} t={hasTimeline ? t : undefined} tState={tState} />
+                      </div>
+                    </BlockFx>
                   </div>
                 );
               })}

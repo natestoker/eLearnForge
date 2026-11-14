@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { FillBlankProps } from '../../schema/types';
 import { fillBlankVariableName } from '../../schema/factory';
@@ -8,6 +9,7 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
   const [value, setValue] = useState('');
   const [result, setResult] = useState<null | boolean>(null);
   const locked = runtime.attemptsExhausted(block.id);
+  const feedbackRef = useFocusOnResult<HTMLParagraphElement>(result === true);
   const parts = props.question.split('___');
 
   const check = () => {
@@ -48,11 +50,11 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
         {result !== true && !locked && <button className="fb-check" onClick={check} disabled={!value.trim()}>Check</button>}
       </div>
       {result !== null && (
-        <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`}>
+        <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
           {result ? props.feedbackCorrect : props.feedbackIncorrect}
         </p>
       )}
-      <div className="sr-only" role="status" aria-live="polite">{result === null ? '' : result ? props.feedbackCorrect : props.feedbackIncorrect}</div>
+      <div className="sr-only" role="status" aria-live="polite">{result === false ? props.feedbackIncorrect : ''}</div>
       {locked && !result && <p className="attempts-note">No attempts left.</p>}
     </div>
   );
