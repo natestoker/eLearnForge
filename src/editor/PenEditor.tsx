@@ -271,8 +271,8 @@ export function PenEditor() {
             <g transform={`scale(${EW / 100} ${EH / 100})`}>
               <path
                 d={d}
-                fill={nodes.length >= 3 ? 'rgba(61,220,151,0.25)' : 'none'}
-                stroke="#3ddc97"
+                fill={nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.25)' : 'none'}
+                style={{ stroke: 'var(--accent)', fill: nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.25)' : 'none' }}
                 strokeWidth={1.5}
                 vectorEffect="non-scaling-stroke"
               />

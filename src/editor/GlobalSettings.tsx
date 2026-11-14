@@ -262,10 +262,10 @@ export function PropertyPanel() {
         )}
         <div className="divider" />
         <h3 className="panel-title">Course theme</h3>
-        <Field label="Accent color (new shapes and buttons)">
+        <Field label="Accent color (course, new shapes and buttons, editor)">
           <ColorInput
             value={useProjectStore.getState().project.theme?.accent ?? '#3ddc97'}
-            onChange={(v) => mutate((p) => { p.theme = { accent: v }; })}
+            onChange={(v) => mutate((p) => { p.theme = { accent: v, palette: p.theme?.palette }; })}
           />
         </Field>
         <Field label="Slide transition (course default)">

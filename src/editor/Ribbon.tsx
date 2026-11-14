@@ -56,7 +56,7 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
 
       {/* Ribbon body content */}
       {!collapsed && (
-        <div className={`ribbon-body${activeTab === 'triggers' || activeTab === 'variables' ? ' compact' : ''}`}>
+        <div className="ribbon-body">
           {activeTab === 'home' && <RibbonHome />}
           {activeTab === 'slide' && <RibbonSlide />}
           {activeTab === 'insert' && <RibbonInsert />}

@@ -2,19 +2,13 @@ import { useState } from 'react';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import type { Slide } from '../schema/types';
+import { SlidePreview } from './SlidePreview';
 
-// Wireframe thumbnail: every base-layer block as a schematic rect, scaled
-// into a 16:9 box. Cheap, always in sync, and enough silhouette to tell
-// slides apart at rail size.
+// Thumbnail: a scaled-down render of the real slide (see SlidePreview).
 function SlideThumb({ slide, index }: { slide: Slide; index: number }) {
-  const blocks = slide.layers[0]?.blocks ?? [];
   return (
     <div className="slide-thumb">
-      <svg viewBox={`0 0 ${slide.width} ${slide.height}`} preserveAspectRatio="none" aria-hidden="true">
-        {blocks.slice(0, 24).map((b) => (
-          <rect key={b.id} className="wire" x={b.x} y={b.y} width={Math.max(b.w, 8)} height={Math.max(b.h, 8)} rx={6} />
-        ))}
-      </svg>
+      <SlidePreview slide={slide} />
       <span className="slide-num">{index + 1}</span>
     </div>
   );

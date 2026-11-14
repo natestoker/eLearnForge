@@ -1,3 +1,4 @@
+import { RibbonEmpty } from './RibbonEmpty';
 import { useState } from 'react';
 import { selectedIds, useProjectStore, useSelectedBlock, walkBlocks } from '../../state/projectStore';
 import { Field, NumberInput, Row, TextInput, SelectInput, ColorInput, RangeInput } from '../fields';
@@ -21,7 +22,7 @@ export function RibbonFormat() {
   }
 
   if (!block) {
-    return <div style={{ padding: 16, color: 'var(--muted)' }}>Select a block to format.</div>;
+    return <RibbonEmpty title="Select a block to format">Fonts, colors and borders show up here once a block is selected.</RibbonEmpty>;
   }
 
   const def = BLOCKS[block.type];

@@ -85,7 +85,7 @@ export function AnimatePanel() {
       }, i === 0));
     };
     return (
-      <div className="panel-body">
+      <div className="panel-scroll">
         <h3 className="panel-title">Animate — {ids.length} blocks</h3>
         <p className="hint">Applies to every selected block.</p>
         <Field label="Entrance (all)">
@@ -104,7 +104,7 @@ export function AnimatePanel() {
 
   if (!block) {
     return (
-      <div className="panel-body">
+      <div className="panel-scroll">
         <p className="hint">
           Select a block on the canvas (or its bar in the timeline strip) to
           set its entrance/exit animation and emphasis.
@@ -114,7 +114,7 @@ export function AnimatePanel() {
   }
 
   return (
-    <div className="panel-body">
+    <div className="panel-scroll">
       <h3 className="panel-title">Animate - {blockDisplayName(block)}</h3>
 
       <h4 className="panel-subtitle">Emphasis (loops in the player)</h4>

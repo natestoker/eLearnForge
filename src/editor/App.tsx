@@ -16,6 +16,7 @@ import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
+import { deriveAccent } from '../shared/accent';
 import { Player } from '../runtime/Player';
 
 export function App() {
@@ -35,6 +36,14 @@ export function App() {
   const embeddedFonts = useProjectStore((s) => s.project.embeddedFonts);
   useEffect(() => { (fonts ?? []).forEach((f) => ensureFont(f)); }, [fonts]);
   useEffect(() => { ensureEmbeddedFonts(embeddedFonts); }, [embeddedFonts]);
+  // The course accent (Home > Course theme) also colors the editor itself.
+  const themeAccent = useProjectStore((s) => s.project.theme?.accent);
+  useEffect(() => {
+    const vars = deriveAccent(themeAccent);
+    const root = document.documentElement;
+    Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    return () => { Object.keys(vars).forEach((k) => root.style.removeProperty(k)); };
+  }, [themeAccent]);
   const setPreviewOpen = useUiStore((s) => s.setPreviewOpen);
 
   const [booted, setBooted] = useState(false);

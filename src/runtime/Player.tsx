@@ -1,3 +1,4 @@
+import { deriveAccent } from '../shared/accent';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
@@ -437,7 +438,7 @@ export function Player({ project, adapter, startSlideId }: {
     (navOpen ? ' nav-open' : '');
 
   return (
-    <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>
+    <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent, ...deriveAccent(playerAccent) } as React.CSSProperties}>
       {exited && (
         <div className="player-exit" role="dialog" aria-label="Course ended">
           <h2>You have exited the course</h2>

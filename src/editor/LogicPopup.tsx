@@ -45,7 +45,7 @@ export function LogicPopup({ onClose }: LogicPopupProps) {
         <div className="absolute inset-0 timeline-track opacity-10" style={{ background: 'repeating-linear-gradient(90deg, #232a25, #232a25 1px, transparent 1px, transparent 40px)' }}></div>
         {/* Bezier Curve Visualization */}
         <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M 0 100 C 20 100 40 0 100 0" fill="none" stroke="#3ddc97" strokeWidth="2"></path>
+          <path d="M 0 100 C 20 100 40 0 100 0" fill="none" style={{ stroke: "var(--accent)" }} strokeWidth="2"></path>
         </svg>
         {/* Handles */}
         <div className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-primary border border-surface cursor-grab"></div>

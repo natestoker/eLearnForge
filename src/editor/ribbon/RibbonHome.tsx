@@ -36,15 +36,15 @@ export function RibbonHome() {
       <div className="ribbon-group">
         <div className="ribbon-items">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <Field label="Player accent">
-              <span title="Colors the published course: buttons, progress bar, highlights, and quiz feedback. Not the editor.">
+            <Field label="Accent">
+              <span title="Colors the course (buttons, progress bar, highlights, quiz feedback) and the editor itself.">
                 <ColorInput
                   value={project.theme?.accent ?? '#3ddc97'}
                   onChange={(v) => mutate((p) => { p.theme = { accent: v, palette: p.theme?.palette }; })}
                 />
               </span>
             </Field>
-            <span className="rbn-note">Buttons and highlights</span>
+            <span className="rbn-note">Course and editor highlights</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span className="field-label">Brand colors</span>

@@ -1,3 +1,4 @@
+import { RibbonEmpty } from './RibbonEmpty';
 import { useSelectedBlock, useProjectStore, useCurrentSlide } from '../../state/projectStore';
 import type { AnimType, Block } from '../../schema/types';
 import {
@@ -64,7 +65,7 @@ export function RibbonAnimations() {
   const mutate = useProjectStore((s) => s.mutate);
 
   if (!block) {
-    return <div style={{ padding: 16, color: 'var(--muted)' }}>Select a block to animate. Fine-tuning lives in the Animate tab of the block panel on the right.</div>;
+    return <RibbonEmpty title="Select a block to animate">Fine-tuning lives in the Animate tab of the block panel on the right.</RibbonEmpty>;
   }
 
   const timing = block.timing;
