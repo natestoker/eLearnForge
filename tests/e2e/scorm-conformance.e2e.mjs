@@ -32,6 +32,8 @@ for (const target of ['scorm12', 'scorm2004']) {
     if (await next.isDisabled().catch(() => true)) break;
     await next.focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(300);
   }
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(300);
   const calls = await page.evaluate(() => window.__calls);
   const sets = calls.filter((c) => /SetValue/.test(c.n));
   const bad = calls.filter((c) => c.err !== '0');
@@ -46,6 +48,8 @@ for (const target of ['scorm12', 'scorm2004']) {
   // allSlides completion: 2004 keeps completion and success apart. 1.2 has one
   // status field, so it says "completed" and leaves the score for the LMS.
   eq(`${target}: status`, last(k('cmi.core.lesson_status', 'cmi.success_status')), k('completed', 'passed'));
+  check(`${target}: session time written on exit`, /^(PT|0000:)/.test(String(last(k('cmi.core.session_time', 'cmi.session_time')))) || /^\d{4}:/.test(String(last('cmi.core.session_time'))), String(last(k('cmi.core.session_time', 'cmi.session_time'))));
+  check(`${target}: resume data saved`, String(last('cmi.suspend_data') ?? '').startsWith('{'), String(last('cmi.suspend_data')));
   if (!v12) eq(`${target}: course completed`, last('cmi.completion_status'), 'completed');
   await page.context().close();
 }

@@ -33,6 +33,7 @@ function findApi(): Scorm2004Api | null {
 export class Scorm2004Adapter implements TrackingAdapter {
   private api: Scorm2004Api | null = null;
   private terminated = false;
+  private startedAt = Date.now();
 
   private call<T>(fn: () => T): T | null {
     if (!this.api || this.terminated) return null;
@@ -49,6 +50,7 @@ export class Scorm2004Adapter implements TrackingAdapter {
       return null;
     }
     this.call(() => this.api!.Initialize(''));
+    this.startedAt = Date.now();
     this.call(() => this.api!.SetValue('cmi.completion_status', 'incomplete'));
     const suspend = this.call(() => this.api!.GetValue('cmi.suspend_data'));
     this.call(() => this.api!.Commit(''));
@@ -111,6 +113,7 @@ export class Scorm2004Adapter implements TrackingAdapter {
 
   terminate(): void {
     if (this.terminated) return;
+    this.call(() => this.api!.SetValue('cmi.session_time', isoDuration(Date.now() - this.startedAt)));
     this.call(() => this.api!.Commit(''));
     this.call(() => this.api!.Terminate(''));
     this.terminated = true;

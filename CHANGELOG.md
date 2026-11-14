@@ -1459,3 +1459,7 @@ Large-media "Compress" is not built; the check only warns.
   the learner hasn't moved yet.
 - `scripts/run-e2e.mjs` takes `E2E_PORT` for a fixed port (an LRS has to allow the
   page's origin).
+- **A real LMS.** The published packages were uploaded to Moodle 4.5 and played
+  (`tests/lms-moodle/`). SCORM 1.2 and 2004 data was stored and graded.
+- **Session time.** SCORM 1.2 and 2004 now report `session_time` on exit, so an
+  LMS can show time spent.

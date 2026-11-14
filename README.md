@@ -72,7 +72,8 @@ Version-by-version detail is in [CHANGELOG.md](CHANGELOG.md).
 - `src/tracking/`    SCORM 1.2 / 2004, xAPI, Storyline bridge adapters
 - `src/publish/`     packaging, manifests, publish checks, PPTX import
 - `tests/`           unit tests (`npm test`); `tests/e2e/` browser suites (`npm run test:e2e`);
-                     `tests/screen-reader/` real screen-reader pass (Linux, not in CI)
+                     `tests/screen-reader/` real screen-reader pass (Linux, not in CI);
+                     `tests/lms-moodle/` publish and play in a real Moodle (Docker, not in CI)
 - `fixtures/`        sample PowerPoint files for the importer
 
 ## Invariants to preserve

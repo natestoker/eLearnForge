@@ -35,6 +35,7 @@ function findApi(): Scorm12Api | null {
 export class Scorm12Adapter implements TrackingAdapter {
   private api: Scorm12Api | null = null;
   private terminated = false;
+  private startedAt = Date.now();
 
   private call<T>(fn: () => T): T | null {
     if (!this.api || this.terminated) return null;
@@ -51,6 +52,7 @@ export class Scorm12Adapter implements TrackingAdapter {
       return null;
     }
     this.call(() => this.api!.LMSInitialize(''));
+    this.startedAt = Date.now();
     const status = this.call(() => this.api!.LMSGetValue('cmi.core.lesson_status'));
     if (status === 'not attempted' || status === '' || status === null) {
       this.call(() => this.api!.LMSSetValue('cmi.core.lesson_status', 'incomplete'));
@@ -121,6 +123,8 @@ export class Scorm12Adapter implements TrackingAdapter {
 
   terminate(): void {
     if (this.terminated) return;
+    // Time spent this session, so the LMS can show it and add it to total_time.
+    this.call(() => this.api!.LMSSetValue('cmi.core.session_time', scormTimespan(Date.now() - this.startedAt)));
     this.call(() => this.api!.LMSCommit(''));
     this.call(() => this.api!.LMSFinish(''));
     this.terminated = true;
