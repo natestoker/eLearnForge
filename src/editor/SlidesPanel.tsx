@@ -22,6 +22,7 @@ function SlideThumb({ slide, index }: { slide: Slide; index: number }) {
 
 export function SlidesPanel() {
   const slides = useProjectStore((s) => s.project.slides);
+  const banks = useProjectStore((s) => s.project.banks);
   const templates = useProjectStore((s) => s.project.templates);
   const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
@@ -127,6 +128,10 @@ export function SlidesPanel() {
                 ) : (
                   <span className="slide-name" title="Double-click to rename; drag to reorder">{slide.name}</span>
                 )}
+                {(() => {
+                  const bank = banks?.find((b) => b.slideIds.includes(slide.id));
+                  return bank ? <span className="slide-bank-tag" title={`In question bank "${bank.name}"`}>{bank.name}</span> : null;
+                })()}
                 {active && (
                   <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
                     <button className="btn btn-ghost btn-icon" title="Duplicate this slide"

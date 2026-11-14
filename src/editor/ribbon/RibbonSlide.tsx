@@ -72,6 +72,16 @@ export function RibbonSlide() {
                 onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.transition = v === '' ? undefined : (v as Slide['transition']); })}
               />
             </Field>
+            <Field label="Lightbox">
+              <label className="checkbox tiny" title="Show this slide as a popup over another slide (Triggers: Open lightbox). It is left out of Next, Back, the menu and completion.">
+                <input
+                  type="checkbox"
+                  checked={!!slide.lightbox}
+                  onChange={(e) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.lightbox = e.target.checked || undefined; })}
+                />
+                <span>Use as lightbox</span>
+              </label>
+            </Field>
             <Field label="Width">
               <NumberInput
                 value={slide.width} min={320}

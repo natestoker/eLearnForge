@@ -51,12 +51,11 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 - Phase 2: a title, notes or text edit made here appears in Storyline after reopening the saved file, and nothing else in the course changed.
 
 ## Also queued
-See `AUDIT.md` for what the November 2026 review found and what has been done.
-- Question banks and randomized question pools (the one piece of audit item 1 not built).
-- Review the player menu drawer and the Resources and Glossary panels at phone width.
-- Check a real screen reader (NVDA or VoiceOver) against the question blocks and the dialogs.
-- Welcome modal: shorter copy (design list item 8).
-- Home ribbon tab grouping (design list item 2).
+See `AUDIT.md` for what the November 2026 review found and what has been done. The review is complete except for two checks that need things this environment doesn't have:
+- Test the player with a real screen reader (NVDA or VoiceOver). axe-core and the accessibility tree look clean, but that is not the same as listening to it.
+- Run a published package through SCORM Cloud and an LRS. None of the reporting has been checked against a real LMS.
+
+Smaller follow-ups:
+- Animations inside lightbox slides (they open as a still view today).
 - Media compression from the Publish checks (the design's Compress button).
-- Run a published package through SCORM Cloud and an LRS; none of the reporting has been checked against a real LMS.
-- Playwright browser suites in the repo (the unit tests are in `tests/`).
+- Playwright browser suites in the repo, including the axe-core run (the unit tests are in `tests/`).

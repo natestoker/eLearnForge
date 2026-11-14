@@ -1384,3 +1384,33 @@ Large-media "Compress" is not built; the check only warns.
   before the build). One-off scratch files removed, sample decks moved to
   `fixtures/`, README split from the changelog.
 
+
+
+
+# v6.17
+
+## Question banks, lightbox slides, accessibility audit
+- **Question banks** (Home > Banks). A bank is a pool of slides; each learner
+  gets a random selection (0 = all) and optionally in random order. The draw is
+  made when the course starts and saved with progress, so a resumed course shows
+  the same questions. Next/Back, the menu, progress, "slide n of m", completion
+  and the auto score all follow the slides that learner was given. The Publish
+  checks warn about empty banks, draws larger than the pool, and a slide in two
+  banks.
+- **Lightbox slides** (Slide tab > Use as lightbox, then the Open lightbox
+  action). The slide opens as a popup over the current one, has its own
+  triggers, closes with the Close lightbox action, its close button or Escape,
+  and traps keyboard focus. It is left out of Next/Back, the menu and
+  completion. It shows as a still view; timeline animations inside it don't play.
+- **Accessibility audit** with axe-core on the player (slides, menu, panels,
+  lightbox) and the editor's Welcome, Triggers and Publish screens: zero
+  violations at WCAG A and AA after four fixes. Question blocks with no plain
+  text (drag and drop, matching, fill-in and others) were being hidden from
+  screen readers while holding focusable controls; interactive blocks are now
+  always exposed. The closed course menu is inert, the seek bar is labelled, and
+  the player has a `main` landmark, a named menu and a named controls region.
+- **Phone layout.** The course menu floats over the slide instead of pushing it
+  off-screen and no longer sits under the Resources and Glossary buttons.
+- **Home and Insert ribbons.** Home is regrouped (Course theme, Transition,
+  Canvas, Course); Insert uses Lucide icons; the welcome copy is shorter.
+

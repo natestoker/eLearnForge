@@ -10,8 +10,9 @@ export function progressFraction(props: ProgressProps, runtime?: RuntimeRenderer
   }
   if (runtime) {
     const snap = runtime.getResumeState();
-    const total = runtime.project.slides.length || 1;
-    return Math.max(0, Math.min(1, (snap.viewedSlideIds?.length ?? 0) / total));
+    const active = new Set(runtime.effectiveSlides().map((s) => s.id));
+    const seen = (snap.viewedSlideIds ?? []).filter((id) => active.has(id)).length;
+    return Math.max(0, Math.min(1, seen / (active.size || 1)));
   }
   return 0.4; // canvas placeholder
 }

@@ -44,6 +44,7 @@ export function slideTriggerIssues(slide: Slide, project: Project): TriggerIssue
   const layers = new Set(slide.layers.map((l) => l.id));
   const slides = new Set(project.slides.map((s) => s.id));
   const variables = new Set(project.variables.map((v) => v.id));
+  const lightboxes = new Set(project.slides.filter((s) => s.lightbox).map((s) => s.id));
   const cues = new Set((slide.timeline?.cues ?? []).map((c) => c.id));
   const issues: TriggerIssue[] = [];
 
@@ -81,7 +82,7 @@ export function slideTriggerIssues(slide: Slide, project: Project): TriggerIssue
       }
     });
 
-    t.actions.forEach((a, i) => actionIssue(a, t, i, { blocks, layers, slides, variables }, add));
+    t.actions.forEach((a, i) => actionIssue(a, t, i, { blocks, layers, slides, lightboxes, variables }, add));
   }
   return issues;
 }
@@ -90,7 +91,7 @@ function actionIssue(
   a: Action,
   t: Trigger,
   i: number,
-  have: { blocks: Set<string>; layers: Set<string>; slides: Set<string>; variables: Set<string> },
+  have: { blocks: Set<string>; layers: Set<string>; slides: Set<string>; lightboxes: Set<string>; variables: Set<string> },
   add: (part: TriggerIssue['part'], kind: TargetKind, missing: 'deleted' | 'unset', message: string, index?: number) => void
 ): void {
   const check = (kind: TargetKind, id: string | undefined, set: Set<string>, noun: string) => {
@@ -107,6 +108,8 @@ function actionIssue(
     check('layer', (a as { layerId?: string }).layerId, have.layers, 'layer');
   } else if (a.type === 'goToSlide') {
     check('slide', a.slideId, have.slides, 'slide');
+  } else if (a.type === 'openLightbox') {
+    check('slide', a.slideId, have.lightboxes, 'lightbox slide');
   } else if (VARIABLE_ACTIONS.has(a.type)) {
     check('variable', (a as { variableId?: string }).variableId, have.variables, 'variable');
   }

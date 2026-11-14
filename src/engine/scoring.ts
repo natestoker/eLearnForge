@@ -18,9 +18,10 @@ function walk(blocks: Block[]): Block[] {
   );
 }
 
-export function gradedBlockIds(project: Project): string[] {
+export function gradedBlockIds(project: Project, onlySlides?: Set<string>): string[] {
   const ids: string[] = [];
   for (const slide of project.slides) {
+    if (onlySlides && !onlySlides.has(slide.id)) continue;
     for (const layer of slide.layers) {
       for (const b of walk(layer.blocks)) {
         if ((GRADED_BLOCK_TYPES as readonly string[]).includes(b.type)) ids.push(b.id);

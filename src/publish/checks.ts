@@ -217,6 +217,22 @@ export function runChecks(project: Project, target: string): Check[] {
   }
   if (autoScore && graded > 0 && needsScore) out.push({ sev: 'pass', title: `Score comes from ${graded} scored question${graded === 1 ? '' : 's'}` });
 
+  // 4b. Question banks.
+  const seenInBank = new Map<string, string>();
+  for (const bank of project.banks ?? []) {
+    const live = bank.slideIds.filter((id) => project.slides.some((s) => s.id === id));
+    if (live.length === 0) out.push({ sev: 'warn', title: `Question bank "${bank.name}" is empty`, detail: 'Add slides to it or delete it.' });
+    else if (bank.draw > live.length) out.push({ sev: 'warn', title: `"${bank.name}" draws ${bank.draw} but has only ${live.length} slides`, detail: 'Learners will get all of them.' });
+    for (const id of live) {
+      const first = seenInBank.get(id);
+      if (first) out.push({ sev: 'warn', title: `A slide is in two banks ("${first}" and "${bank.name}")`, detail: 'It counts for the first bank only.', fix: { label: 'Go to slide', slideId: id } });
+      else seenInBank.set(id, bank.name);
+    }
+  }
+  if ((project.banks ?? []).some((b) => b.draw > 0 && b.draw < b.slideIds.length)) {
+    out.push({ sev: 'pass', title: 'Question banks draw a random selection per learner', detail: 'The score counts only the questions each learner is given.' });
+  }
+
   // 5. SCORM 1.2 suspend data.
   if (target === 'scorm12') {
     const used = suspendEstimate(project);

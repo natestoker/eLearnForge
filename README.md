@@ -25,7 +25,7 @@ to `main`, after the tests pass.
 
 ## What it does
 
-- **Authoring:** slides with layers (including modal layers), 26 block types
+- **Authoring:** slides with layers (including modal layers), lightbox slides, question banks, 26 block types
   (text, media, quizzes, drag and drop, matching, flashcards, scenarios,
   results, code...), a per-slide and per-layer timeline with GSAP animation,
   narration (recorded, uploaded or synthesized in the browser), and PowerPoint

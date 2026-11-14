@@ -63,21 +63,27 @@ export class Runtime {
   private gradedIds: string[] | null = null;
   private attempts: Record<string, number> = {};
   private slideEnteredAt = Date.now();
+  // The slides a learner steps through, in order: question banks drawn and
+  // shuffled, lightbox slides left out. Everything that counts or moves
+  // through slides (Next/Back, menu, progress, completion, score) uses this.
+  private lightboxId: string | null = null;
+  private order: string[] = [];
+  private bankDraw: string[][] = [];
 
   // Storyline-style built-in references, readable from text as %Name%
   // (alongside project variables by their names). Kept as a method so text
   // re-renders pick up live values on every runtime change.
   resolveReference(name: string): string | null {
     const slide = this.currentSlide();
-    const idx = this.project.slides.findIndex((s) => s.id === slide.id);
+    const idx = this.slidePosition(slide.id);
     switch (name) {
       case 'CurrentSlide':
       case 'SlideNumber': return String(idx + 1);
-      case 'TotalSlides': return String(this.project.slides.length);
+      case 'TotalSlides': return String(this.order.length);
       case 'SlideName': return slide.name;
       case 'CourseName':
       case 'ProjectName': return this.project.title;
-      case 'ProgressPercent': return String(Math.round(((idx + 1) / this.project.slides.length) * 100));
+      case 'ProgressPercent': return String(Math.round(((idx + 1) / Math.max(1, this.order.length)) * 100));
       case 'ViewedSlides': return String(this.viewedSlideIds.size);
       case 'Score':
       case 'ScorePercent': return String(this.lastScore);
@@ -103,13 +109,114 @@ export class Runtime {
     this.project = project;
     const variables: Record<string, VariableValue> = {};
     for (const v of project.variables) variables[v.id] = v.defaultValue;
+    this.rebuildOrder();
+    const first = this.order[0] ?? project.slides[0].id;
     this.snapshot = {
-      slideId: project.slides[0].id,
+      slideId: first,
       layerVisible: {},
       blockVisible: {},
       variables
     };
-    this.enterSlide(project.slides[0].id, 0);
+    this.enterSlide(first, 0);
+  }
+
+  // Lightbox slides ------------------------------------------------------------
+
+  // Triggers that can fire right now: the slide's own, plus those of an open
+  // lightbox slide.
+  private liveTriggers(): Trigger[] {
+    const lb = this.getLightbox();
+    return lb ? [...this.currentSlide().triggers, ...lb.triggers] : this.currentSlide().triggers;
+  }
+
+  getLightbox(): Slide | null {
+    return this.lightboxId ? this.project.slides.find((s) => s.id === this.lightboxId) ?? null : null;
+  }
+
+  // Shows a lightbox slide over the current one. Its layers and blocks start
+  // from their authored state each time it opens.
+  openLightbox(slideId: string, depth = 0): void {
+    const lb = this.project.slides.find((s) => s.id === slideId);
+    if (!lb || !lb.lightbox) return;
+    const layerVisible = { ...this.snapshot.layerVisible };
+    for (const layer of lb.layers) {
+      layerVisible[layer.id] = layer.visibleByDefault;
+      for (const b of walk(layer.blocks)) delete this.blockStates[b.id];
+    }
+    const blockVisible = { ...this.snapshot.blockVisible };
+    for (const layer of lb.layers) for (const b of walk(layer.blocks)) delete blockVisible[b.id];
+    this.snapshot = { ...this.snapshot, layerVisible, blockVisible };
+    this.lightboxId = slideId;
+    this.runTriggers(lb.triggers.filter((t) => t.event === 'onSlideLoad'), depth);
+    this.emit();
+  }
+
+  closeLightbox(): void {
+    if (!this.lightboxId) return;
+    this.lightboxId = null;
+    this.emit();
+  }
+
+  // Slide order and question banks ---------------------------------------------
+
+  // Works out the order learners see. With no draw given, each bank draws at
+  // random; a saved draw (from resume) is reused exactly. Bank members keep to
+  // the positions the bank's slides occupy in the course: the drawn slides fill
+  // the first of those positions, in order or shuffled, and the rest drop out.
+  private rebuildOrder(saved?: string[][]): void {
+    const project = this.project;
+    const exists = new Set(project.slides.map((s) => s.id));
+    const lightboxes = new Set(project.slides.filter((s) => s.lightbox).map((s) => s.id));
+    const slots: (string | null)[] = project.slides.filter((s) => !s.lightbox).map((s) => s.id);
+    const claimed = new Set<string>();
+    const draws: string[][] = [];
+    (project.banks ?? []).forEach((bank, bi) => {
+      const members = bank.slideIds.filter((id) => exists.has(id) && !lightboxes.has(id) && !claimed.has(id));
+      members.forEach((id) => claimed.add(id));
+      let chosen: string[];
+      if (saved?.[bi] && saved[bi].every((id) => members.includes(id))) {
+        chosen = saved[bi];
+      } else {
+        const want = bank.draw > 0 && bank.draw < members.length ? bank.draw : members.length;
+        const pool = [...members];
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        chosen = pool.slice(0, want);
+        if (!bank.shuffle) chosen.sort((a, b) => members.indexOf(a) - members.indexOf(b));
+      }
+      draws.push(chosen);
+      const positions = members.map((id) => slots.indexOf(id)).filter((p) => p >= 0).sort((a, b) => a - b);
+      positions.forEach((p, k) => { slots[p] = chosen[k] ?? null; });
+    });
+    this.order = slots.filter((id): id is string => id !== null);
+    if (!this.order.length) this.order = [project.slides[0].id];
+    this.bankDraw = draws;
+    this.gradedIds = null;
+  }
+
+  // Slides in the order a learner sees them.
+  effectiveSlides(): Slide[] {
+    const byId = new Map(this.project.slides.map((s) => [s.id, s]));
+    return this.order.map((id) => byId.get(id)!).filter(Boolean);
+  }
+
+  // Position (0-based) of a slide in the learner's order; -1 when it isn't in it
+  // (a slide left out of a bank draw, or a lightbox).
+  slidePosition(slideId: string): number {
+    return this.order.indexOf(slideId);
+  }
+
+  // The slide before or after one, in the learner's order. For a slide that is
+  // not in the order, the nearest one by position in the course.
+  neighborSlideId(slideId: string, delta: 1 | -1): string | null {
+    const at = this.order.indexOf(slideId);
+    if (at >= 0) return this.order[at + delta] ?? null;
+    const pos = (id: string) => this.project.slides.findIndex((s) => s.id === id);
+    const here = pos(slideId);
+    const ids = delta === 1 ? this.order.filter((id) => pos(id) > here) : this.order.filter((id) => pos(id) < here).reverse();
+    return ids[0] ?? null;
   }
 
   // Tracking ------------------------------------------------------------------
@@ -173,7 +280,7 @@ export class Runtime {
   // Unanswered questions count against the learner, so the score climbs as
   // they work through the course rather than starting at 100.
   private recomputeAutoScore(): void {
-    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project, new Set(this.order));
     const total = this.gradedIds.length;
     if (total === 0) return;
     const right = this.gradedIds.filter((id) => this.answers[id]).length;
@@ -198,7 +305,7 @@ export class Runtime {
   private checkCompletion(): void {
     if (this.completed) return;
     const mode = this.project.completion?.mode ?? 'allSlides';
-    const allViewed = this.viewedSlideIds.size >= this.project.slides.length;
+    const allViewed = this.order.every((id) => this.viewedSlideIds.has(id));
     const passed = this.scoreSet && this.lastScore >= passingScoreOf(this.project);
     if (mode === 'allSlides' && allViewed) this.completeCourse();
     else if (mode === 'passed' && passed) this.completeCourse();
@@ -240,7 +347,7 @@ export class Runtime {
 
   // The small, position-based form the player stores (see CompactResume).
   exportResume(): CompactResume {
-    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+    if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project, new Set(this.order));
     const slides = this.project.slides;
     const idx = slides.findIndex((s) => s.id === this.snapshot.slideId);
     const rich = this.getResumeState();
@@ -255,6 +362,7 @@ export class Runtime {
       out.at = this.gradedIds.map((id) => String(Math.min(9, this.attempts[id] ?? 0))).join('');
     }
     if (this.scoreSet) out.sc = this.lastScore;
+    if (this.bankDraw.length) out.bk = this.bankDraw.map((ids) => ids.map((id) => slides.findIndex((s) => s.id === id)));
     if (Object.keys(rich.variables).length) out.vr = rich.variables;
     return out;
   }
@@ -266,7 +374,11 @@ export class Runtime {
     let state: ResumeState;
     if (isCompact(input)) {
       const slides = this.project.slides;
-      if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project);
+      // The same questions as last time, before anything is counted.
+      if (input.bk && input.bk.length === (this.project.banks?.length ?? 0) && input.n[0] === slides.length) {
+        this.rebuildOrder(input.bk.map((list) => list.map((i) => slides[i]?.id).filter((id): id is string => !!id)));
+      }
+      if (!this.gradedIds) this.gradedIds = gradedBlockIds(this.project, new Set(this.order));
       const sameSlides = input.n[0] === slides.length;
       const sameQuestions = input.n[1] === this.gradedIds.length;
       const answers: Record<string, boolean> = {};
@@ -340,6 +452,7 @@ export class Runtime {
   enterSlide(slideId: string, depth = 0): void {
     const slide = this.project.slides.find((s) => s.id === slideId);
     if (!slide) return;
+    this.lightboxId = null;
     const layerVisible: Record<string, boolean> = {};
     for (const layer of slide.layers) layerVisible[layer.id] = layer.visibleByDefault;
     this.snapshot = { ...this.snapshot, slideId, layerVisible, blockVisible: {} };
@@ -352,8 +465,8 @@ export class Runtime {
     this.slideEnteredAt = Date.now();
     // Player button gating resets on each slide visit.
     this.playerButtons = { next: true, back: true, submit: true };
-    const index = this.project.slides.findIndex((s) => s.id === slideId);
-    this.track({ type: 'slideViewed', slideId, index, total: this.project.slides.length });
+    const index = Math.max(0, this.slidePosition(slideId));
+    this.track({ type: 'slideViewed', slideId, index, total: this.order.length });
     this.runTriggers(slide.triggers.filter((t) => t.event === 'onSlideLoad'), depth);
     // Completion rule: allSlides (default), explicit (trigger only), or one
     // of the pass-gated modes. See checkCompletion.
@@ -372,8 +485,7 @@ export class Runtime {
     } else if (block?.stateStyles?.visited && st === 'normal') {
       this.setBlockState(blockId, 'visited');
     }
-    const slide = this.currentSlide();
-    const matches = slide.triggers.filter(
+    const matches = this.liveTriggers().filter(
       (t) => t.event === 'onClick' && t.sourceBlockId === blockId
     );
     this.runTriggers(matches, 0);
@@ -381,7 +493,7 @@ export class Runtime {
   }
 
   blockHasClickTrigger(blockId: string): boolean {
-    return this.currentSlide().triggers.some(
+    return this.liveTriggers().some(
       (t) => t.event === 'onClick' && t.sourceBlockId === blockId
     );
   }
@@ -392,28 +504,28 @@ export class Runtime {
 
   // Fire hover / double-click triggers for a source block.
   hoverBlock(blockId: string): void {
-    const matches = this.currentSlide().triggers.filter(
+    const matches = this.liveTriggers().filter(
       (t) => t.event === 'onHover' && t.sourceBlockId === blockId
     );
     if (matches.length) { this.runTriggers(matches, 0); this.emit(); }
   }
 
   leaveBlock(blockId: string): void {
-    const matches = this.currentSlide().triggers.filter(
+    const matches = this.liveTriggers().filter(
       (t) => t.event === 'onMouseLeave' && t.sourceBlockId === blockId
     );
     if (matches.length) { this.runTriggers(matches, 0); this.emit(); }
   }
 
   doubleClickBlock(blockId: string): void {
-    const matches = this.currentSlide().triggers.filter(
+    const matches = this.liveTriggers().filter(
       (t) => t.event === 'onDoubleClick' && t.sourceBlockId === blockId
     );
     if (matches.length) { this.runTriggers(matches, 0); this.emit(); }
   }
 
   blockHasInteractionTrigger(blockId: string): boolean {
-    return this.currentSlide().triggers.some(
+    return this.liveTriggers().some(
       (t) => (t.event === 'onClick' || t.event === 'onHover' || t.event === 'onMouseLeave' || t.event === 'onDoubleClick') && t.sourceBlockId === blockId
     );
   }
@@ -459,8 +571,7 @@ export class Runtime {
     this.blockStates[blockId] = state;
     // onStateAll triggers on the current slide: fire when every watched
     // block is in the watched state.
-    const slide = this.currentSlide();
-    const matches = slide.triggers.filter((t) => {
+    const matches = this.liveTriggers().filter((t) => {
       if (t.event !== 'onStateAll' || !t.watchBlockIds?.length || !t.watchState) return false;
       return t.watchBlockIds.every((id) => this.getBlockState(id) === t.watchState);
     });
@@ -475,16 +586,15 @@ export class Runtime {
   // Move relative to the current slide. Stops at either end rather than
   // wrapping. Used by the next/prev trigger actions and by forge.nextSlide().
   stepSlide(delta: 1 | -1, depth = 0): void {
-    const idx = this.project.slides.findIndex((s) => s.id === this.snapshot.slideId);
-    const target = this.project.slides[idx + delta];
-    if (target) this.enterSlide(target.id, depth);
+    const target = this.neighborSlideId(this.snapshot.slideId, delta);
+    if (target) this.enterSlide(target, depth);
   }
 
   // The player reports a keydown. Returns true when a trigger on this slide
   // handled it, so the player can stop the browser scrolling on Space/arrows.
   keyPress(key: string): boolean {
     const norm = (k: string) => (k.length === 1 ? k.toLowerCase() : k);
-    const matches = this.currentSlide().triggers.filter(
+    const matches = this.liveTriggers().filter(
       (t) => t.event === 'onKeyPress' && t.key !== undefined && norm(t.key) === norm(key)
     );
     if (!matches.length) return false;
@@ -681,6 +791,12 @@ export class Runtime {
         if (v) this.setVariable(v.id, v.defaultValue, depth);
         break;
       }
+      case 'openLightbox':
+        this.openLightbox(action.slideId, depth);
+        break;
+      case 'closeLightbox':
+        this.closeLightbox();
+        break;
       case 'executeJs':
       case 'exitCourse':
         // Both need the live page (script scope with gsap, the tracking

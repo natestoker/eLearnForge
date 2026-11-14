@@ -5,6 +5,7 @@ import { Block, BlockType, ShapeKind, ShapeProps } from '../../schema/types';
 import { ShapePicker } from '../../blocks/shape/ShapePicker';
 import { ShapeSvg } from '../../blocks/shape/Canvas';
 import { SHAPE_LABELS } from '../../blocks/shape/geometry';
+import { Lucide } from '../lucide';
 
 // Insert shelf, laid out per the design artifact: horizontal groups with a
 // compact icon+label button per insertable. The shape grid shows the core
@@ -17,43 +18,40 @@ const CORE_SHAPES: ShapeKind[] = [
   'plus', 'heart', 'lightningBolt', 'cloud'
 ];
 
-function Ic({ d }: { d: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
-
-const ICONS: Record<string, JSX.Element> = {
-  text: <Ic d="M5 7V5.5h14V7M12 5.5v13M9 18.5h6" />,
-  textEntry: <Ic d="M4.5 8.5h15a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM7 11v2" />,
-  image: <Ic d="M5 6h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM8.5 10.5a.6.6 0 1 0 0-.1M5 16l4.5-4.5 3.5 3.5 3-3 4 4" />,
-  video: <Ic d="M4.5 7h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM16.5 11l4-2.5v7l-4-2.5z" />,
-  audio: <Ic d="M10 4.5h4v9.5a2.5 2.5 0 1 1-1.5-2.3V4.5" />,
-  button: <Ic d="M5 9h14a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 19 15H5a1.5 1.5 0 0 1-1.5-1.5v-3A1.5 1.5 0 0 1 5 9zM9 12h6" />,
-  hotspot: <Ic d="M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM12 5.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z" />,
-  multipleChoice: <Ic d="M6.5 5.7a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM11.5 7.5h8M6.5 14.4a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM11.5 16.2h8" />,
-  matching: <Ic d="M4 6.5h5v4H4zM15 13.5h5v4H15zM9.5 8.5h6l-6 7.5h-4" />,
-  fillBlank: <Ic d="M4 17.5h16M4 8h4.5M12.5 8H20M9.5 6.5h2.5v3.5H9.5z" />,
-  dragDrop: <Ic d="M4.5 4.5h6.5v6.5H4.5zM13 13h6.5v6.5H13zM11 11l3.5 3.5M14.5 11.4V15h-3.6" />,
-  tabs: <Ic d="M4 8.5h16v9H4zM4 8.5V6h6v2.5M12 6v2.5" />,
-  statement: <Ic d="M5 5.5h14v9H9l-4 4z" />,
-  progress: <Ic d="M4 10.5h16v3H4zM13 10.5v3" />,
-  timer: <Ic d="M12 8v4.5l3 2M12 5.5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 3.5h4" />,
-  code: <Ic d="M9 8l-4 4 4 4M15 8l4 4-4 4" />,
-  line: <Ic d="M4 18L20 6" />,
-  arrow: <Ic d="M4 18L18 7M18 12V7h-5" />,
-  pen: <Ic d="M14.5 5.5l4 4L8 20l-4.8 1 1-4.8zM12.5 7.5l4 4" />,
-  flashcards: <Ic d="M7 7.5h13v11H7zM7 7.5L4 6v11l3 1.5M11 12.5h5" />,
-  sequence: <Ic d="M5 6.5h2M10 6.5h9M5 12h2M10 12h9M5 17.5h2M10 17.5h9" />,
-  slider: <Ic d="M4 12h16M9.5 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 8.5v7M20 8.5v7" />,
-  checklist: <Ic d="M4.5 6.5l1.5 1.5 2.5-2.5M10.5 7h9M4.5 13l1.5 1.5 2.5-2.5M10.5 13.5h9M4.5 19.5l1.5 1.5 2.5-2.5M10.5 20h9" />,
-  results: <Ic d="M5 19V9M10 19V5M15 19v-7M20 19v-4M3.5 19.5h18" />,
-  varDisplay: <Ic d="M4 5.5h16v13H4zM7 15.5V12M12 15.5V9.5M17 15.5v-4" />,
-  labeledGraphic: <Ic d="M4 5.5h16v13H4zM9 11a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM11 13v3M16 8.5a1.4 1.4 0 1 0 0-.1" />,
-  scenario: <Ic d="M12 4.5v4M12 8.5L6 13M12 8.5l6 4.5M4 13h4v4H4zM16 13h4v4h-4zM10 4.5h4" />
+const ICON_NAMES: Record<string, string> = {
+  text: 'type',
+  textEntry: 'text-cursor-input',
+  image: 'image',
+  video: 'video',
+  audio: 'audio-lines',
+  button: 'rectangle-horizontal',
+  hotspot: 'mouse-pointer-click',
+  multipleChoice: 'circle-dot',
+  matching: 'arrow-left-right',
+  fillBlank: 'text-cursor',
+  dragDrop: 'move',
+  tabs: 'panels-top-left',
+  statement: 'message-square',
+  progress: 'gauge',
+  timer: 'timer',
+  code: 'code',
+  line: 'minus',
+  arrow: 'arrow-up-right',
+  pen: 'pen-tool',
+  flashcards: 'layers',
+  sequence: 'list-ordered',
+  slider: 'sliders-horizontal',
+  checklist: 'list-checks',
+  results: 'chart-column',
+  varDisplay: 'hash',
+  labeledGraphic: 'map-pin',
+  scenario: 'git-fork'
 };
+
+// One icon family (Lucide) across the editor.
+const ICONS = new Proxy({} as Record<string, JSX.Element>, {
+  get: (_t, key: string) => <Lucide name={ICON_NAMES[key] ?? 'box'} size={18} />
+});
 
 function insertLine(addBlock: (type: BlockType, init?: (b: Block) => void) => void, withArrow: boolean) {
   addBlock('shape', (b) => {

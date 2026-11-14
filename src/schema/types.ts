@@ -587,7 +587,9 @@ export type Action =
   | { type: 'resetBlock'; blockId: string }       // back to its authored visibility and state
   | { type: 'resetVariable'; variableId: string } // back to its default value
   | { type: 'executeJs'; code: string }           // run author JavaScript (forge + gsap in scope)
-  | { type: 'exitCourse' };        // save progress, end the session, close the window if allowed
+  | { type: 'exitCourse' }
+  | { type: 'openLightbox'; slideId: string }  // show a lightbox slide as a popup over this one
+  | { type: 'closeLightbox' };        // save progress, end the session, close the window if allowed
 
 export type ActionType = Action['type'];
 
@@ -616,6 +618,9 @@ export interface Slide {
   width: number;
   height: number;
   layers: Layer[]; // layers[0] is always the base layer
+  // A lightbox slide is shown as a popup over another slide (openLightbox
+  // action). It is left out of Next/Back, the menu and completion.
+  lightbox?: boolean;
   triggers: Trigger[];
   timeline?: SlideTimeline; // absent = static slide, no clock or controls
   notes?: string;           // speaker notes (PPTX import lands here)
@@ -748,10 +753,23 @@ export interface CompletionSettings {
   maxAttempts?: number;
 }
 
+// A question bank: a pool of slides of which each learner sees a random
+// subset (and optionally in a random order). The draw is made when the course
+// starts and saved with the learner's progress, so a resumed session sees the
+// same questions.
+export interface QuestionBank {
+  id: string;
+  name: string;
+  slideIds: string[];
+  draw: number;      // how many slides each learner gets; 0 (or >= pool size) = all of them
+  shuffle: boolean;  // present the drawn slides in random order
+}
+
 export interface Project {
   id: string;
   title: string;
   slides: Slide[];
+  banks?: QuestionBank[];
   variables: Variable[];
   completion?: CompletionSettings; // absent in v1 projects -> allSlides
   // accent: default color for new shapes/buttons. palette: extra brand colors

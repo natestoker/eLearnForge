@@ -3,8 +3,9 @@ import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { ColorInput, Field, SelectInput } from '../fields';
 import { PlayerSettingsSection, ResourcesEditor, GlossaryEditor } from '../GlobalSettings';
-import { Icon } from '../icons';
+import { Lucide } from '../lucide';
 import { Modal } from '../Modal';
+import { BanksEditor } from '../BanksEditor';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -28,7 +29,7 @@ export function RibbonHome() {
   const toggleShowGrid = useUiStore((s) => s.toggleShowGrid);
   const snapEnabled = useUiStore((s) => s.snapEnabled);
   const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
-  const [activeModal, setActiveModal] = useState<'player' | 'resources' | 'glossary' | null>(null);
+  const [activeModal, setActiveModal] = useState<'player' | 'resources' | 'glossary' | 'banks' | null>(null);
 
   return (
     <>
@@ -43,7 +44,7 @@ export function RibbonHome() {
                 />
               </span>
             </Field>
-            <span className="rbn-note">Buttons & highlights in the published course</span>
+            <span className="rbn-note">Buttons and highlights</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span className="field-label">Brand colors</span>
@@ -58,17 +59,26 @@ export function RibbonHome() {
               <button className="brand-chip add" title="Add a brand color"
                 onClick={() => mutate((p) => { p.theme = p.theme ?? { accent: '#3ddc97' }; p.theme.palette = [...(p.theme.palette ?? []), '#5b8def']; })}>+</button>
             </div>
-            <span className="rbn-note">One-click swatches in every color picker (right-click a chip to remove)</span>
+            <span className="rbn-note">Swatches in every color picker</span>
           </div>
-          <Field label="Slide transition">
-            <SelectInput
-              value={project.slideTransition ?? 'none'}
-              options={TRANSITION_OPTIONS}
-              onChange={(v) => mutate((p) => { p.slideTransition = v === 'none' ? undefined : (v as 'fade'); })}
-            />
-          </Field>
         </div>
         <span className="ribbon-group-title">Course Theme</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Field label="Style">
+              <SelectInput
+                value={project.slideTransition ?? 'none'}
+                options={TRANSITION_OPTIONS}
+                onChange={(v) => mutate((p) => { p.slideTransition = v === 'none' ? undefined : (v as 'fade'); })}
+              />
+            </Field>
+            <span className="rbn-note">Course default</span>
+          </div>
+        </div>
+        <span className="ribbon-group-title">Transition</span>
       </div>
 
       <div className="ribbon-group">
@@ -95,42 +105,31 @@ export function RibbonHome() {
               onClick={() => mutate((p) => { const sl = p.slides.find((x) => x.id === slide.id); if (sl) sl.guides = undefined; })}>
               Clear guides
             </button>
-            <span className="rbn-note">Right-click the stage to drop a guide anywhere</span>
+            <span className="rbn-note">Right-click the stage</span>
           </div>
         </div>
-        <span className="ribbon-group-title">Grids &amp; Guides</span>
+        <span className="ribbon-group-title">Canvas</span>
       </div>
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <button
-            className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]"
-            title="See the whole course as a branching map"
-            onClick={() => useUiStore.getState().setStoryViewOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M4 4.5h6v4.5H4zM14 4.5h6v4.5h-6zM9 15h6v4.5H9zM7 9v3h10V9M12 12v3" /></svg>
-            <span className="text-xs">Story View</span>
+          <button className="rbn-course-btn" title="See the whole course as a branching map" onClick={() => useUiStore.getState().setStoryViewOpen(true)}>
+            <Lucide name="git-fork" size={18} /><span>Story View</span>
+          </button>
+          <button className="rbn-course-btn" onClick={() => setActiveModal('player')}>
+            <Lucide name="settings" size={18} /><span>Player</span>
+          </button>
+          <button className="rbn-course-btn" onClick={() => setActiveModal('resources')}>
+            <Lucide name="file-text" size={18} /><span>Resources</span>
+          </button>
+          <button className="rbn-course-btn" onClick={() => setActiveModal('glossary')}>
+            <Lucide name="book-open" size={18} /><span>Glossary</span>
+          </button>
+          <button className="rbn-course-btn" title="Give each learner a random selection of slides" onClick={() => setActiveModal('banks')}>
+            <Lucide name="shuffle" size={18} /><span>Banks</span>
           </button>
         </div>
-        <span className="ribbon-group-title">Course Map</span>
-      </div>
-
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('player')}>
-            <Icon.settings />
-            <span className="text-xs">Player</span>
-          </button>
-          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('resources')}>
-            <Icon.document />
-            <span className="text-xs">Resources</span>
-          </button>
-          <button className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[70px]" onClick={() => setActiveModal('glossary')}>
-            <Icon.book />
-            <span className="text-xs">Glossary</span>
-          </button>
-        </div>
-        <span className="ribbon-group-title">Course Settings</span>
+        <span className="ribbon-group-title">Course</span>
       </div>
 
       {activeModal === 'player' && (
@@ -141,6 +140,11 @@ export function RibbonHome() {
       {activeModal === 'resources' && (
         <Modal title="Resources" onClose={() => setActiveModal(null)} width="600px">
           <ResourcesEditor />
+        </Modal>
+      )}
+      {activeModal === 'banks' && (
+        <Modal title="Question banks" onClose={() => setActiveModal(null)} width="560px">
+          <BanksEditor />
         </Modal>
       )}
       {activeModal === 'glossary' && (

@@ -3,6 +3,7 @@ import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
 import { createForge, runAuthorJs } from '../engine/forge';
 import { useFocusTrap } from '../shared/useFocusTrap';
+import { Lightbox } from './Lightbox';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionOffsetAt } from '../engine/motionPath';
@@ -92,7 +93,10 @@ export function Player({ project, adapter, startSlideId }: {
     return () => ro.disconnect();
   }, [slide.width, slide.height]);
 
-  const slideIndex = project.slides.findIndex((s) => s.id === slide.id);
+  // Position and total in the order this learner steps through (question
+  // banks drawn, lightbox slides left out).
+  const slideIndex = Math.max(0, runtime.slidePosition(slide.id));
+  const slideTotal = runtime.effectiveSlides().length;
 
   // Exit course action: save progress, tell the host the session is over,
   // then close the window. Browsers only allow close() on windows a script
@@ -291,8 +295,8 @@ export function Player({ project, adapter, startSlideId }: {
         runtime.timelineEnded();
         setTimelineEnded(true);
         if (slide.timeline?.autoAdvance) {
-          const next = project.slides[slideIndex + 1];
-          if (next) runtime.enterSlide(next.id);
+          const next = runtime.neighborSlideId(slide.id, 1);
+          if (next) runtime.enterSlide(next);
         }
       }
     });
@@ -415,7 +419,8 @@ export function Player({ project, adapter, startSlideId }: {
     : true;
   const chromeClass =
     `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}` +
-    ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${emphasisActive ? (settings.buttonEmphasis ?? 'none') : 'none'}`;
+    ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${emphasisActive ? (settings.buttonEmphasis ?? 'none') : 'none'}` +
+    (navOpen ? ' nav-open' : '');
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>
@@ -429,16 +434,20 @@ export function Player({ project, adapter, startSlideId }: {
         {/* Navigation sidebar: hamburger-toggled, animates its width, and
             navOpen persists for the whole run (state lives on Player, which
             never remounts between slides). */}
-        <aside className={`player-sidenav ${navOpen ? 'open' : ''}`} aria-hidden={!navOpen}>
+        <nav
+          className={`player-sidenav ${navOpen ? 'open' : ''}`}
+          aria-label="Course menu"
+          {...(!navOpen ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
+        >
           <PlayerSideNav
             runtime={runtime}
             project={project}
             slideIndex={slideIndex}
             settings={settings}
           />
-        </aside>
-        <div className="player-main">
-          <h1 className="sr-only" ref={slideHeadingRef} tabIndex={-1}>{`${slide.name}, slide ${slideIndex + 1} of ${project.slides.length}`}</h1>
+        </nav>
+        <main className="player-main">
+          <h1 className="sr-only" ref={slideHeadingRef} tabIndex={-1}>{`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`}</h1>
           <button
             className="player-hamburger"
             aria-label={navOpen ? 'Hide navigation' : 'Show navigation'}
@@ -486,7 +495,7 @@ export function Player({ project, adapter, startSlideId }: {
           {settings.titlePosition === 'top' && (
             <div className="player-titlebar">
               <span className="player-titlebar-title">{project.title}</span>
-              <span className="player-titlebar-slide">{slide.name} ({slideIndex + 1}/{project.slides.length})</span>
+              <span className="player-titlebar-slide">{slide.name} ({slideIndex + 1}/{slideTotal})</span>
             </div>
           )}
           <div className="player-stage-area" ref={stageAreaRef}>
@@ -528,7 +537,7 @@ export function Player({ project, adapter, startSlideId }: {
             <div
               key={layer.id}
               className="player-layer"
-              {...(layerIndex < modalIndex ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
+              {...(layerIndex < modalIndex || runtime.getLightbox() ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
             >
               {layerIndex === modalIndex && <div className="player-modal-backdrop" />}
               {layer.blocks.map((block) => {
@@ -618,16 +627,17 @@ export function Player({ project, adapter, startSlideId }: {
           ) : null;
         })}
       </div>
+      {runtime.getLightbox() && <Lightbox runtime={runtime} slide={runtime.getLightbox()!} stageW={slide.width} stageH={slide.height} />}
       {activeCue && (
         <div className="player-captions" aria-live="polite">
           <span>{activeCue.text}</span>
         </div>
       )}
       </div>
-          <div className="player-chrome-bar slim">
+          <div className="player-chrome-bar slim" role="region" aria-label="Course controls">
             {settings.progressBar && (
-              <div className="player-course-progress" title={`Slide ${slideIndex + 1} of ${project.slides.length}`}>
-                <div className="player-course-progress-fill" style={{ width: `${((slideIndex + 1) / project.slides.length) * 100}%` }} />
+              <div className="player-course-progress" title={`Slide ${slideIndex + 1} of ${slideTotal}`}>
+                <div className="player-course-progress-fill" style={{ width: `${((slideIndex + 1) / slideTotal) * 100}%` }} />
               </div>
             )}
             {(settings.navPosition ?? 'right') === 'left' && (
@@ -658,6 +668,8 @@ export function Player({ project, adapter, startSlideId }: {
                 </button>
                 <input
                   className="player-seek"
+                  aria-label="Seek the slide timeline"
+                  aria-valuetext={`${uiT.toFixed(1)} of ${uiDur.toFixed(1)} seconds`}
                   type="range"
                   min={0}
                   max={uiDur}
@@ -685,7 +697,7 @@ export function Player({ project, adapter, startSlideId }: {
               <div className="player-hud">
                 <span className="player-hud-title">{project.title}</span>
                 <span className="player-hud-slide">
-                  {slide.name} ({slideIndex + 1}/{project.slides.length})
+                  {slide.name} ({slideIndex + 1}/{slideTotal})
                 </span>
               </div>
             )}
@@ -695,7 +707,7 @@ export function Player({ project, adapter, startSlideId }: {
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

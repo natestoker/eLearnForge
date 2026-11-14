@@ -21,8 +21,19 @@ export interface AccProps {
   label?: string;          // aria-label when the visible content isn't text
 }
 
-// Decide screen-reader exposure. Default: expose only blocks that carry
-// text/alt; decorative shapes/media are hidden unless the author opts in.
+// Blocks a learner operates or reads values from. These always reach screen
+// readers in Auto mode, even when they carry no plain text of their own (a
+// drag-and-drop block's words live in its parts): hiding one would hide
+// focusable controls, which is both a WCAG failure and a trap for keyboard users.
+const INTERACTIVE = new Set<string>([
+  'multipleChoice', 'matching', 'dragDrop', 'sequence', 'fillBlank', 'textEntry',
+  'flashcards', 'tabs', 'slider', 'checklist', 'scenario', 'labeledGraphic',
+  'video', 'audio', 'results', 'varDisplay', 'progress', 'timer', 'code', 'hotspot', 'button'
+]);
+
+// Decide screen-reader exposure. Default: expose interactive blocks and any
+// block that carries text/alt; decorative shapes and text-less images are
+// hidden unless the author opts in.
 export function accessibilityFor(block: Block): AccProps {
   const text = blockText(block);
   const mode = block.aria ?? 'auto';
@@ -30,6 +41,6 @@ export function accessibilityFor(block: Block): AccProps {
   if (mode === 'exclude') return { hidden: true };
   if (mode === 'include') return { hidden: false, label: label ?? (text || undefined) };
   // auto
-  const has = Boolean(text || label);
+  const has = Boolean(text || label || INTERACTIVE.has(block.type));
   return has ? { hidden: false, label: label && !text ? label : undefined } : { hidden: true };
 }

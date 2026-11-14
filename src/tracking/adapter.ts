@@ -63,6 +63,7 @@ export interface CompactResume {
   an?: string;                // one char per question: 1 right, 0 wrong, - unanswered
   at?: string;                // one char per question: attempts so far (0-9)
   sc?: number;                // score
+  bk?: number[][];            // question banks: for each, the slide positions drawn, in order
   vr?: Record<string, VariableValue>; // non-default variables, by name
 }
 
@@ -98,7 +99,7 @@ export function encodeResume(state: ResumeData): string {
       { ...state, vr: undefined, at: undefined, an: undefined }
     ];
     for (const t of tries) { const j = JSON.stringify(t); if (j.length <= CAP) return j; }
-    return JSON.stringify({ v: 2, si: state.si, n: state.n, vw: '', sc: state.sc });
+    return JSON.stringify({ v: 2, si: state.si, n: state.n, vw: '', sc: state.sc, bk: state.bk });
   }
   const keep = { slideId: state.slideId, viewedSlideIds: state.viewedSlideIds, score: state.score, answers: state.answers, attempts: state.attempts };
   const noVars = JSON.stringify({ ...keep, variables: {} });

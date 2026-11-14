@@ -163,7 +163,7 @@ const SLIDE_EVENTS = (Object.keys(EVENTS) as TriggerEvent[]).filter((e) => EVENT
 
 type Param =
   | 'block' | 'audio' | 'layer' | 'slide' | 'variable' | 'value' | 'delta' | 'score'
-  | 'state' | 'button' | 'enabled' | 'emphasis' | 'seconds' | 'url' | 'code';
+  | 'state' | 'button' | 'enabled' | 'emphasis' | 'seconds' | 'url' | 'code' | 'lightbox';
 
 interface ActionDef { verb: string; icon: string; group: string; params: Param[] }
 
@@ -187,6 +187,8 @@ const ACTIONS: Record<ActionType, ActionDef> = {
   nextSlide: { verb: 'go to next slide', icon: 'skip-forward', group: G_NAV, params: [] },
   prevSlide: { verb: 'go to previous slide', icon: 'skip-back', group: G_NAV, params: [] },
   restartSlide: { verb: 'restart this slide', icon: 'rotate-ccw', group: G_NAV, params: [] },
+  openLightbox: { verb: 'open lightbox', icon: 'maximize', group: G_NAV, params: ['lightbox'] },
+  closeLightbox: { verb: 'close lightbox', icon: 'x', group: G_NAV, params: [] },
   openUrl: { verb: 'open URL', icon: 'link', group: G_NAV, params: ['url'] },
   completeCourse: { verb: 'complete course', icon: 'circle-check', group: G_NAV, params: [] },
   exitCourse: { verb: 'exit course', icon: 'log-out', group: G_NAV, params: [] },
@@ -289,6 +291,7 @@ export function TriggersPanel() {
       case 'showBlock': case 'hideBlock': case 'toggleBlock': case 'resetBlock': case 'playMotion':
         return { type, blockId: '' };
       case 'goToSlide': return { type, slideId: '' };
+      case 'openLightbox': return { type, slideId: '' };
       case 'setVariable': return { type, variableId: '', value: '' };
       case 'adjustVariable': return { type, variableId: '', delta: 1 };
       case 'resetVariable': return { type, variableId: '' };
@@ -301,6 +304,7 @@ export function TriggersPanel() {
       case 'seekTimeline': return { type, seconds: 0 };
       case 'openUrl': return { type, url: 'https://' };
       case 'executeJs': return { type, code: '// forge.setVariable("name", value); forge.nextSlide();\n' };
+      case 'closeLightbox': return { type };
       case 'completeCourse': case 'exitCourse': case 'pauseTimeline': case 'resumeTimeline':
       case 'restartTimeline': case 'nextSlide': case 'prevSlide': case 'restartSlide':
         return { type };
@@ -396,6 +400,12 @@ export function TriggersPanel() {
         if (!id) return { text: 'choose…', empty: true };
         const i = project.slides.findIndex((x) => x.id === id);
         return i >= 0 ? { text: `${i + 1}. ${project.slides[i].name}` } : { text: 'deleted slide', deleted: true };
+      }
+      case 'lightbox': {
+        const id = anyA.slideId as string;
+        if (!id) return { text: 'choose…', empty: true };
+        const i = project.slides.findIndex((x) => x.id === id);
+        return i >= 0 && project.slides[i].lightbox ? { text: project.slides[i].name } : { text: 'deleted lightbox', deleted: true };
       }
       case 'variable': {
         const id = anyA.variableId as string;
@@ -657,6 +667,10 @@ export function TriggersPanel() {
           return list('Choose slide', project.slides.map((s, i) => ({
             label: `${i + 1}. ${s.name}`, icon: 'presentation', selected: anyA.slideId === s.id, pick: () => setAction(t.id, ai, { slideId: s.id })
           })));
+        case 'lightbox':
+          return list('Choose lightbox', project.slides.filter((s) => s.lightbox).map((s) => ({
+            label: s.name, icon: 'maximize', selected: anyA.slideId === s.id, pick: () => setAction(t.id, ai, { slideId: s.id })
+          })), { note: 'No lightbox slides yet. On the Slide tab, tick "Use as lightbox" for a slide.' });
         case 'variable':
           return list('Choose variable', variables.map((v) => ({
             label: variableLabel(project, v), icon: 'variable', selected: anyA.variableId === v.id,

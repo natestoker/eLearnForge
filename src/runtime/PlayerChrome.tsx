@@ -21,7 +21,7 @@ export function PlayerSideNav({ runtime, project, slideIndex, settings, onNaviga
         <span>Contents</span>
       </div>
       <div className="player-sidenav-list">
-        {project.slides.map((s, i) => (
+        {runtime.effectiveSlides().map((s, i) => (
           <button
             key={s.id}
             className={`player-menu-item ${i === slideIndex ? 'active' : ''}`}
@@ -44,13 +44,13 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
   settings: PlayerSettings;
 }) {
   const go = (dir: 1 | -1) => {
-    const next = project.slides[slideIndex + dir];
-    if (next) runtime.enterSlide(next.id);
+    const next = runtime.neighborSlideId(runtime.currentSlide().id, dir);
+    if (next) runtime.enterSlide(next);
   };
   // Merge the global button setting with this slide's optional override.
   // 'hide' drops the button here, 'show' forces it visible, 'disable' shows it
   // greyed out. Absent = inherit the course-wide PlayerSettings.
-  const nav = project.slides[slideIndex]?.nav;
+  const nav = runtime.currentSlide().nav;
   const shown = (which: 'next' | 'back' | 'submit') => {
     const o = nav?.[which];
     if (o === 'hide') return false;
@@ -81,7 +81,7 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
       {shown('next') && (
         <button
           className="player-chrome-btn accent"
-          disabled={forcedOff('next') || slideIndex >= project.slides.length - 1 || !runtime.isPlayerButtonEnabled('next')}
+          disabled={forcedOff('next') || runtime.neighborSlideId(runtime.currentSlide().id, 1) === null || !runtime.isPlayerButtonEnabled('next')}
           onClick={() => go(1)}
         >
           {settings.next.label}

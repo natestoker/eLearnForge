@@ -3699,3 +3699,30 @@ select.input { appearance: auto; }
   .player-chrome-btn { min-height: 40px; }
   .player-seek { min-width: 0; }
 }
+
+/* Home ribbon > Course group buttons */
+.rbn-course-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 70px; padding: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11.5px; cursor: pointer; }
+.rbn-course-btn:hover { background: var(--border-soft); color: var(--accent); }
+
+/* Phone: the course menu floats over the slide instead of pushing it off the
+   screen, leaves room for the hamburger, and hides the Resources / Glossary
+   buttons while it is open (they used to sit on top of its heading). */
+@media (max-width: 640px) {
+  .player-body { position: relative; }
+  .player-sidenav { position: absolute; top: 0; bottom: 0; left: 0; z-index: 35; box-shadow: none; }
+  .player-sidenav.open { width: min(300px, 86vw); box-shadow: 8px 0 32px rgba(0, 0, 0, 0.55); }
+  .player-sidenav-inner { width: min(300px, 86vw); padding-top: 64px; }
+  .nav-open .player-info-tabs { display: none; }
+}
+
+.slide-bank-tag { font: 500 10px/14px var(--mono); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.bank-card { margin-bottom: 10px; }
+.bank-slides { max-height: 180px; }
+
+/* Lightbox slide: a popup over the slide, inside the scaled stage. */
+.player-lightbox-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 30; }
+.player-lightbox { position: absolute; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+.player-lightbox-close { position: absolute; top: 10px; right: 10px; z-index: 5; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 0; background: rgba(0, 0, 0, 0.65); color: #fff; cursor: pointer; }
+.player-lightbox-close:hover { background: rgba(0, 0, 0, 0.85); }
+
+.rbn-course-btn { min-width: 58px; padding: 6px; }
