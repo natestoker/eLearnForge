@@ -5,9 +5,31 @@ import type { VariableValue } from '../schema/types';
 // statements, postMessage to a Storyline parent). Writing this interface
 // once is what makes every future format a file instead of a refactor.
 
+// What a question block knows about its own answer. Options are listed by
+// position and answers refer to those positions, so each adapter can build
+// the identifiers its protocol wants (see interactions.ts).
+export type InteractionDetail =
+  | { kind: 'choice'; description: string; choices: string[]; learner: number[]; correct: number[] }
+  // items are listed in their correct order; learner is the order the
+  // learner put them in, as positions in items.
+  | { kind: 'sequencing'; description: string; items: string[]; learner: number[]; correct: number[] }
+  // pairs are [source position, target position].
+  | { kind: 'matching'; description: string; sources: string[]; targets: string[];
+      learner: [number, number][]; correct: [number, number][] }
+  | { kind: 'fill-in'; description: string; learner: string; correct: string[]; caseSensitive?: boolean }
+  | { kind: 'other'; description?: string };
+
 export type TrackingEvent =
   | { type: 'slideViewed'; slideId: string; index: number; total: number }
-  | { type: 'interaction'; blockId: string; response: string; correct: boolean }
+  | {
+      type: 'interaction';
+      blockId: string;
+      response: string;   // human-readable answer, for hosts that just show text
+      correct: boolean;
+      attempt: number;    // 1 for the first answer to this question, 2 for the retry, ...
+      latencyMs: number;  // time on the slide before this answer
+      detail?: InteractionDetail; // absent for custom code that only reports right/wrong
+    }
   // passed: score >= the course pass mark. gated: finishing the course
   // depends on passing, so an LMS status of passed/failed is meaningful.
   | { type: 'scored'; score: number; passed: boolean; gated: boolean }

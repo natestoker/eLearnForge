@@ -2,7 +2,7 @@ import type {
   Action, Block, BlockState, Condition, Project, Slide, Trigger, VariableValue
 } from '../schema/types';
 import { SELF_TARGET } from '../schema/types';
-import type { TrackingEvent } from '../tracking/adapter';
+import type { InteractionDetail, TrackingEvent } from '../tracking/adapter';
 import { completionNeedsPass, gradedBlockIds, passingScoreOf } from './scoring';
 
 // Trigger engine v1: deliberately thin per the brief.
@@ -59,6 +59,8 @@ export class Runtime {
   // Latest result per graded block: a retry replaces the earlier answer.
   private answers: Record<string, boolean> = {};
   private gradedIds: string[] | null = null;
+  private attempts: Record<string, number> = {};
+  private slideEnteredAt = Date.now();
 
   // Storyline-style built-in references, readable from text as %Name%
   // (alongside project variables by their names). Kept as a method so text
@@ -134,8 +136,17 @@ export class Runtime {
     });
   }
 
-  reportInteraction(blockId: string, response: string, correct: boolean): void {
-    this.track({ type: 'interaction', blockId, response, correct });
+  reportInteraction(blockId: string, response: string, correct: boolean, detail?: InteractionDetail): void {
+    const attempt = (this.attempts[blockId] = (this.attempts[blockId] ?? 0) + 1);
+    this.track({
+      type: 'interaction',
+      blockId,
+      response,
+      correct,
+      attempt,
+      latencyMs: Math.max(0, Date.now() - this.slideEnteredAt),
+      ...(detail ? { detail } : {})
+    });
     if (this.project.completion?.autoScore) {
       this.answers[blockId] = correct;
       this.recomputeAutoScore();
@@ -269,6 +280,7 @@ export class Runtime {
       for (const b of walk(layer.blocks)) delete this.blockStates[b.id];
     }
     this.viewedSlideIds.add(slideId);
+    this.slideEnteredAt = Date.now();
     // Player button gating resets on each slide visit.
     this.playerButtons = { next: true, back: true, submit: true };
     const index = this.project.slides.findIndex((s) => s.id === slideId);

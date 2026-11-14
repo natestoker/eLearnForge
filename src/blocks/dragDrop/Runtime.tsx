@@ -32,7 +32,23 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
     const correct = props.items.every((i) => placement[i.id] === i.targetId);
     setResult(correct);
     runtime.setVariableByName(dragDropVariableName(block.id), correct);
-    runtime.reportInteraction(block.id, props.items.map((i) => `${i.text}->${placement[i.id]}`).join('; '), correct);
+    const targetIdx = (tid: string) => props.targets.findIndex((t) => t.id === tid);
+    const pairs = (get: (i: (typeof props.items)[number]) => string | undefined): [number, number][] =>
+      props.items.flatMap((item, s) => {
+        const t = targetIdx(get(item) ?? '');
+        return t >= 0 ? [[s, t] as [number, number]] : [];
+      });
+    const text = props.items
+      .map((i) => `${i.text}->${props.targets.find((t) => t.id === placement[i.id])?.label ?? 'unplaced'}`)
+      .join('; ');
+    runtime.reportInteraction(block.id, text, correct, {
+      kind: 'matching',
+      description: props.question,
+      sources: props.items.map((i) => i.text),
+      targets: props.targets.map((t) => t.label),
+      learner: pairs((i) => placement[i.id]),
+      correct: pairs((i) => i.targetId)
+    });
   };
 
   const reset = () => { setPlacement(Object.fromEntries(props.items.map((i) => [i.id, 'bank']))); setResult(null); };

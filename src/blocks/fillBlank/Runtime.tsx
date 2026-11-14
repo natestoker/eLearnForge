@@ -15,7 +15,13 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
     const correct = props.correctAnswers.some((a) => norm(a) === norm(value));
     setResult(correct);
     runtime.setVariableByName(fillBlankVariableName(block.id), correct);
-    runtime.reportInteraction(block.id, value, correct);
+    runtime.reportInteraction(block.id, value, correct, {
+      kind: 'fill-in',
+      description: props.question,
+      learner: value,
+      correct: props.correctAnswers,
+      caseSensitive: !!props.caseSensitive
+    });
   };
 
   return (

@@ -71,7 +71,15 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           const response = props.pairs
             .map((p) => `${p.left} = ${props.pairs.find((q) => q.id === links[p.id])?.right ?? '?'}`)
             .join('; ');
-          runtime.reportInteraction(block.id, response, correct);
+          const idx = (id: string | undefined) => props.pairs.findIndex((q) => q.id === id);
+          runtime.reportInteraction(block.id, response, correct, {
+            kind: 'matching',
+            description: props.question,
+            sources: props.pairs.map((p) => p.left),
+            targets: props.pairs.map((p) => p.right),
+            learner: props.pairs.flatMap((p, s) => (idx(links[p.id]) >= 0 ? [[s, idx(links[p.id])] as [number, number]] : [])),
+            correct: props.pairs.map((_, i) => [i, i] as [number, number])
+          });
         }}>Check</button>
       ) : (
         <div className={`match-feedback ${correct ? 'ok' : 'no'}`}>

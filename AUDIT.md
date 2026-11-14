@@ -20,7 +20,7 @@ Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so
 - `setScore` takes a hand-typed number. There's no quiz model: no question bank, no results slide, no attempts limit, no "score = % correct across these questions." Authors have to wire variables by hand.
 - Fix: add a Course settings block (pass mark, completion rule, attempts) and a Results object that reads the score. Feed the pass mark into both SCORM adapters and set `cmi.core.lesson_mastery_score` / `cmi.scaled_passing_score`.
 
-### 2. Interaction reporting is thin and slightly wrong
+### 2. Interaction reporting is thin and slightly wrong (DONE, v6.13; not yet checked in a live LMS/LRS)
 - Every interaction is reported as `type: choice` (`scorm12.ts:73`), including matching, drag-drop, fill-in-blank. LMS reports will show the wrong type.
 - A retry appends a new `cmi.interactions.n` entry each time, so one question can show up three times in the report.
 - Matching never calls `reportInteraction`, so those answers don't reach the LMS. MC, fill-blank, drag-drop, sequence and scenario do.

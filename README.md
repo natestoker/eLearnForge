@@ -1239,3 +1239,35 @@ player via Resources / Glossary buttons.
 - Logic lives in `src/engine/scoring.ts` and the runtime's `applyScore` /
   `checkCompletion`.
 
+
+# v6.13
+
+## Interaction reporting (SCORM 1.2, SCORM 2004, xAPI)
+Question blocks now report what the learner chose and what was correct, not
+just right or wrong. Each block sends an `InteractionDetail` (kind, options,
+learner answer, correct answer) and the adapter formats it for its protocol
+(`src/tracking/interactions.ts`).
+- **Real interaction types.** Multiple choice reports `choice`, fill-in
+  `fill-in`, sequence `sequencing`, matching and drag-drop `matching`.
+  Custom code that only reports right/wrong still works and lands as
+  `performance` (1.2) or `other` (2004, xAPI).
+- **Spec-shaped answers.** Options are identified by position, one base-36
+  character each (0-9, a-z), which is what SCORM 1.2 requires. 1.2 uses `a,b`
+  and `a.b`; 2004 and xAPI use `a[,]b` and `a[.]b`. A question with more than
+  36 options falls back to plain text.
+- **Correct responses, timing.** Correct response patterns, weighting, time
+  and latency are written. SCORM 2004 also gets the question text as the
+  interaction description and an ISO timestamp. Latency is time on the slide
+  before the answer, which is an approximation when a slide holds several
+  questions.
+- **One entry per question.** A retry updates the same `cmi.interactions.n`
+  entry (answer, result, time) instead of adding a duplicate. A resumed
+  session continues after the LMS's own `_count`.
+- **xAPI.** Each answer is an `answered` statement whose object is a
+  `cmi.interaction` activity with choices or source/target lists and
+  `correctResponsesPattern`, a `PT..S` duration, an attempt number extension,
+  and the course as parent activity. xAPI is append-only, so every attempt is
+  its own statement. Pass-gated courses also send a `passed` or `failed`
+  statement carrying the score.
+- Not verified against a live LMS or LRS yet; see AUDIT.md.
+

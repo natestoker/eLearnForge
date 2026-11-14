@@ -32,7 +32,15 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
       .filter((c) => selected.includes(c.id))
       .map((c) => c.text)
       .join('; ');
-    runtime.reportInteraction(block.id, responseText, correct);
+    const idxOf = (ids: string[]) =>
+      ids.map((id) => props.choices.findIndex((c) => c.id === id)).filter((i) => i >= 0);
+    runtime.reportInteraction(block.id, responseText, correct, {
+      kind: 'choice',
+      description: props.question,
+      choices: props.choices.map((c) => c.text),
+      learner: idxOf(selected),
+      correct: idxOf(props.correctChoiceIds)
+    });
   };
 
   const retry = () => {

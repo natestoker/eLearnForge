@@ -1,3 +1,4 @@
+import { InteractionSlots, clip, scormTimespan, toWire } from './interactions';
 import type { ResumeData, TrackingAdapter, TrackingEvent } from './adapter';
 import { decodeResume, encodeResume } from './adapter';
 
@@ -65,17 +66,9 @@ export class Scorm12Adapter implements TrackingAdapter {
         this.call(() => this.api!.LMSSetValue('cmi.core.lesson_location', String(event.index + 1)));
         this.call(() => this.api!.LMSCommit(''));
         break;
-      case 'interaction': {
-        // cmi.interactions is optional in many LMSes; write it and move on.
-        const n = this.call(() => this.api!.LMSGetValue('cmi.interactions._count')) || '0';
-        const i = parseInt(n, 10) || 0;
-        this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.id`, event.blockId));
-        this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.type`, 'choice'));
-        this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.student_response`, event.response.slice(0, 255)));
-        this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.result`, event.correct ? 'correct' : 'wrong'));
-        this.call(() => this.api!.LMSCommit(''));
+      case 'interaction':
+        this.writeInteraction(event);
         break;
-      }
       case 'scored':
         this.call(() => this.api!.LMSSetValue('cmi.core.score.min', '0'));
         this.call(() => this.api!.LMSSetValue('cmi.core.score.max', '100'));
@@ -93,6 +86,32 @@ export class Scorm12Adapter implements TrackingAdapter {
         this.call(() => this.api!.LMSCommit(''));
         break;
     }
+  }
+
+  private slots = new InteractionSlots();
+
+  // cmi.interactions is optional in many LMSes; every write is best effort.
+  private writeInteraction(event: Extract<TrackingEvent, { type: 'interaction' }>): void {
+    const { index: i, isNew } = this.slots.slot(event.blockId, () =>
+      parseInt(this.call(() => this.api!.LMSGetValue('cmi.interactions._count')) || '0', 10) || 0
+    );
+    const set = (k: string, v: string) => this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.${k}`, v));
+    const wire = event.detail ? toWire(event.detail, 'scorm12') : null;
+    // Identity, type and the correct answer are written once. A retry only
+    // updates what changed (answer, result, time).
+    if (isNew) {
+      set('id', clip(event.blockId, 255));
+      set('type', wire?.kind === 'other' || !wire ? 'performance' : wire.kind);
+      wire?.correct.slice(0, 10).forEach((c, m) =>
+        this.call(() => this.api!.LMSSetValue(`cmi.interactions.${i}.correct_responses.${m}.pattern`, clip(c, 255)))
+      );
+      set('weighting', '1');
+    }
+    set('student_response', clip(wire ? wire.response : event.response, 255));
+    set('result', event.correct ? 'correct' : 'wrong');
+    set('time', new Date().toTimeString().slice(0, 8));
+    set('latency', scormTimespan(event.latencyMs));
+    this.call(() => this.api!.LMSCommit(''));
   }
 
   saveResume(state: ResumeData): void {

@@ -1,5 +1,7 @@
 import type { ResumeData, TrackingAdapter, TrackingEvent } from './adapter';
 import { decodeResume, encodeResume } from './adapter';
+import type { InteractionDetail } from './adapter';
+import { fitsIdScheme, idOf, isoDuration, toWire } from './interactions';
 
 // xAPI (Tin Can launch style). The LMS launches index.html with query
 // params: endpoint, auth, actor, activity_id, registration. Statements
@@ -12,8 +14,14 @@ const VERBS = {
   answered: { id: 'http://adlnet.gov/expapi/verbs/answered', display: { 'en-US': 'answered' } },
   scored: { id: 'http://adlnet.gov/expapi/verbs/scored', display: { 'en-US': 'scored' } },
   completed: { id: 'http://adlnet.gov/expapi/verbs/completed', display: { 'en-US': 'completed' } },
+  passed: { id: 'http://adlnet.gov/expapi/verbs/passed', display: { 'en-US': 'passed' } },
+  failed: { id: 'http://adlnet.gov/expapi/verbs/failed', display: { 'en-US': 'failed' } },
   terminated: { id: 'http://adlnet.gov/expapi/verbs/terminated', display: { 'en-US': 'terminated' } }
 };
+
+const ATTEMPT_EXT = 'https://elearnforge.com/xapi/extensions/attempt';
+
+const lang = (s: string) => ({ 'en-US': s });
 
 export class XapiAdapter implements TrackingAdapter {
   private endpoint = '';
@@ -22,6 +30,7 @@ export class XapiAdapter implements TrackingAdapter {
   private activityId = '';
   private registration = '';
   private title = 'eLearnForge course';
+  private lastScore: number | null = null;
 
   private get active(): boolean {
     return Boolean(this.endpoint && this.actor);
@@ -50,6 +59,31 @@ export class XapiAdapter implements TrackingAdapter {
     return decodeResume(localStorage.getItem(this.localKey()));
   }
 
+  // The question as an xAPI cmi.interaction activity: type, choices or
+  // source/target lists, and the correct response pattern(s).
+  private interactionObject(blockId: string, detail: InteractionDetail | undefined): any {
+    const obj: any = { objectType: 'Activity', id: `${this.activityId}/block/${blockId}` };
+    const description = detail && 'description' in detail ? detail.description : undefined;
+    const def: any = {
+      type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+      name: lang(`${this.title} - question`),
+      ...(description ? { description: lang(description) } : {})
+    };
+    const wire = detail && fitsIdScheme(detail) ? toWire(detail, 'delimited') : null;
+    if (detail && wire) {
+      const comp = (texts: string[]) => texts.map((t, i) => ({ id: idOf(i), description: lang(t) }));
+      def.interactionType = wire.kind;
+      def.correctResponsesPattern = wire.correct;
+      if (detail.kind === 'choice') def.choices = comp(detail.choices);
+      if (detail.kind === 'sequencing') def.choices = comp(detail.items);
+      if (detail.kind === 'matching') { def.source = comp(detail.sources); def.target = comp(detail.targets); }
+    } else {
+      def.interactionType = 'other';
+    }
+    obj.definition = def;
+    return obj;
+  }
+
   private localKey(): string {
     return `elearnforge.resume.${this.activityId || this.title}`;
   }
@@ -65,7 +99,11 @@ export class XapiAdapter implements TrackingAdapter {
       timestamp: new Date().toISOString(),
       ...extra
     };
-    if (this.registration) st.context = { registration: this.registration };
+    st.context = {
+      ...(this.registration ? { registration: this.registration } : {}),
+      // Sub-activities (slides, questions) point back at the course.
+      ...(objectSuffix ? { contextActivities: { parent: [{ id: this.activityId, objectType: 'Activity' }] } } : {})
+    };
     return st;
   }
 
@@ -89,18 +127,40 @@ export class XapiAdapter implements TrackingAdapter {
       case 'slideViewed':
         this.send(VERBS.experienced, {}, `slide/${event.index + 1}`);
         break;
-      case 'interaction':
+      case 'interaction': {
+        const wire = event.detail ? toWire(event.detail, 'delimited') : null;
         this.send(
           VERBS.answered,
-          { result: { success: event.correct, response: event.response.slice(0, 255) } },
+          {
+            object: this.interactionObject(event.blockId, event.detail),
+            result: {
+              success: event.correct,
+              completion: true,
+              response: (wire ? wire.response : event.response).slice(0, 4000),
+              duration: isoDuration(event.latencyMs),
+              extensions: { [ATTEMPT_EXT]: event.attempt }
+            }
+          },
           `block/${event.blockId}`
         );
         break;
+      }
       case 'scored':
+        this.lastScore = event.score;
         this.send(VERBS.scored, { result: { score: { raw: event.score, min: 0, max: 100, scaled: event.score / 100 }, success: event.passed } });
         break;
       case 'completed':
         this.send(VERBS.completed, { result: { completion: true, ...(event.passed !== undefined ? { success: event.passed } : {}) } });
+        // A pass-gated course also says passed or failed, which is the
+        // statement most LRS dashboards key their pass rate on.
+        if (event.passed !== undefined) {
+          this.send(event.passed ? VERBS.passed : VERBS.failed, {
+            result: {
+              success: event.passed,
+              ...(this.lastScore !== null ? { score: { raw: this.lastScore, min: 0, max: 100, scaled: this.lastScore / 100 } } : {})
+            }
+          });
+        }
         break;
     }
   }

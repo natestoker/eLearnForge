@@ -40,7 +40,13 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
     setResult(correct);
     runtime.setVariableByName(sequenceVariableName(block.id), correct);
     const answer = order.map((id) => props.items.find((i) => i.id === id)?.text ?? id).join(' > ');
-    runtime.reportInteraction(block.id, answer, correct);
+    runtime.reportInteraction(block.id, answer, correct, {
+      kind: 'sequencing',
+      description: props.question,
+      items: props.items.map((i) => i.text),
+      learner: order.map((id) => props.items.findIndex((i) => i.id === id)).filter((i) => i >= 0),
+      correct: props.items.map((_, i) => i)
+    });
   };
 
   const reset = () => { setOrder(shuffled(props.items.map((i) => i.id))); setResult(null); };

@@ -1,3 +1,4 @@
+import { InteractionSlots, clip, isoDuration, toWire } from './interactions';
 import type { ResumeData, TrackingAdapter, TrackingEvent } from './adapter';
 import { decodeResume, encodeResume } from './adapter';
 
@@ -60,16 +61,9 @@ export class Scorm2004Adapter implements TrackingAdapter {
         this.call(() => this.api!.SetValue('cmi.location', String(event.index + 1)));
         this.call(() => this.api!.Commit(''));
         break;
-      case 'interaction': {
-        const n = this.call(() => this.api!.GetValue('cmi.interactions._count')) || '0';
-        const i = parseInt(n, 10) || 0;
-        this.call(() => this.api!.SetValue(`cmi.interactions.${i}.id`, event.blockId));
-        this.call(() => this.api!.SetValue(`cmi.interactions.${i}.type`, 'choice'));
-        this.call(() => this.api!.SetValue(`cmi.interactions.${i}.learner_response`, event.response.slice(0, 255)));
-        this.call(() => this.api!.SetValue(`cmi.interactions.${i}.result`, event.correct ? 'correct' : 'incorrect'));
-        this.call(() => this.api!.Commit(''));
+      case 'interaction':
+        this.writeInteraction(event);
         break;
-      }
       case 'scored':
         this.call(() => this.api!.SetValue('cmi.score.min', '0'));
         this.call(() => this.api!.SetValue('cmi.score.max', '100'));
@@ -83,6 +77,31 @@ export class Scorm2004Adapter implements TrackingAdapter {
         this.call(() => this.api!.Commit(''));
         break;
     }
+  }
+
+  private slots = new InteractionSlots();
+
+  private writeInteraction(event: Extract<TrackingEvent, { type: 'interaction' }>): void {
+    const { index: i, isNew } = this.slots.slot(event.blockId, () =>
+      parseInt(this.call(() => this.api!.GetValue('cmi.interactions._count')) || '0', 10) || 0
+    );
+    const set = (k: string, v: string) => this.call(() => this.api!.SetValue(`cmi.interactions.${i}.${k}`, v));
+    const wire = event.detail ? toWire(event.detail, 'delimited') : null;
+    if (isNew) {
+      set('id', event.blockId);
+      set('type', wire && wire.kind !== 'other' ? wire.kind : 'other');
+      const description = event.detail && 'description' in event.detail ? event.detail.description : undefined;
+      if (description) set('description', clip(description, 250));
+      wire?.correct.slice(0, 10).forEach((c, m) =>
+        this.call(() => this.api!.SetValue(`cmi.interactions.${i}.correct_responses.${m}.pattern`, c))
+      );
+      set('weighting', '1');
+    }
+    set('learner_response', clip(wire ? wire.response : event.response, wire?.kind === 'fill-in' ? 250 : 4000));
+    set('result', event.correct ? 'correct' : 'incorrect');
+    set('timestamp', new Date().toISOString().replace(/\.\d+Z$/, 'Z'));
+    set('latency', isoDuration(event.latencyMs));
+    this.call(() => this.api!.Commit(''));
   }
 
   saveResume(state: ResumeData): void {
