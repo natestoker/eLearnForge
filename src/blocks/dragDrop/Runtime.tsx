@@ -151,7 +151,8 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
   return (
     <div className="dd-block live" ref={rootRef} role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
       <p className="dd-question" id={qid}>{props.question}</p>
-      <div className="sr-only" role="status" aria-live="polite">{note || (result === false ? props.feedbackIncorrect : '')}</div>
+      <div className="sr-only" role="status" aria-live="polite">{result === null ? note : ''}</div>
+      {result !== null && <div className="sr-only" role="alert">{result ? props.feedbackCorrect : props.feedbackIncorrect}</div>}
       <div className="dd-bank" data-zone="bank">
         {bank.length === 0 ? <span className="dd-bank-empty">All placed</span> : bank.map(renderItem)}
         {placeButton('bank')}
@@ -175,7 +176,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
         <button className="dd-check" onClick={check} disabled={!allPlaced}>Check</button>
       ) : null}
       {result !== null && (
-        <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
+        <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
           {!result && !locked && <button className="dd-retry" onClick={reset}>Reset</button>}
           {locked && !result && <p className="attempts-note">No attempts left.</p>}

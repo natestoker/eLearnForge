@@ -11,6 +11,7 @@ publishes to a single offline file.
     npm run dev        # editor at localhost:5173, player at /player.html
     npm test           # unit tests (scoring, tracking, triggers, resume, checks)
     npm run test:e2e   # browser suites in real Chromium (needs: npx playwright install chromium)
+                       # the xAPI suite also needs a running LRS; see tests/e2e/xapi-lrs.e2e.mjs
     npm run build      # production build to dist/ (editor and player)
 
 The build produces exactly two self-contained files in `dist/`: `index.html`
@@ -70,7 +71,8 @@ Version-by-version detail is in [CHANGELOG.md](CHANGELOG.md).
 - `src/runtime/`     standalone player (`player.html` entry)
 - `src/tracking/`    SCORM 1.2 / 2004, xAPI, Storyline bridge adapters
 - `src/publish/`     packaging, manifests, publish checks, PPTX import
-- `tests/`           unit tests (`npm test`); `tests/e2e/` browser suites (`npm run test:e2e`)
+- `tests/`           unit tests (`npm test`); `tests/e2e/` browser suites (`npm run test:e2e`);
+                     `tests/screen-reader/` real screen-reader pass (Linux, not in CI)
 - `fixtures/`        sample PowerPoint files for the importer
 
 ## Invariants to preserve

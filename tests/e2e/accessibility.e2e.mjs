@@ -26,10 +26,11 @@ await page.locator('.player-block', { hasText: 'Open hint' }).click(); await pag
 eq('axe: lightbox open', await axeViolations(page), []);
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 
-// ---- slide change: focus goes to a heading naming the new slide
+// ---- slide change: focus goes to the slide's labelled main region
 await page.locator('button:has-text("Next")').first().focus();
 await page.keyboard.press('Enter'); await page.waitForTimeout(600);
-eq('after Next, focus is on the new slide heading', await page.evaluate(() => document.activeElement?.tagName + ': ' + document.activeElement?.textContent), 'H1: Spot the red flags, slide 2 of 6');
+eq('after Next, focus is on the main region labelled with the new slide', await page.evaluate(() => document.activeElement?.tagName + ': ' + document.activeElement?.getAttribute('aria-label')), 'MAIN: Spot the red flags, slide 2 of 6');
+eq('and every clickable object has a name', await page.evaluate(() => [...document.querySelectorAll('.player-block[role=button]')].filter((b) => !b.getAttribute('aria-label') && !b.textContent.trim()).length), 0);
 
 // ---- quiz: radio roles, state, and feedback focus
 await goToSlideWith(page, '.mc-block');

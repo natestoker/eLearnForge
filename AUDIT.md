@@ -2,7 +2,7 @@
 
 Two reviewers: an instructional designer who builds compliance and training courses and has to get them through an LMS, and a Storyline engineer who lives in triggers, variables, states and layers. I ran the editor, clicked through the demo course, and read the tracking, engine and runtime code. Type-check is clean and there were no console errors on load.
 
-Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so the SCORM notes below come from reading code, not from a live run.
+How it was checked: the editor and demo course were run in a browser, the player was read with a real screen reader (Orca in Epiphany), the published SCORM 1.2 and 2004 output was run against scorm-again (an independent SCORM runtime), and the xAPI output was sent to a real LRS (Yet Analytics lrsql) and read back. Not checked: SCORM Cloud itself (the network here can't reach it) and the commercial screen readers (NVDA, JAWS, VoiceOver). See the end of item 2 and item 5.
 
 ## What's strong
 
@@ -20,11 +20,12 @@ Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so
 - `setScore` takes a hand-typed number. There's no quiz model: no question bank, no results slide, no attempts limit, no "score = % correct across these questions." Authors have to wire variables by hand.
 - Fix: add a Course settings block (pass mark, completion rule, attempts) and a Results object that reads the score. Feed the pass mark into both SCORM adapters and set `cmi.core.lesson_mastery_score` / `cmi.scaled_passing_score`.
 
-### 2. Interaction reporting is thin and slightly wrong (DONE, v6.13; not yet checked in a live LMS/LRS)
+### 2. Interaction reporting is thin and slightly wrong (DONE, v6.13; checked against scorm-again and a real LRS in v6.19)
 - Every interaction is reported as `type: choice` (`scorm12.ts:73`), including matching, drag-drop, fill-in-blank. LMS reports will show the wrong type.
 - A retry appends a new `cmi.interactions.n` entry each time, so one question can show up three times in the report.
 - Matching never calls `reportInteraction`, so those answers don't reach the LMS. MC, fill-blank, drag-drop, sequence and scenario do.
 - Fix: carry an interaction type on the event (choice, matching, fill-in, performance), reuse the index per block id, add `latency`, `timestamp`, `correct_responses`.
+- Checked in v6.19. `tests/e2e/scorm-conformance.e2e.mjs` publishes the demo course and runs it against scorm-again for both SCORM 1.2 and 2004. The runtime validates every value the way an LMS does, and rejected none (49 calls on 2004, 42 on 1.2). One interaction entry is reused on retry, the type is `choice`, the score ends at 50, and the status is right for each version. `tests/e2e/xapi-lrs.e2e.mjs` sends a published xAPI course to a real LRS and reads the statements back: initialized, experienced, answered (wrong then right, `choice`, correct response pattern), scored (scaled 0.5, success against the pass mark), completed. That run also found a real gap: xAPI resume was written to the LRS but only read from the browser's own storage, so a learner opening the course on another device started over. It now reads the LRS State API when there is no local copy, and the suite checks that a fresh browser lands on the saved slide. The xAPI suite needs a running LRS, so it skips unless `XAPI_LRS_ENDPOINT`, `XAPI_LRS_KEY` and `XAPI_LRS_SECRET` are set.
 
 ### 3. Resume loses state (DONE v6.16: positions stored instead of ids; a 250-slide course went from 11,227 to 2,269 characters. Old saved states still load.)
 - If suspend_data goes over 4000 characters, variables are dropped first (`adapter.ts:35`). A course with a score variable and a few flags can silently lose the score on resume.
@@ -35,7 +36,20 @@ Missing against Storyline: keyboard-key events, "when timeline starts", "when va
 - Biggest ones to add first: Execute JavaScript, Exit course, Reset to initial state, Previous/Next slide actions, key-press event.
 - Triggers panel is too cramped to author in (see design section), which makes everything above feel worse.
 
-### 5. Accessibility in the player (DONE v6.16: question blocks have groups, radio/checkbox roles and spoken feedback; drag-and-drop has a keyboard path; dialogs trap and return focus; slide changes move focus to a heading naming the slide; Publish checks flag missing alt text and uncaptioned video. v6.17: axe-core (WCAG 2.0/2.1 A and AA plus best practice) finds no violations in the player slides, menu, Resources panel, lightbox, or the editor's Welcome, Triggers and Publish screens, after fixing a closed menu that focus could still reach, an unlabelled seek bar, missing page landmarks, and question blocks that were hidden from screen readers. v6.18: tried a real screen reader. Orca (the Linux screen reader) was installed and ran against Chrome: it recognised the course and spoke "Finished loading eLearnForge Player", but after the first page load Orca stopped reporting later focus changes in this headless setup, so I could not capture it speaking through the quiz. Instead I recorded the platform accessibility events Chrome sends (the data a screen reader turns into speech: role, name, state, live announcements) while stepping through the menu, slide changes, quiz and drag-and-drop. That showed two real problems, now fixed: after Submit, keyboard focus fell back to the page instead of the feedback, and after picking up a drag-and-drop item, Tab went to the next item instead of the Place buttons. The Resources and Glossary buttons also failed colour contrast over light slides (axe had never seen them because the earlier test course had no resources); fixed. Still not done: NVDA, JAWS or VoiceOver on a real Windows or Mac machine. That needs a person with one of them.)
+### 5. Accessibility in the player (DONE v6.16 to v6.19; NVDA, JAWS and VoiceOver still untested)
+Done in v6.16: question blocks have groups, radio/checkbox roles and spoken feedback; drag-and-drop has a keyboard path; dialogs trap and return focus; slide changes move focus to a labelled region; Publish checks flag missing alt text and uncaptioned video. v6.17: axe-core (WCAG 2.0/2.1 A and AA plus best practice) finds no violations in the player slides, menu, Resources panel, lightbox, or the editor's Welcome, Triggers and Publish screens. v6.18: Chrome's accessibility events recorded while stepping through a course showed two problems (focus lost after Submit; drag-and-drop Tab order), fixed.
+
+v6.19: a real screen reader. Orca 46 read the published course in Epiphany (WebKitGTK), driven by real keystrokes through xdotool, with Orca's own speech log as the transcript. Chrome never delivered focus events to Orca in this headless setup, which is why Epiphany. The harness is in `tests/screen-reader/` (see its README); it is not in CI because it needs a Linux desktop stack. What Orca said, and what that changed:
+- Slide change was silent. Focus went to a hidden heading and a live region, and Orca said nothing. Focus now goes to the `main` landmark, which is labelled "Spot the red flags, slide 2 of 6", and Orca speaks it.
+- Quiz feedback was silent after Submit for the same reason. The feedback is now a labelled region that takes focus, and Orca reads "Right - type the address yourself or use a bookmark."
+- Hotspots with no name were read as "push button" with nothing else. They now fall back to the block's name, and Publish checks warn about clickable objects with no name.
+- Drag and drop: picking up an item now moves focus to the first Place button, and Orca reads "Place in Phishing push button". After placing, focus returns to the item, read as "toggle button not pressed" or "pressed".
+- Also confirmed working: the menu button ("Show navigation collapsed" and then "expanded"), the "Course controls" landmark with Play, the seek slider ("12.0 of 12.0 seconds") and Next; radio buttons read as "not selected radio button" and then "selected"; the lightbox opens as "Hint popup dialog" with a Close button and Escape returns focus to "Open hint".
+- One thing I could not pin down: in one of the Orca runs the slide 3 change was silent while slides 2, 4 and 5 were spoken. It did not repeat, and I could not reproduce it, so I am recording it instead of calling it fixed.
+
+Not done: NVDA, JAWS or VoiceOver on a real Windows or Mac machine. That needs a person with one of them. Orca on WebKit is a real screen reader, but it is not the same as the ones most learners use.
+
+The original findings, for the record:
 - No `aria-label`, role or live-region on the Multiple choice, Matching or Drag-and-drop runtimes. Feedback ("Correct!") isn't announced to screen readers.
 - Modal has Escape-to-close but no focus trap or focus return.
 - Drag-and-drop and Matching need a keyboard path (select item, then select target).
@@ -48,7 +62,7 @@ Missing against Storyline: keyboard-key events, "when timeline starts", "when va
 - Embedded media is stored as data URLs. There's no size warning, so a few narration clips and a video can push the project and the SCORM zip past what an LMS will accept or IndexedDB will hold. Show a size meter and warn at publish.
 - Auto-generated variable names like `mc_blk_nhuf5di8xm_correct` are unreadable in the Variables panel. DONE v6.16: the name has to stay (the player looks it up by name), so pickers and the Variables panel now show "Knowledge check: correct" and say which block owns it.
 - ~~Welcome modal reappears on every load; remember dismissal.~~ False alarm: it already remembers dismissal (`elearnforge.welcomed` in localStorage); it only looked repeated in a fresh test browser. It now also closes on Escape and traps focus.
-- Tests: DONE v6.16 and v6.18. `tests/` holds 10 unit-test files run by `npm test`, and `tests/e2e/` holds 8 Playwright browser suites run by `npm run test:e2e` (quiz tracking, triggers, publish flow, accessibility with axe-core, banks and lightbox, phone layout, media compression, compress in Publish). CI runs both before deploying.
+- Tests: DONE v6.16, v6.18 and v6.19. `tests/` holds 10 unit-test files run by `npm test`, and `tests/e2e/` holds 10 Playwright browser suites run by `npm run test:e2e` (quiz tracking, triggers, publish flow, accessibility with axe-core, banks and lightbox, phone layout, media compression, compress in Publish, SCORM conformance against scorm-again, and xAPI against a real LRS when one is running). CI runs both before deploying.
 
 ### 7. Cleanup in the repo root (DONE v6.16)
 - Removed `new_stitch.html`, `stitch_screen.html`, `fetch.cjs`, `extract_icons.cjs`, `icons.json` (one-off Stitch download scripts; one held a signed URL and a local Windows path; nothing referenced them). PPTX files moved to `fixtures/`.

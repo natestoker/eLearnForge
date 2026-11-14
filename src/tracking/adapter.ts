@@ -76,6 +76,9 @@ export interface TrackingAdapter {
   // has any (SCORM suspend_data, localStorage, ...), else null.
   initialize(courseTitle: string): ResumeData | null;
   handle(event: TrackingEvent): void;
+  // Optional. For hosts whose resume data arrives asynchronously (the xAPI
+  // State API). The player applies it if the learner hasn't moved yet.
+  loadResume?(): Promise<ResumeData | null>;
   // Called on visibilitychange/pagehide with the latest resume state.
   saveResume(state: ResumeData): void;
   terminate(): void;

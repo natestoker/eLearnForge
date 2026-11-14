@@ -13,6 +13,7 @@ import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
 import { PlayerNavButtons, PlayerSideNav } from './PlayerChrome';
 import { accessibilityFor } from './accessibility';
+import { blockDisplayName } from '../shared/blockName';
 import { runEmphasis } from '../blocks/emphasis';
 import type { Emphasis } from '../blocks/emphasis';
 import { gsap } from 'gsap';
@@ -58,12 +59,21 @@ export function Player({ project, adapter, startSlideId }: {
     const resume = adapter.initialize(project.title);
     const off = runtime.onTrack((e) => adapter.handle(e));
     if (resume) runtime.restoreState(resume);
+    // Hosts that deliver resume data asynchronously (xAPI State API): apply it
+    // only if nothing local was restored and the learner hasn't started yet.
+    let alive = true;
+    if (!resume && adapter.loadResume) {
+      adapter.loadResume().then((remote) => {
+        if (alive && remote && runtime.viewedCount() <= 1) runtime.restoreState(remote);
+      });
+    }
     const save = () => adapter.saveResume(runtime.exportResume());
     const onVis = () => { if (document.visibilityState === 'hidden') save(); };
     const onHide = () => { save(); adapter.terminate(); };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('pagehide', onHide);
     return () => {
+      alive = false;
       off();
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('pagehide', onHide);
@@ -108,11 +118,14 @@ export function Player({ project, adapter, startSlideId }: {
   // Screen readers: when the slide changes, move focus to a hidden heading
   // naming the new slide so it is announced and keyboard users start at the
   // top of it. Not on first load, so the course doesn't grab focus on open.
-  const slideHeadingRef = useRef<HTMLHeadingElement>(null);
+  const slideHeadingRef = useRef<HTMLElement>(null);
   const firstSlideRef = useRef(true);
+  const [announcedSlide, setAnnouncedSlide] = useState('');
   useEffect(() => {
     if (firstSlideRef.current) { firstSlideRef.current = false; return; }
     slideHeadingRef.current?.focus({ preventScroll: true });
+    setAnnouncedSlide(`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide.id]);
   const exitCourse = () => {
     try {
@@ -447,8 +460,10 @@ export function Player({ project, adapter, startSlideId }: {
             settings={settings}
           />
         </nav>
-        <main className="player-main">
-          <h1 className="sr-only" ref={slideHeadingRef} tabIndex={-1}>{`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`}</h1>
+        <main className="player-main" ref={slideHeadingRef} tabIndex={-1} aria-label={`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`}>
+          <h1 className="sr-only">{`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`}</h1>
+          {/* A live region is what screen readers reliably speak when the slide changes; focus alone was silent in Orca. Empty on first load. */}
+          {announcedSlide && <div className="sr-only" role="alert" key={slide.id}>{announcedSlide}</div>}
           <button
             className="player-hamburger"
             aria-label={navOpen ? 'Hide navigation' : 'Show navigation'}
@@ -574,7 +589,7 @@ export function Player({ project, adapter, startSlideId }: {
                     role={clickable ? 'button' : undefined}
                     aria-disabled={disabled || undefined}
                     aria-hidden={acc.hidden || undefined}
-                    aria-label={acc.label}
+                    aria-label={acc.label ?? (clickable && !acc.hidden ? blockDisplayName(block) : undefined)}
                     onKeyDown={
                       clickable
                         ? (e) => {

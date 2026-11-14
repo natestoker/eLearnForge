@@ -50,11 +50,11 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
         {result !== true && !locked && <button className="fb-check" onClick={check} disabled={!value.trim()}>Check</button>}
       </div>
       {result !== null && (
-        <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
+        <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
           {result ? props.feedbackCorrect : props.feedbackIncorrect}
         </p>
       )}
-      <div className="sr-only" role="status" aria-live="polite">{result === false ? props.feedbackIncorrect : ''}</div>
+      {result !== null && <div className="sr-only" role="alert">{result ? props.feedbackCorrect : props.feedbackIncorrect}</div>}
       {locked && !result && <p className="attempts-note">No attempts left.</p>}
     </div>
   );

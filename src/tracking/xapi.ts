@@ -165,6 +165,27 @@ export class XapiAdapter implements TrackingAdapter {
     }
   }
 
+  // Resume from the LRS, for a learner opening the course on another device or
+  // browser (localStorage only knows this one).
+  async loadResume(): Promise<ResumeData | null> {
+    if (!this.active) return null;
+    const url = `${this.endpoint}/activities/state?` + new URLSearchParams({
+      activityId: this.activityId,
+      agent: JSON.stringify(this.actor),
+      stateId: 'resume',
+      ...(this.registration ? { registration: this.registration } : {})
+    });
+    try {
+      const res = await fetch(url, {
+        headers: { 'X-Experience-API-Version': '1.0.3', ...(this.auth ? { Authorization: this.auth } : {}) }
+      });
+      if (!res.ok) return null;
+      return decodeResume(await res.text());
+    } catch {
+      return null;
+    }
+  }
+
   saveResume(state: ResumeData): void {
     const encoded = encodeResume(state);
     try { localStorage.setItem(this.localKey(), encoded); } catch { /* private mode */ }

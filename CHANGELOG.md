@@ -1436,3 +1436,26 @@ Large-media "Compress" is not built; the check only warns.
 - **Browser suites in the repo** (`tests/e2e`, `npm run test:e2e`, also in CI):
   8 Playwright suites in real Chromium.
 
+
+# v6.19
+
+## Screen-reader pass, SCORM and xAPI conformance
+- **Real screen reader.** Orca read the published course in Epiphany with real
+  keystrokes. Slide changes and quiz feedback were silent; focus now goes to a
+  labelled region (the `main` landmark for a slide, a labelled region for
+  feedback) and Orca speaks them. Drag and drop moves focus to the Place buttons
+  on pick-up. The harness is in `tests/screen-reader/`.
+- **Unnamed clickable objects.** Hotspots and other clickable blocks with no
+  name fall back to the block's name for screen readers, and Publish checks
+  warn about them.
+- **SCORM conformance suite.** The published SCORM 1.2 and 2004 output runs
+  against scorm-again, an independent runtime; it rejects no values.
+- **xAPI against a real LRS.** `tests/e2e/xapi-lrs.e2e.mjs` sends statements to
+  a running LRS and reads them back. It skips unless `XAPI_LRS_ENDPOINT`,
+  `XAPI_LRS_KEY` and `XAPI_LRS_SECRET` are set.
+- **xAPI resume on another device.** Resume was written to the LRS State API but
+  only read from the browser's own storage, so a learner on a new device
+  restarted. The player now reads the State API when there is no local copy and
+  the learner hasn't moved yet.
+- `scripts/run-e2e.mjs` takes `E2E_PORT` for a fixed port (an LRS has to allow the
+  page's origin).

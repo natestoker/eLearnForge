@@ -185,6 +185,26 @@ export function runChecks(project: Project, target: string): Check[] {
     });
   }
 
+  // 2c. Clickable objects a screen reader can only call "Hotspot".
+  const unnamed: { slide: Slide; block: Block }[] = [];
+  for (const s of project.slides) {
+    const sources = new Set(s.triggers.filter((t) => t.sourceBlockId && /^on(Click|DoubleClick)$/.test(t.event)).map((t) => t.sourceBlockId!));
+    for (const b of slideBlocks(s)) {
+      if (!sources.has(b.id) || b.aria === 'exclude') continue;
+      const text = b.type === 'button' ? String((b.props as { label?: string }).label ?? '').trim()
+        : b.type === 'image' ? String((b.props as { alt?: string }).alt ?? '').trim() : '';
+      if (!b.name?.trim() && !b.accLabel?.trim() && !text) unnamed.push({ slide: s, block: b });
+    }
+  }
+  if (unnamed.length) {
+    out.push({
+      sev: 'warn',
+      title: `${unnamed.length} clickable object${unnamed.length === 1 ? ' has' : 's have'} no name`,
+      detail: unnamed.slice(0, 3).map((x) => `Slide ${slideNo(x.slide.id)}`).join(', ') + '. A screen reader can only say "' + (unnamed[0].block.type === 'hotspot' ? 'Hotspot' : unnamed[0].block.type) + '". Give each a Name or a screen-reader label.',
+      fix: { label: 'Name it', slideId: unnamed[0].slide.id, blockId: unnamed[0].block.id }
+    });
+  }
+
   // 3. Big embedded files.
   const { media } = collectMedia(project);
   for (const m of media.filter((x) => x.bytes >= BIG_MEDIA_BYTES).slice(0, 3)) {

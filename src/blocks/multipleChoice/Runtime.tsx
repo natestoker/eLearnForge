@@ -75,12 +75,13 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
           );
         })}
       </div>
+      {result !== null && <div className="sr-only" role="alert">{result ? props.feedbackCorrect : props.feedbackIncorrect}</div>}
       {result === null ? (
         <button className="mc-submit live" onClick={submit} disabled={selected.length === 0}>
           Submit
         </button>
       ) : (
-        <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
+        <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
           <p>{result ? props.feedbackCorrect : props.feedbackIncorrect}</p>
           {!result && !locked && (
             <button className="mc-submit live" onClick={retry}>Try again</button>

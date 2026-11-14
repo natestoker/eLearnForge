@@ -4,6 +4,7 @@ import type { Block, Slide } from '../schema/types';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { accessibilityFor } from './accessibility';
+import { blockDisplayName } from '../shared/blockName';
 import { slideBackgroundStyle } from '../shared/background';
 import { shadowStyle } from '../shared/shadow';
 import { useFocusTrap } from '../shared/useFocusTrap';
@@ -96,7 +97,7 @@ export function Lightbox({ runtime, slide, stageW, stageH }: { runtime: Runtime;
                     tabIndex={clickable ? 0 : undefined}
                     role={clickable ? 'button' : undefined}
                     aria-hidden={acc.hidden || undefined}
-                    aria-label={acc.label}
+                    aria-label={acc.label ?? (clickable && !acc.hidden ? blockDisplayName(block) : undefined)}
                     onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); runtime.clickBlock(block.id); } } : undefined}
                     onPointerEnter={() => runtime.hoverBlock(block.id)}
                     onPointerLeave={() => runtime.leaveBlock(block.id)}

@@ -12,7 +12,7 @@ const project = await demoProject((p) => {
   p.variables.push({ id: 'v_flag', name: 'flag', type: 'number', defaultValue: 0 });
 });
 const page = await playerPage(browser, project);
-const heading = () => page.locator('h1.sr-only').innerText();
+const heading = () => page.locator('main.player-main').getAttribute('aria-label');
 
 eq('starts on slide 1', await heading(), 'Welcome, slide 1 of 6');
 await page.keyboard.press('ArrowRight'); await page.waitForTimeout(500);

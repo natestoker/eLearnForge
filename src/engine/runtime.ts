@@ -264,6 +264,12 @@ export class Runtime {
     }
   }
 
+  // How many slides the learner has seen. The player uses this to decide
+  // whether late-arriving resume data is still safe to apply.
+  viewedCount(): number {
+    return this.viewedSlideIds.size;
+  }
+
   // Attempt limit from Publish > Max attempts. 0 / absent = unlimited.
   maxAttempts(): number {
     const n = this.project.completion?.maxAttempts;

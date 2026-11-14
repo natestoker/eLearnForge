@@ -70,6 +70,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           })}
         </div>
       </div>
+      {checked && <div className="sr-only" role="alert">{correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}</div>}
       {!checked ? (
         <button className="btn btn-accent match-submit" disabled={!allLinked} onClick={() => {
           setChecked(true);
@@ -87,7 +88,7 @@ export function MatchingRuntime({ block, runtime }: RuntimeRendererProps) {
           });
         }}>Check</button>
       ) : (
-        <div className={`match-feedback ${correct ? 'ok' : 'no'}`} ref={feedbackRef} tabIndex={-1}>
+        <div className={`match-feedback ${correct ? 'ok' : 'no'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}>
           {correct ? (props.feedbackCorrect || 'Correct!') : (props.feedbackIncorrect || 'Not quite - try again.')}
           {!correct && !locked && <button className="btn match-retry" onClick={() => { setChecked(false); setLinks({}); }}>Try again</button>}
           {locked && !correct && <p className="attempts-note">No attempts left.</p>}

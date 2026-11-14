@@ -61,7 +61,8 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
   return (
     <div className="seq-block live" role="group" aria-labelledby={qid} onClick={(e) => e.stopPropagation()}>
       <p className="seq-question" id={qid}>{props.question}</p>
-      <div className="sr-only" role="status" aria-live="polite">{moved || (result === false ? props.feedbackIncorrect : '')}</div>
+      <div className="sr-only" role="status" aria-live="polite">{result === null ? moved : ''}</div>
+      {result !== null && <div className="sr-only" role="alert">{result ? props.feedbackCorrect : props.feedbackIncorrect}</div>}
       {order.map((id, i) => {
         const it = itemOf(id);
         if (!it) return null;
@@ -79,7 +80,7 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
       })}
       {result !== true && !locked && <button className="seq-check" onClick={check}>Check</button>}
       {result !== null && (
-        <div className={`seq-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1}>
+        <div className={`seq-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
           {!result && !locked && <button className="seq-retry" onClick={reset}>Shuffle & retry</button>}
           {locked && !result && <p className="attempts-note">No attempts left.</p>}

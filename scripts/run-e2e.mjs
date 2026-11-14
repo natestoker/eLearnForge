@@ -23,7 +23,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(404).end('not found');
   }
 });
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
+await new Promise((r) => server.listen(Number(process.env.E2E_PORT || 0), '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const dir = join(root, 'tests/e2e');
