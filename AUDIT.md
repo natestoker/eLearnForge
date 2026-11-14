@@ -30,7 +30,7 @@ Not done: I didn't publish a package into a real LMS (SCORM Cloud) this pass, so
 - If suspend_data goes over 4000 characters, variables are dropped first (`adapter.ts:35`). A course with a score variable and a few flags can silently lose the score on resume.
 - Fix: compress the state (short keys, only non-default values; the README says that's done, but verify against a big course) and warn at publish time when a course is likely to overflow.
 
-### 4. Storyline-engineer trigger gaps
+### 4. Storyline-engineer trigger gaps (mostly DONE, v6.14: Execute JavaScript, Exit course, resets, next/prev/restart slide, key press. Still missing: lightbox, set-to-text actions, "when timeline starts")
 Missing against Storyline: keyboard-key events, "when timeline starts", "when variable = X" on a layer, Execute JavaScript as a trigger action (there is a Code block, but not a trigger action), Exit course, Reset-to-initial-state, jump to previous/next/restart slide as actions, lightbox slide, and text-variable input via actions (set to "text").
 - Biggest ones to add first: Execute JavaScript, Exit course, Reset to initial state, Previous/Next slide actions, key-press event.
 - Triggers panel is too cramped to author in (see design section), which makes everything above feel worse.

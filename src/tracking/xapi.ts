@@ -187,7 +187,12 @@ export class XapiAdapter implements TrackingAdapter {
     }).catch(() => { /* best effort */ });
   }
 
+  private terminated = false;
+
   terminate(): void {
+    // Exit course and the pagehide handler can both end the session.
+    if (this.terminated) return;
+    this.terminated = true;
     this.send(VERBS.terminated, {});
   }
 }

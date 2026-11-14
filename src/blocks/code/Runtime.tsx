@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { CodeProps } from '../../schema/types';
+import { createForge } from '../../engine/forge';
 
 // Runtime code block. Author JS runs in-page (the author is trusted; this
 // is the same power Storyline's Execute JavaScript grants) inside an IIFE
@@ -31,11 +32,7 @@ export function CodeRuntime({ block, runtime }: RuntimeRendererProps) {
 
     const offs: Array<() => void> = [];
     const forge = {
-      setVariable: (name: string, value: string | number | boolean) => runtime.setVariableByName(name, value),
-      getVariable: (name: string) => {
-        const v = runtime.project.variables.find((vr) => vr.name === name);
-        return v ? runtime.variableById(v.id) : undefined;
-      },
+      ...createForge(runtime),
       onVariableChange: (fn: (name: string, value: unknown) => void) => {
         let prev: Record<string, unknown> = { ...runtime.getSnapshot().variables };
         const off = runtime.subscribe(() => {
@@ -46,11 +43,6 @@ export function CodeRuntime({ block, runtime }: RuntimeRendererProps) {
           prev = { ...now };
         });
         offs.push(off);
-      },
-      complete: () => runtime.completeCourse(),
-      goToSlide: (n: number) => {
-        const s = runtime.project.slides[n - 1];
-        if (s) runtime.enterSlide(s.id);
       }
     };
 

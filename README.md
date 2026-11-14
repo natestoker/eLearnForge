@@ -1271,3 +1271,27 @@ learner answer, correct answer) and the adapter formats it for its protocol
   statement carrying the score.
 - Not verified against a live LMS or LRS yet; see AUDIT.md.
 
+
+# v6.14
+
+## More trigger actions and a key-press event
+Closes most of the Storyline trigger gap found in the November audit.
+- **When a key is pressed** (`onKeyPress`). Pick Enter, Space, the arrows,
+  Escape, A-Z or 0-9. It ignores keys while the learner types in a field, with
+  Ctrl/Cmd/Alt held, and on key repeat. When a trigger takes the key the
+  browser's own action (page scroll on Space and arrows) is skipped.
+- **Go to the next / previous slide.** Stops at either end instead of wrapping.
+- **Restart this slide.** Re-enters the slide (layers, block states and player
+  buttons reset) and rewinds its timeline. Variables are left alone. A restart
+  inside a slide-load trigger stops at the engine's depth cap rather than looping.
+- **Reset block to its initial state** and **Reset variable to its default**
+  (the second fires On variable change triggers like any other change).
+- **Execute JavaScript.** Runs author code with `forge` and `gsap` in scope:
+  `forge.setVariable / getVariable / goToSlide / nextSlide / prevSlide /
+  complete`. It runs in the published course and in Preview, not on the editor
+  canvas. Errors are logged to the console and never stop the course. The
+  Code block now shares the same `forge` object (`src/engine/forge.ts`).
+- **Exit course.** Saves progress, ends the tracking session, tries to close
+  the window, and shows an end screen for hosts where closing isn't allowed.
+  The xAPI `terminated` statement is only sent once.
+

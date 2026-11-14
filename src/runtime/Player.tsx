@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Project } from '../schema/types';
 import { Runtime } from '../engine/runtime';
+import { createForge, runAuthorJs } from '../engine/forge';
 import { BLOCKS } from '../blocks/registry';
 import { blockStateAt, styleFor, timelineDuration } from '../engine/timeline';
 import { motionOffsetAt } from '../engine/motionPath';
@@ -92,6 +93,36 @@ export function Player({ project, adapter, startSlideId }: {
 
   const slideIndex = project.slides.findIndex((s) => s.id === slide.id);
 
+  // Exit course action: save progress, tell the host the session is over,
+  // then close the window. Browsers only allow close() on windows a script
+  // opened (an LMS pop-up usually is), so the course also swaps to an end
+  // screen that works either way.
+  const [exited, setExited] = useState(false);
+  const exitCourse = () => {
+    try {
+      adapter?.saveResume(runtime.getResumeState());
+      adapter?.terminate();
+    } catch (err) {
+      console.warn('eLearnForge exit failed to reach the host', err);
+    }
+    setExited(true);
+    try { window.close(); } catch { /* not allowed; the end screen covers it */ }
+  };
+
+  // Keyboard triggers. Ignored while the learner is typing, with Ctrl/Cmd/Alt
+  // held (browser shortcuts), and on key repeat. When a trigger takes the
+  // key, the browser's own action (scrolling on Space and arrows) is skipped.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (runtime.keyPress(e.key)) e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [runtime]);
+
   // Timeline clock: one per slide visit. Narration audio drives the time
   // when present; otherwise requestAnimationFrame does. t flows down into
   // the stateless per-block state math, so scrubbing is always safe.
@@ -144,6 +175,10 @@ export function Player({ project, adapter, startSlideId }: {
         clockRef.current?.play();
       } else if (action.type === 'seekTimeline') {
         clockRef.current?.seek(action.seconds);
+      } else if (action.type === 'executeJs') {
+        runAuthorJs(action.code, createForge(runtime), gsap);
+      } else if (action.type === 'exitCourse') {
+        exitCourse();
       } else if (action.type === 'restartTimeline') {
         clockRef.current?.seek(0);
         clockRef.current?.play();
@@ -371,6 +406,12 @@ export function Player({ project, adapter, startSlideId }: {
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent }}>
+      {exited && (
+        <div className="player-exit" role="dialog" aria-label="Course ended">
+          <h2>You have exited the course</h2>
+          <p>Your progress was saved. You can close this window.</p>
+        </div>
+      )}
       <div className="player-body">
         {/* Navigation sidebar: hamburger-toggled, animates its width, and
             navOpen persists for the whole run (state lives on Player, which

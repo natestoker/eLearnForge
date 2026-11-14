@@ -504,7 +504,8 @@ export type TriggerEvent =
   | 'onMouseLeave'         // pointer leaves the source block
   | 'onDoubleClick'        // source block double-clicked
   | 'onCuePoint'           // the timeline playhead crosses a named cue
-  | 'onSubmit';            // the player Submit button
+  | 'onSubmit'             // the player Submit button
+  | 'onKeyPress';          // a keyboard key (Trigger.key) is pressed on this slide
 
 // Persistent block states an author or trigger can set. hover/down are
 // transient pointer states handled by the player, never stored here.
@@ -563,7 +564,14 @@ export type Action =
   | { type: 'seekTimeline'; seconds: number }
   | { type: 'openUrl'; url: string }
   | { type: 'toggleBlock'; blockId: string }
-  | { type: 'restartTimeline' };
+  | { type: 'restartTimeline' }
+  | { type: 'nextSlide' }          // the slide after this one (no-op on the last)
+  | { type: 'prevSlide' }          // the slide before this one (no-op on the first)
+  | { type: 'restartSlide' }       // re-enter this slide: layers, states and timeline start over
+  | { type: 'resetBlock'; blockId: string }       // back to its authored visibility and state
+  | { type: 'resetVariable'; variableId: string } // back to its default value
+  | { type: 'executeJs'; code: string }           // run author JavaScript (forge + gsap in scope)
+  | { type: 'exitCourse' };        // save progress, end the session, close the window if allowed
 
 export type ActionType = Action['type'];
 
@@ -575,6 +583,7 @@ export interface Trigger {
   watchBlockIds?: string[]; // onStateAll
   watchState?: BlockState;  // onStateAll
   cueId?: string;           // onCuePoint
+  key?: string;             // onKeyPress: a KeyboardEvent.key value ('Enter', ' ', 'ArrowRight', 'a')
   conditions: Condition[];
   // How the conditions combine. 'and' (default) requires all; 'or' requires
   // any one. Absent = 'and' for older projects.

@@ -393,6 +393,27 @@ export class Runtime {
     return this.playerButtons[button];
   }
 
+  // Move relative to the current slide. Stops at either end rather than
+  // wrapping. Used by the next/prev trigger actions and by forge.nextSlide().
+  stepSlide(delta: 1 | -1, depth = 0): void {
+    const idx = this.project.slides.findIndex((s) => s.id === this.snapshot.slideId);
+    const target = this.project.slides[idx + delta];
+    if (target) this.enterSlide(target.id, depth);
+  }
+
+  // The player reports a keydown. Returns true when a trigger on this slide
+  // handled it, so the player can stop the browser scrolling on Space/arrows.
+  keyPress(key: string): boolean {
+    const norm = (k: string) => (k.length === 1 ? k.toLowerCase() : k);
+    const matches = this.currentSlide().triggers.filter(
+      (t) => t.event === 'onKeyPress' && t.key !== undefined && norm(t.key) === norm(key)
+    );
+    if (!matches.length) return false;
+    this.runTriggers(matches, 0);
+    this.emit();
+    return true;
+  }
+
   submit(): void {
     const slide = this.currentSlide();
     this.runTriggers(slide.triggers.filter((t) => t.event === 'onSubmit'), 0);
@@ -554,6 +575,37 @@ export class Runtime {
         // Carry a blockId; resolve "self" before handing to the Player so the
         // live-effect handler always sees a concrete id.
         this.emitEffect({ ...action, blockId: self(action.blockId) });
+        break;
+      case 'nextSlide':
+        this.stepSlide(1, depth);
+        break;
+      case 'prevSlide':
+        this.stepSlide(-1, depth);
+        break;
+      case 'restartSlide':
+        // enterSlide resets layers, block states and player buttons; the
+        // Player owns the clock, so it is told to rewind separately.
+        this.enterSlide(this.snapshot.slideId, depth);
+        this.emitEffect({ type: 'restartTimeline' });
+        break;
+      case 'resetBlock': {
+        const id = self(action.blockId);
+        const { [id]: _state, ...states } = this.blockStates;
+        this.blockStates = states;
+        const { [id]: _vis, ...visible } = this.snapshot.blockVisible;
+        this.snapshot = { ...this.snapshot, blockVisible: visible };
+        break;
+      }
+      case 'resetVariable': {
+        const v = this.project.variables.find((vr) => vr.id === action.variableId);
+        if (v) this.setVariable(v.id, v.defaultValue, depth);
+        break;
+      }
+      case 'executeJs':
+      case 'exitCourse':
+        // Both need the live page (script scope with gsap, the tracking
+        // adapter, the window), which the Player owns.
+        this.emitEffect(action);
         break;
       case 'pauseTimeline':
       case 'resumeTimeline':

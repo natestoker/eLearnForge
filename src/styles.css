@@ -3399,3 +3399,25 @@ select.input { appearance: auto; }
 .modal-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
 .modal-body { padding: 16px; overflow-y: auto; }
 
+
+/* Exit course action: covers the player once the session has ended. */
+.player-exit {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  background: #0e120f;
+  color: #e8efe9;
+}
+.player-exit h2 { margin: 0; font-size: 22px; }
+.player-exit p { margin: 0; opacity: 0.75; }
+
+/* Execute JavaScript action: the code box takes its own full-width line. */
+.trigger-row:has(.trigger-js) { flex-wrap: wrap; }
+.trigger-js { flex: 1 0 100%; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.trigger-js .textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }

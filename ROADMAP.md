@@ -53,7 +53,6 @@ Writing new objects, triggers, animations or layers into Storyline XML. Only att
 ## Also queued (from the November 2026 audit)
 See `AUDIT.md` for detail.
 - Publish checks and a package size meter.
-- Missing trigger actions: Execute JavaScript, Exit course, Reset to initial state, Previous/Next slide, key-press event.
 - Player accessibility: ARIA on the question blocks, focus handling, keyboard paths for drag-and-drop and matching.
 - Design pass from Claude Design: Triggers panel, Publish dialog, contrast, icons.
 - Repo cleanup and a tests folder.

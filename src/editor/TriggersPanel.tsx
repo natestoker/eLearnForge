@@ -5,7 +5,7 @@ import type {
 import { useCurrentSlide, useProjectStore } from '../state/projectStore';
 import { uid } from '../schema/factory';
 import { SELF_TARGET } from '../schema/types';
-import { SelectInput } from './fields';
+import { SelectInput, TextArea } from './fields';
 
 // Operators offered per variable type. String variables get contains;
 // number variables get the comparison set; booleans stay with =/not =.
@@ -99,6 +99,19 @@ function ValueInput({ variable, value, onChange }: {
   );
 }
 
+// Keys a trigger can listen for: values are KeyboardEvent.key.
+const KEY_OPTIONS = [
+  { value: 'Enter', label: 'Enter' },
+  { value: ' ', label: 'Space' },
+  { value: 'ArrowLeft', label: 'Left arrow' },
+  { value: 'ArrowRight', label: 'Right arrow' },
+  { value: 'ArrowUp', label: 'Up arrow' },
+  { value: 'ArrowDown', label: 'Down arrow' },
+  { value: 'Escape', label: 'Escape' },
+  ...'abcdefghijklmnopqrstuvwxyz'.split('').map((c) => ({ value: c, label: c.toUpperCase() })),
+  ...'0123456789'.split('').map((c) => ({ value: c, label: c }))
+];
+
 export function TriggersPanel() {
   const slide = useCurrentSlide();
   const project = useProjectStore((s) => s.project);
@@ -170,6 +183,13 @@ export function TriggersPanel() {
       case 'openUrl': return { type, url: 'https://' };
       case 'toggleBlock': return { type, blockId: blocks[0]?.block.id ?? '' };
       case 'restartTimeline': return { type };
+      case 'nextSlide': return { type };
+      case 'prevSlide': return { type };
+      case 'restartSlide': return { type };
+      case 'resetBlock': return { type, blockId: blocks[0]?.block.id ?? '' };
+      case 'resetVariable': return { type, variableId: variables[0]?.id ?? '' };
+      case 'executeJs': return { type, code: '// forge.setVariable("name", value); forge.nextSlide();\n' };
+      case 'exitCourse': return { type };
     }
   };
 
@@ -206,7 +226,8 @@ export function TriggersPanel() {
                 { value: 'onAnimationComplete', label: 'When an animation completes' },
                 { value: 'onStateAll', label: 'When the state of all of...' },
                 { value: 'onCuePoint', label: 'When the timeline reaches a cue' },
-                { value: 'onSubmit', label: 'When Submit is pressed' }
+                { value: 'onSubmit', label: 'When Submit is pressed' },
+                { value: 'onKeyPress', label: 'When a key is pressed' }
               ]}
               onChange={(v) =>
                 edit(trigger.id, (t) => {
@@ -215,6 +236,8 @@ export function TriggersPanel() {
                   if (needsSource && !t.sourceBlockId) t.sourceBlockId = blocks[0]?.block.id;
                   if (!needsSource) t.sourceBlockId = undefined;
                   if (t.event !== 'onVariableChange') t.watchVariableId = undefined;
+                  if (t.event === 'onKeyPress') t.key = t.key ?? 'Enter';
+                  else t.key = undefined;
                 })
               }
             />
@@ -339,6 +362,17 @@ export function TriggersPanel() {
                   ...variables.map((v) => ({ value: v.id, label: v.name }))
                 ]}
                 onChange={(v) => edit(trigger.id, (t) => { t.watchVariableId = v || undefined; })}
+              />
+            </div>
+          )}
+
+          {trigger.event === 'onKeyPress' && (
+            <div className="trigger-row">
+              <span className="trigger-label">Key</span>
+              <SelectInput
+                value={trigger.key ?? 'Enter'}
+                options={KEY_OPTIONS}
+                onChange={(v) => edit(trigger.id, (t) => { t.key = v; })}
               />
             </div>
           )}
@@ -514,7 +548,14 @@ export function TriggersPanel() {
                     { value: 'seekTimeline', label: 'Jump the timeline to...' },
                     { value: 'restartTimeline', label: 'Restart the timeline' },
                     { value: 'toggleBlock', label: 'Toggle block visibility' },
-                    { value: 'openUrl', label: 'Open URL' }
+                    { value: 'openUrl', label: 'Open URL' },
+                    { value: 'nextSlide', label: 'Go to the next slide' },
+                    { value: 'prevSlide', label: 'Go to the previous slide' },
+                    { value: 'restartSlide', label: 'Restart this slide' },
+                    { value: 'resetBlock', label: 'Reset block to its initial state' },
+                    { value: 'resetVariable', label: 'Reset variable to its default' },
+                    { value: 'executeJs', label: 'Execute JavaScript' },
+                    { value: 'exitCourse', label: 'Exit course' }
                   ]}
                   onChange={(v) =>
                     edit(trigger.id, (t) => { t.actions[ai] = defaultAction(v as ActionType); })
@@ -530,6 +571,37 @@ export function TriggersPanel() {
                       })
                     }
                   />
+                )}
+                {action.type === 'resetBlock' && (
+                  <SelectInput
+                    value={action.blockId}
+                    options={blockTargetOptions(trigger)}
+                    onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { blockId: string }).blockId = v; })}
+                  />
+                )}
+                {action.type === 'resetVariable' && (
+                  variables.length === 0
+                    ? <span className="hint">No variables yet - create one in the Variables tab.</span>
+                    : <SelectInput
+                        value={action.variableId}
+                        options={variables.map((v) => ({ value: v.id, label: v.name }))}
+                        onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { variableId: string }).variableId = v; })}
+                      />
+                )}
+                {action.type === 'executeJs' && (
+                  <div className="trigger-js">
+                    <TextArea
+                      rows={5}
+                      value={action.code}
+                      placeholder={'forge.setVariable("score", 10);'}
+                      onChange={(v) => edit(trigger.id, (t) => { (t.actions[ai] as { code: string }).code = v; }, false)}
+                    />
+                    <span className="hint">
+                      Runs in the published course and in Preview, not on the editor canvas.
+                      Available: forge.setVariable / getVariable / goToSlide / nextSlide / prevSlide /
+                      complete, and gsap. Errors go to the browser console and never stop the course.
+                    </span>
+                  </div>
                 )}
                 {action.type === 'openUrl' && (
                   <input
