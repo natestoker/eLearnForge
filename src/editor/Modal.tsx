@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useId, useRef } from 'react';
 import { useFocusTrap } from '../shared/useFocusTrap';
+import { Lucide } from './lucide';
 
 export function Modal({ title, children, onClose, width = '600px' }: { title: string; children: ReactNode; onClose: () => void, width?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -18,7 +19,7 @@ export function Modal({ title, children, onClose, width = '600px' }: { title: st
       <div className="modal-content" ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ width }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title" id={titleId}>{title}</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose} title="Close" aria-label="Close">x</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose} title="Close" aria-label="Close"><Lucide name="x" size={16} /></button>
         </div>
         <div className="modal-body panel-scroll">
           {children}

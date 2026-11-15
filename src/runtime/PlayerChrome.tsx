@@ -37,7 +37,8 @@ export function PlayerSideNav({ runtime, project, slideIndex, settings, onNaviga
   );
 }
 
-export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
+export function PlayerNavButtons({ runtime, project, slideIndex, settings, onFinish }: {
+  onFinish?: () => void;
   runtime: Runtime;
   project: Project;
   slideIndex: number;
@@ -78,7 +79,10 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings }: {
           {settings.back.label}
         </button>
       )}
-      {shown('next') && (
+      {shown('next') && onFinish && runtime.neighborSlideId(runtime.currentSlide().id, 1) === null && !forcedOff('next') && runtime.isPlayerButtonEnabled('next') ? (
+        // The last slide: Next has nowhere to go, so it ends the course.
+        <button className="player-chrome-btn accent" onClick={onFinish}>Finish</button>
+      ) : shown('next') && (
         <button
           className="player-chrome-btn accent"
           disabled={forcedOff('next') || runtime.neighborSlideId(runtime.currentSlide().id, 1) === null || !runtime.isPlayerButtonEnabled('next')}

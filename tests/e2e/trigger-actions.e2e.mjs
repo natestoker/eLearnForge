@@ -26,5 +26,20 @@ eq('Execute JavaScript ran with the forge API', await page.title(), 'js:42');
 await page.keyboard.press('q'); await page.waitForTimeout(500);
 check('Exit course shows the end screen', (await page.locator('.player-exit').innerText()).includes('You have exited the course'));
 
+// ---- The last slide ends with Finish and a completion screen
+{
+  const pg = await playerPage(browser, await demoProject());
+  for (let i = 0; i < 8; i++) { const n = pg.locator('.player-chrome-btn', { hasText: /^Next$/ }); if (!(await n.count()) || await n.first().isDisabled()) break; await n.first().click(); await pg.waitForTimeout(450); }
+  const fin = pg.locator('.player-chrome-btn', { hasText: 'Finish' });
+  console.log('   at:', await pg.locator('main.player-main').getAttribute('aria-label'));
+  if (await fin.count()) {
+    await fin.click(); await pg.waitForTimeout(400);
+    check('Finish shows a completion screen', (await pg.locator('.player-exit').innerText()).includes('You have finished the course'));
+  } else {
+    check('the last slide offers Finish', false, 'did not reach the last slide (a gated slide stops Next), so this needs a course without gates');
+  }
+  await pg.context().close();
+}
+
 await browser.close();
 finish();

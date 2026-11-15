@@ -122,6 +122,7 @@ export function Player({ project, adapter, startSlideId }: {
   // opened (an LMS pop-up usually is), so the course also swaps to an end
   // screen that works either way.
   const [exited, setExited] = useState(false);
+  const [finished, setFinished] = useState(false);
 
   // Screen readers: when the slide changes, move focus to a hidden heading
   // naming the new slide so it is announced and keyboard users start at the
@@ -450,7 +451,9 @@ export function Player({ project, adapter, startSlideId }: {
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent, ...deriveAccent(playerAccent) } as React.CSSProperties}>
       {exited && (
         <div className="player-exit" role="dialog" aria-label="Course ended">
-          <h2>You have exited the course</h2>
+          <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--player-accent)' }}><circle cx="12" cy="12" r="10" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>
+          <h2>{finished ? 'You have finished the course' : 'You have exited the course'}</h2>
+          {finished && runtime.getScore() !== null && <p className="player-exit-score">Your score: {runtime.getScore()}%</p>}
           <p>Your progress was saved. You can close this window.</p>
         </div>
       )}
@@ -681,7 +684,7 @@ export function Player({ project, adapter, startSlideId }: {
               </div>
             )}
             {(settings.navPosition ?? 'right') === 'left' && (
-              <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
+              <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} onFinish={() => { setFinished(true); exitCourse(); }} />
             )}
             {(hasTimeline || activeTlLayerId) && (() => {
               // While an own-timeline layer is up, the transport reflects and
@@ -743,7 +746,7 @@ export function Player({ project, adapter, startSlideId }: {
             )}
             {(settings.navPosition ?? 'right') === 'right' && (
               <div style={{ marginLeft: 'auto' }}>
-                <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} />
+                <PlayerNavButtons runtime={runtime} project={project} slideIndex={slideIndex} settings={settings} onFinish={() => { setFinished(true); exitCourse(); }} />
               </div>
             )}
           </div>

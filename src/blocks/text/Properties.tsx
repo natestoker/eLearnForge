@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { PropertiesRendererProps } from '../blockApi';
 import type { TextProps } from '../../schema/types';
 import { CheckboxInput, ColorInput, Field, NumberInput, RangeInput, Row, SelectInput, TextArea } from '../../editor/fields';
@@ -14,6 +15,7 @@ const WEIGHT_NAMES: Record<number, string> = {
 export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps) {
   const props = block.props as TextProps;
   const mutate = useProjectStore((s) => s.mutate);
+  const [htmlOpen, setHtmlOpen] = useState(false);
   
   const html = props.html || '';
   const overridesFontFamily = /font-family:|face=/i.test(html);
@@ -34,13 +36,19 @@ export function TextProperties({ block, onUpdateProps }: PropertiesRendererProps
 
   return (
     <>
-      <Field label="Content (HTML allowed)">
-        <TextArea
-          value={props.html}
-          rows={6}
-          onChange={(v) => onUpdateProps((p: TextProps) => { p.html = v; })}
-        />
-      </Field>
+      <p className="hint text-edit-hint">
+        Double-click the block on the slide to edit its text.{' '}
+        <button type="button" className="link-btn" aria-expanded={htmlOpen} onClick={() => setHtmlOpen((v) => !v)}>{htmlOpen ? 'Hide HTML' : 'Edit HTML'}</button>
+      </p>
+      {htmlOpen && (
+        <Field label="Content (HTML)">
+          <TextArea
+            value={props.html}
+            rows={6}
+            onChange={(v) => onUpdateProps((p: TextProps) => { p.html = v; })}
+          />
+        </Field>
+      )}
       <Field label="Text style (whole block)">
         <SelectInput
           value={outerTag}

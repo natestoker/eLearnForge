@@ -1,3 +1,4 @@
+import { FeedbackMark } from '../../shared/FeedbackMark';
 import { useId, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { MultipleChoiceProps } from '../../schema/types';
@@ -82,6 +83,7 @@ export function MultipleChoiceRuntime({ block, runtime }: RuntimeRendererProps) 
         </button>
       ) : (
         <div className={`mc-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
+          <FeedbackMark correct={result} />
           <p>{result ? props.feedbackCorrect : props.feedbackIncorrect}</p>
           {!result && !locked && (
             <button className="mc-submit live" onClick={retry}>Try again</button>

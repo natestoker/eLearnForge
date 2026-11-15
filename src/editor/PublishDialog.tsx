@@ -279,9 +279,9 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
             <section className="pd-section">
               <div className="pd-checks-head">
                 <span className="pd-label pd-grow">Publish checks</span>
-                <span className="pd-count err"><Lucide name="circle-x" size={13} />{nErr}</span>
-                <span className="pd-count warn"><Lucide name="triangle-alert" size={13} />{nWarn}</span>
-                <span className="pd-count pass"><Lucide name="circle-check" size={13} />{nPass}</span>
+                <span className="pd-count err" title="Problems that block publishing" aria-label={`${nErr} errors`}><Lucide name="circle-x" size={13} />{nErr}</span>
+                <span className="pd-count warn" title="Warnings" aria-label={`${nWarn} warnings`}><Lucide name="triangle-alert" size={13} />{nWarn}</span>
+                <span className="pd-count pass" title="Checks passed" aria-label={`${nPass} passed`}><Lucide name="circle-check" size={13} />{nPass}</span>
               </div>
               <div className="pd-checks">
                 {squeezed.map((s, i) => (

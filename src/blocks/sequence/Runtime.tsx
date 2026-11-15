@@ -1,3 +1,4 @@
+import { FeedbackMark } from '../../shared/FeedbackMark';
 import { useId, useState } from 'react';
 import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
@@ -81,6 +82,7 @@ export function SequenceRuntime({ block, runtime }: RuntimeRendererProps) {
       {result !== true && !locked && <button className="seq-check" onClick={check}>Check</button>}
       {result !== null && (
         <div className={`seq-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
+          <FeedbackMark correct={!!result} />
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
           {!result && !locked && <button className="seq-retry" onClick={reset}>Shuffle & retry</button>}
           {locked && !result && <p className="attempts-note">No attempts left.</p>}

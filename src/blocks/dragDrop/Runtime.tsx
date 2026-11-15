@@ -1,3 +1,4 @@
+import { FeedbackMark } from '../../shared/FeedbackMark';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
@@ -186,6 +187,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
       ) : null}
       {result !== null && (
         <div className={`dd-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
+          <FeedbackMark correct={!!result} />
           <span>{result ? props.feedbackCorrect : props.feedbackIncorrect}</span>
           {!result && !locked && <button className="dd-retry" onClick={reset}>Reset</button>}
           {locked && !result && <p className="attempts-note">No attempts left.</p>}

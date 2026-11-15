@@ -3,6 +3,7 @@ import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import type { Slide } from '../schema/types';
 import { SlidePreview } from './SlidePreview';
+import { Lucide } from './lucide';
 
 // Thumbnail: a scaled-down render of the real slide (see SlidePreview).
 function SlideThumb({ slide, index }: { slide: Slide; index: number }) {
@@ -83,7 +84,7 @@ export function SlidesPanel() {
               {'\u25a4'}
             </button>
           )}
-          <button className="btn btn-ghost btn-icon" title="Add slide" onClick={addSlide}>+</button>
+          <button className="btn btn-ghost btn-icon" title="Add slide" aria-label="Add slide" onClick={addSlide}><Lucide name="plus" size={14} /></button>
         </span>
       </div>
       <div className="panel-body slides-list">
@@ -128,13 +129,17 @@ export function SlidesPanel() {
                 })()}
                 {active && (
                   <div className="slide-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="btn btn-ghost btn-icon" title="Duplicate this slide"
-                      onClick={() => duplicateSlide(slide.id)}>&#9741;</button>
-                    <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template"
-                      onClick={() => saveTemplate(slide.id, slide.name)}>&#9634;</button>
-                    <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide"
+                    <button className="btn btn-ghost btn-icon" title="Duplicate this slide" aria-label="Duplicate this slide"
+                      onClick={() => duplicateSlide(slide.id)}><Lucide name="copy" size={14} /></button>
+                    <button className="btn btn-ghost btn-icon" title="Save this slide as a reusable template" aria-label="Save this slide as a template"
+                      onClick={() => saveTemplate(slide.id, slide.name)}><Lucide name="panels-top-left" size={14} /></button>
+                    <button className="btn btn-ghost btn-icon btn-danger" title="Delete slide (you can undo)" aria-label="Delete slide"
                       disabled={slides.length <= 1}
-                      onClick={() => deleteSlide(slide.id)}>x</button>
+                      onClick={() => {
+                        const name = slide.name;
+                        deleteSlide(slide.id);
+                        useUiStore.getState().setToast({ message: `"${name}" deleted`, action: { label: 'Undo', run: () => useProjectStore.getState().undo() } });
+                      }}><Lucide name="trash-2" size={14} /></button>
                   </div>
                 )}
               </div>

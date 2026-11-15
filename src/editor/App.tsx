@@ -17,6 +17,7 @@ import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
 import { CourseSettingsDialog } from './CourseSettingsDialog';
+import { Toast } from './Toast';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
 import { deriveAccent } from '../shared/accent';
 import { Player } from '../runtime/Player';
@@ -168,6 +169,7 @@ export function App() {
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
       <CourseSettingsDialog />
+      <Toast />
       <DesktopGate />
     </div>
   );
@@ -182,15 +184,11 @@ function StatusBar({ saveState }: { saveState: 'saved' | 'saving' }) {
   return (
     <footer className="statusbar">
       <div className="statusbar-side">
-        <span className={`status-dot ${saveState === 'saving' ? 'saving' : ''}`}>
-          <i /> {saveState === 'saving' ? 'Saving' : 'Ready'}
-        </span>
         <span>Slide {slideIdx + 1} of {project.slides.length}</span>
         <span>Project · {project.title}</span>
       </div>
       <div className="statusbar-side">
         {block && <span>Selected · {block.name ?? block.type}</span>}
-        <span>Auto-save · {saveState === 'saving' ? 'writing…' : 'up to date'}</span>
       </div>
     </footer>
   );

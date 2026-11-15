@@ -1618,3 +1618,26 @@ Large-media "Compress" is not built; the check only warns.
   rail, entrances that play as blocks scroll into view (timed blocks fade in
   on schedule instead), and merging a slide's own Continue button into Next.
 
+# v6.26
+
+## Smaller fixes from the redesign review (phase 5, first batch)
+- **Quiz feedback says it in words.** Every question type shows an icon and
+  "Correct" or "Not quite" above the feedback, so right and wrong are not told
+  apart by color alone.
+- **The course ends.** On the last slide Next becomes Finish, which saves and
+  shows a completion screen (with the score when there is one).
+- **Deletes can be undone from a toast.** Deleting a slide or a variable shows
+  "... deleted · Undo" for six seconds.
+- **Variables panel.** Your variables and the ones blocks create are listed
+  separately. Block variables show a readable name ("Quiz · correct") with the
+  technical name underneath, are read-only, and select their block when clicked.
+- **One save indicator** in the top bar; the two in the status bar are gone.
+- **Layers** is a single line when a slide has only the base layer.
+- **Text blocks**: the raw HTML field is behind an "Edit HTML" link.
+- Lucide icons replace typed glyphs on slide cards, layers, dialogs and the
+  add-slide button. Slide card buttons have labels for screen readers.
+- Not done yet: zoom in the status bar, one Menu component, a taller timeline
+  with 24px rows, collapsible inspector sections, reserved seekbar slot, a
+  reason line on a locked Next, shape tiles as outlines, and the remaining
+  typed glyphs (zoom, align).
+

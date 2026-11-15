@@ -114,7 +114,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
           onChange={(e) => mutate((p) => { p.title = e.target.value; }, false)}
           onBlur={() => useProjectStore.getState().record()}
         />
-        <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'saving…' : 'saved'}</span>
+        <span className={`save-state ${saveState}`} role="status" title="Your work is saved in this browser automatically">{saveState === 'saving' ? 'Saving…' : 'Saved'}</span>
       </div>
 
       <div className="toolbar-group">

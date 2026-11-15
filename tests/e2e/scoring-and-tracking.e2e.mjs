@@ -22,6 +22,7 @@ const browser = await launch();
   await page.waitForTimeout(300);
   let s = await page.evaluate(() => ({ ...window.__store }));
   eq('first answer is recorded as wrong', s['cmi.interactions.0.result'], 'wrong');
+  check('wrong feedback says so in words, not only color', (await page.locator('.mc-feedback .fb-mark').innerText()).includes('Not quite'));
   await page.locator('.mc-feedback button:has-text("Try again")').click();
   await page.locator('.mc-choice.live').nth(0).click();           // the right answer
   await page.locator('.mc-submit.live').first().click();

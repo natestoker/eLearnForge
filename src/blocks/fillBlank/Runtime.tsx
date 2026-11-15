@@ -1,3 +1,4 @@
+import { FeedbackMark } from '../../shared/FeedbackMark';
 import { useState } from 'react';
 import { useFocusOnResult } from '../../shared/useFocusOnResult';
 import type { RuntimeRendererProps } from '../blockApi';
@@ -51,6 +52,7 @@ export function FillBlankRuntime({ block, runtime }: RuntimeRendererProps) {
       </div>
       {result !== null && (
         <p className={`fb-feedback ${result ? 'correct' : 'incorrect'}`} ref={feedbackRef} tabIndex={-1} role="region" aria-label={result ? props.feedbackCorrect : props.feedbackIncorrect}>
+          <FeedbackMark correct={!!result} />
           {result ? props.feedbackCorrect : props.feedbackIncorrect}
         </p>
       )}

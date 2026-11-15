@@ -190,7 +190,7 @@ await page.waitForSelector('.pen-dialog');
   await page.waitForTimeout(200);
   const status = async () => (await page.locator('.statusbar').innerText()).match(/Slide (\d+) of (\d+)/)?.slice(1).join('/');
   const before = await status();
-  await page.locator('.slide-item.active button', { hasText: 'x' }).click();
+  await page.locator('.slide-item.active button[aria-label="Delete slide"]').click();
   await page.waitForTimeout(200);
   const confirm = page.locator('button', { hasText: /^(Delete|OK|Yes)/ });
   if (await confirm.count()) await confirm.first().click();
@@ -198,6 +198,29 @@ await page.waitForSelector('.pen-dialog');
   const afterStatus = await status();
   const [b0, bt] = (before ?? '0/0').split('/').map(Number), [a0, at] = (afterStatus ?? '0/0').split('/').map(Number);
   check('after deleting slide 4 you are on slide 4 again, not slide 1', b0 === 4 && a0 === 4 && at === bt - 1, `${before} -> ${afterStatus}`);
+}
+// ---- Deleting a slide shows an Undo toast, and Undo brings it back
+{
+  const count = () => page.locator('.slide-item').count();
+  const before = await count();
+  await page.locator('.slide-item').nth(1).click();
+  await page.waitForTimeout(200);
+  await page.locator('.slide-item.active button[aria-label="Delete slide"]').click();
+  await page.waitForTimeout(250);
+  eq('the slide is gone', await count(), before - 1);
+  check('a toast offers Undo', /deleted/.test(await page.locator('.toast').innerText()));
+  await page.locator('.toast-action').click();
+  await page.waitForTimeout(250);
+  eq('Undo brings the slide back', await count(), before);
+}
+// ---- Variables: block-owned ones are grouped, named for people, and can't be deleted
+{
+  await page.locator('.rtab', { hasText: 'Variables' }).click();
+  await page.waitForTimeout(200);
+  const owned = page.locator('.var-owned');
+  check('block variables are listed with a readable name', (await owned.count()) >= 1 && !/^mc_blk_/.test((await owned.first().locator('b').innerText())));
+  eq('they have no delete button', await owned.first().locator('button').count(), 0);
+  await page.locator('.rtab', { hasText: 'Inspect' }).click();
 }
 // ---- Animate panel has the same inset as Properties
 {

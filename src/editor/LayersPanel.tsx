@@ -15,6 +15,7 @@ export function LayersPanel() {
   const hiddenLayerIds = useUiStore((s) => s.hiddenLayerIds);
   const toggleLayerHidden = useUiStore((s) => s.toggleLayerHidden);
   const layersCollapsed = useUiStore((s) => s.layersCollapsed);
+  const [expanded, setExpanded] = useState(false);
   const toggleLayersCollapsed = useUiStore((s) => s.toggleLayersCollapsed);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -50,18 +51,33 @@ export function LayersPanel() {
   // sidebar height. The restore toggle lives in the Slides panel header.
   if (layersCollapsed) return null;
 
+  // One layer is the common case: show a single line instead of a panel that
+  // takes a third of the rail. It opens when asked, or when a layer is added.
+  if (slide.layers.length === 1 && !expanded) {
+    return (
+      <div className="panel layers-compact">
+        <div className="panel-header">
+          <button className="layers-compact-btn" onClick={() => setExpanded(true)} title="Show the layers panel">
+            <Lucide name="layers" size={14} /> <span>Layers</span> <em>{slide.layers[0].name} · {slide.layers[0].blocks.length} block{slide.layers[0].blocks.length === 1 ? '' : 's'}</em>
+          </button>
+          <button className="btn btn-ghost btn-icon" title="Add layer" aria-label="Add layer" onClick={() => addLayer(slide.id)}><Lucide name="plus" size={14} /></button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="panel">
       <div className="panel-header">
         <span>Layers</span>
         <span style={{ display: 'flex', gap: 2 }}>
-          <button className="btn btn-ghost btn-icon" title="Add layer" onClick={() => addLayer(slide.id)}>+</button>
+          <button className="btn btn-ghost btn-icon" title="Add layer" aria-label="Add layer" onClick={() => addLayer(slide.id)}><Lucide name="plus" size={14} /></button>
           <button
             className="btn btn-ghost btn-icon"
             title="Hide the layers panel (more room for slides)"
             onClick={toggleLayersCollapsed}
           >
-            {'⌃'}
+            <Lucide name="chevron-up" size={14} />
           </button>
         </span>
       </div>

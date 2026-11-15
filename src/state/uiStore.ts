@@ -36,6 +36,8 @@ interface UiStore {
   showGrid: boolean;
   toggleShowGrid: () => void;
   // First-run welcome / quick tour; reopenable from the toolbar Help button.
+  toast: { message: string; action?: { label: string; run: () => void } } | null;
+  setToast: (t: { message: string; action?: { label: string; run: () => void } } | null) => void;
   welcomeOpen: boolean;
   // Which section of the Course settings dialog is open (null = closed).
   courseSettings: CourseSettingsSection | null;
@@ -135,6 +137,8 @@ export const useUiStore = create<UiStore>((set) => ({
     }),
   courseSettings: null,
   setCourseSettings: (s) => set({ courseSettings: s }),
+  toast: null,
+  setToast: (t) => set({ toast: t }),
   welcomeOpen: false,
   setWelcomeOpen: (open) => set({ welcomeOpen: open }),
   scrubT: null,
