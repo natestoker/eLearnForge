@@ -59,8 +59,11 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings, onFin
     return settings[which].show;
   };
   const forcedOff = (which: 'next' | 'back' | 'submit'): boolean => nav?.[which] === 'disable';
+  const hasNext = runtime.neighborSlideId(runtime.currentSlide().id, 1) !== null;
+  const nextLocked = shown('next') && hasNext && (forcedOff('next') || !runtime.isPlayerButtonEnabled('next'));
   return (
     <div className="player-navbar-buttons">
+      {nextLocked && <span className="player-nav-reason" id="player-next-reason">Finish this slide to continue</span>}
       {shown('submit') && (
         <button
           className="player-chrome-btn accent"
@@ -86,6 +89,7 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings, onFin
         <button
           className="player-chrome-btn accent"
           disabled={forcedOff('next') || runtime.neighborSlideId(runtime.currentSlide().id, 1) === null || !runtime.isPlayerButtonEnabled('next')}
+          aria-describedby={nextLocked ? 'player-next-reason' : undefined}
           onClick={() => go(1)}
         >
           {settings.next.label}

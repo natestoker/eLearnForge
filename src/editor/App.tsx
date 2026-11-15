@@ -18,6 +18,7 @@ import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
 import { CourseSettingsDialog } from './CourseSettingsDialog';
 import { Toast } from './Toast';
+import { Lucide } from './lucide';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
 import { deriveAccent } from '../shared/accent';
 import { Player } from '../runtime/Player';
@@ -181,6 +182,9 @@ function StatusBar({ saveState }: { saveState: 'saved' | 'saving' }) {
   const slideIdx = project.slides.findIndex((sl) => sl.id === selection.slideId);
   const slide = project.slides[slideIdx];
   const block = slide?.layers.flatMap((l) => l.blocks).find((b) => b.id === selection.blockId);
+  const canvasScale = useUiStore((s) => s.canvasScale);
+  const zoomMode = useUiStore((s) => s.zoomMode);
+  const setZoom = useUiStore((s) => s.setZoom);
   return (
     <footer className="statusbar">
       <div className="statusbar-side">
@@ -189,6 +193,13 @@ function StatusBar({ saveState }: { saveState: 'saved' | 'saving' }) {
       </div>
       <div className="statusbar-side">
         {block && <span>Selected · {block.name ?? block.type}</span>}
+        {slide && <span>{slide.width} × {slide.height}</span>}
+        <span className="status-zoom" role="group" aria-label="Zoom">
+          <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => setZoom('manual', Math.max(0.1, Math.round((canvasScale - 0.1) * 10) / 10))}><Lucide name="minus" size={13} /></button>
+          <span className="status-zoom-value">{Math.round(canvasScale * 100)}%</span>
+          <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => setZoom('manual', Math.min(3, Math.round((canvasScale + 0.1) * 10) / 10))}><Lucide name="plus" size={13} /></button>
+          <button type="button" className={`status-zoom-fit${zoomMode === 'fit' ? ' on' : ''}`} aria-pressed={zoomMode === 'fit'} title="Fit the slide to the window" onClick={() => setZoom('fit')}>Fit</button>
+        </span>
       </div>
     </footer>
   );

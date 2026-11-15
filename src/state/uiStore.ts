@@ -38,6 +38,13 @@ interface UiStore {
   // First-run welcome / quick tour; reopenable from the toolbar Help button.
   toast: { message: string; action?: { label: string; run: () => void } } | null;
   setToast: (t: { message: string; action?: { label: string; run: () => void } } | null) => void;
+  // Canvas zoom: 'fit' follows the window, 'manual' holds manualScale.
+  // canvasScale is what the canvas is actually showing (it reports back).
+  zoomMode: 'fit' | 'manual';
+  manualScale: number;
+  canvasScale: number;
+  setZoom: (mode: 'fit' | 'manual', scale?: number) => void;
+  setCanvasScale: (s: number) => void;
   welcomeOpen: boolean;
   // Which section of the Course settings dialog is open (null = closed).
   courseSettings: CourseSettingsSection | null;
@@ -139,6 +146,11 @@ export const useUiStore = create<UiStore>((set) => ({
   setCourseSettings: (s) => set({ courseSettings: s }),
   toast: null,
   setToast: (t) => set({ toast: t }),
+  zoomMode: 'fit',
+  manualScale: 1,
+  canvasScale: 1,
+  setZoom: (mode, scale) => set((s) => ({ zoomMode: mode, manualScale: scale ?? s.manualScale })),
+  setCanvasScale: (c) => set((s) => (Math.abs(s.canvasScale - c) < 0.001 ? s : { canvasScale: c })),
   welcomeOpen: false,
   setWelcomeOpen: (open) => set({ welcomeOpen: open }),
   scrubT: null,

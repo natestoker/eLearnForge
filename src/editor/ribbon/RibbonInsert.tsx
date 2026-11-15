@@ -126,7 +126,7 @@ export function RibbonInsert() {
                 aria-label={SHAPE_LABELS[kind]}
                 onClick={() => pickShape(kind)}
               >
-                <ShapeSvg props={{ kind, fill: 'currentColor', borderColor: 'transparent', borderWidth: 0, cornerRadius: 2 }} />
+                <ShapeSvg props={{ kind, fill: 'transparent', borderColor: 'currentColor', borderWidth: 1.5, cornerRadius: 2 }} />
               </button>
             ))}
           </div>

@@ -707,7 +707,7 @@ export function Player({ project, adapter, startSlideId }: {
                   onClick={() => (uiPlaying ? uiClock()?.pause() : uiClock()?.play())}
                   aria-label={uiPlaying ? 'Pause' : 'Play'}
                 >
-                  {uiPlaying ? '||' : '>'}
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">{uiPlaying ? <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></> : <path d="M8 5v14l11-7z" />}</svg>
                 </button>
                 <input
                   className="player-seek"
@@ -736,6 +736,14 @@ export function Player({ project, adapter, startSlideId }: {
               </div>
               );
             })()}
+            {!(hasTimeline || activeTlLayerId) && !narrow && (
+              // No timeline on this slide: keep the transport's place so the bar
+              // does not change shape from slide to slide.
+              <div className="player-controls idle" aria-hidden="true">
+                <span className="player-play"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>
+                <span className="player-seek-idle" />
+              </div>
+            )}
             {(settings.titlePosition ?? 'bottom') === 'bottom' && (
               <div className="player-hud">
                 <span className="player-hud-title">{project.title}</span>

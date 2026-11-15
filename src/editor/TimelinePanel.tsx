@@ -15,7 +15,7 @@ import { uid } from '../schema/factory';
 // - Right: Scrollable lane grid (timing bars, ramps, waveform).
 // Both sides render recursively to stay perfectly synchronized.
 
-const ROW_H = 34;
+const ROW_H = 26;
 const SNAP = 0.1;
 
 type GestureMode = 'move' | 'trim' | 'trimStart' | 'animIn' | 'animOut';

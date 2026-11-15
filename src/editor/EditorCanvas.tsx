@@ -271,9 +271,11 @@ export function EditorCanvas() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
-  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
-  const [manualScale, setManualScale] = useState(1);
+  const zoomMode = useUiStore((s) => s.zoomMode);
+  const manualScale = useUiStore((s) => s.manualScale);
   const activeScale = zoomMode === 'fit' ? scale : manualScale;
+  // The zoom control lives in the status bar; tell it what is on screen.
+  useEffect(() => { useUiStore.getState().setCanvasScale(activeScale); }, [activeScale]);
   const gestureRef = useRef<Gesture | null>(null);
   const marqueeRef = useRef<Marquee | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -980,25 +982,6 @@ export function EditorCanvas() {
           <div className="canvas-drop-inner">Drop image, video, or audio to add it — or onto a media block to replace it</div>
         </div>
       )}
-      <div className="canvas-zoom">
-        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.max(0.1, activeScale - 0.1)); }}>-</button>
-        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', width: 40, justifyContent: 'center' }}>{Math.round(activeScale * 100)}%</span>
-        <button className="btn btn-ghost" style={{ padding: '0 8px' }} onClick={() => { setZoomMode('manual'); setManualScale(() => Math.min(3, activeScale + 0.1)); }}>+</button>
-        <button className="btn btn-ghost" style={{ padding: '0 8px', marginLeft: 4 }} onClick={() => setZoomMode('fit')}>Fit</button>
-        <button
-          className="btn btn-ghost"
-          style={{ padding: '0 8px' }}
-          title="Preview from this slide"
-          onClick={() => useUiStore.getState().setPreviewOpen(true, useProjectStore.getState().selection.slideId)}
-        >{'▶'}</button>
-      </div>
-      <div className="canvas-meta">
-        <span>
-          {slide.width} x {slide.height} @ {(activeScale * 100).toFixed(0)}%
-        </span>
-        {/* Snap to grid lives on the Home ribbon (Grids & Guides); hold Alt
-            while dragging to invert it for one gesture. */}
-      </div>
       {canvasMenu && (
         <div className="ctx-menu" style={{ left: canvasMenu.x, top: canvasMenu.y }} onPointerDown={(e) => e.stopPropagation()}>
           <button onClick={() => { addGuide('v', canvasMenu.slideX); setCanvasMenu(null); }}>Add vertical guide here</button>

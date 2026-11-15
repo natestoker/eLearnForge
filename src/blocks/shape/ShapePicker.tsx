@@ -9,7 +9,7 @@ import { ShapeSvg } from './Canvas';
 const KINDS = Object.keys(SHAPE_LABELS) as ShapeKind[];
 
 function thumbProps(kind: ShapeKind): ShapeProps {
-  return { kind, fill: 'currentColor', borderColor: 'transparent', borderWidth: 0, cornerRadius: 3 };
+  return { kind, fill: 'transparent', borderColor: 'currentColor', borderWidth: 1.5, cornerRadius: 3 };
 }
 
 export function ShapePicker({ value, onPick }: {

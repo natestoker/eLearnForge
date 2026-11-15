@@ -161,12 +161,12 @@ function AlignControls() {
         <button className={`chip ${target === 'key' ? 'on' : ''}`} onClick={() => setTo('key')} disabled={!multi}>To key object</button>
       </div>
       <div className="align-grid">
-        <button className="btn btn-icon" onClick={() => alignBlocks('left', target)}>{'\u2596'}</button>
-        <button className="btn btn-icon" onClick={() => alignBlocks('hcenter', target)}>{'\u2503'}</button>
-        <button className="btn btn-icon" onClick={() => alignBlocks('right', target)}>{'\u2597'}</button>
-        <button className="btn btn-icon" onClick={() => alignBlocks('top', target)}>{'\u2594'}</button>
-        <button className="btn btn-icon" onClick={() => alignBlocks('vcenter', target)}>{'\u2501'}</button>
-        <button className="btn btn-icon" onClick={() => alignBlocks('bottom', target)}>{'\u2581'}</button>
+        <button className="btn btn-icon" title="Align left edges" aria-label="Align left edges" onClick={() => alignBlocks('left', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 3v18" /><rect x="7" y="6" width="12" height="5" rx="1" /><rect x="7" y="13" width="7" height="5" rx="1" /></svg></button>
+        <button className="btn btn-icon" title="Align centers horizontally" aria-label="Align centers horizontally" onClick={() => alignBlocks('hcenter', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 3v18" /><rect x="5" y="6" width="14" height="5" rx="1" /><rect x="8" y="13" width="8" height="5" rx="1" /></svg></button>
+        <button className="btn btn-icon" title="Align right edges" aria-label="Align right edges" onClick={() => alignBlocks('right', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M20 3v18" /><rect x="5" y="6" width="12" height="5" rx="1" /><rect x="10" y="13" width="7" height="5" rx="1" /></svg></button>
+        <button className="btn btn-icon" title="Align top edges" aria-label="Align top edges" onClick={() => alignBlocks('top', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 4h18" /><rect x="6" y="7" width="5" height="12" rx="1" /><rect x="13" y="7" width="5" height="7" rx="1" /></svg></button>
+        <button className="btn btn-icon" title="Align middles vertically" aria-label="Align middles vertically" onClick={() => alignBlocks('vcenter', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 12h18" /><rect x="6" y="5" width="5" height="14" rx="1" /><rect x="13" y="8" width="5" height="8" rx="1" /></svg></button>
+        <button className="btn btn-icon" title="Align bottom edges" aria-label="Align bottom edges" onClick={() => alignBlocks('bottom', target)}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 20h18" /><rect x="6" y="5" width="5" height="12" rx="1" /><rect x="13" y="10" width="5" height="7" rx="1" /></svg></button>
       </div>
       <div className="field-row">
         <button className="btn" onClick={() => distributeBlocks('h')} disabled={!multi}>Distribute H</button>

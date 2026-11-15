@@ -3972,3 +3972,28 @@ label.cs-line { cursor: default; }
 .layers-compact-btn:hover em { color: var(--text); }
 .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
 .text-edit-hint { margin-bottom: var(--sp-3); }
+/* phase 5, second batch */
+.status-zoom { display: inline-flex; align-items: center; gap: 2px; }
+.status-zoom button { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 4px; border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
+.status-zoom button:hover { color: var(--text); border-color: var(--border); background: var(--panel-2); }
+.status-zoom-fit.on { color: var(--accent); }
+.status-zoom-value { min-width: 40px; text-align: center; color: var(--text); }
+.statusbar { min-height: 26px; }
+/* One menu look: File, Preview, context and shape menus. */
+.menu, .ctx-menu { background: var(--panel); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: var(--sp-1); box-shadow: var(--shadow-1); }
+.ctx-menu { z-index: var(--z-dropdown); }
+.menu-item, .ctx-menu button { display: flex; align-items: center; gap: var(--sp-2); min-height: 28px; padding: 0 var(--sp-2); border-radius: var(--r-sm); color: var(--text); font-size: var(--fs-sm); }
+.menu-item svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.menu-item:hover svg { color: var(--accent); }
+/* Player: transport placeholder on slides with no timeline; a locked Next says why. */
+.player-controls.idle { opacity: 0.35; pointer-events: none; }
+.player-controls.idle .player-play { display: grid; place-items: center; }
+.player-seek-idle { flex: 1; height: 4px; border-radius: 2px; background: rgba(128, 128, 128, 0.45); min-width: 60px; }
+.player-play { display: inline-grid; place-items: center; }
+.player-navbar-buttons { align-items: center; }
+.player-nav-reason { font-size: 13px; color: #cfd6d1; margin-right: 8px; white-space: nowrap; }
+.chrome-light .player-nav-reason { color: #333; }
+.player-chrome-btn:disabled { opacity: 1; background: transparent; border-style: dashed; border-color: #6b776f; color: #9aa69e; }
+.chrome-light .player-chrome-btn:disabled { color: #5c665f; border-color: #8a948d; }
+@container player (max-width: 640px) { .player-nav-reason { display: none; } }
+.shape-glyph svg, .rbn-shape-tile svg { overflow: visible; }

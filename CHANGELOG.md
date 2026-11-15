@@ -1641,3 +1641,22 @@ Large-media "Compress" is not built; the check only warns.
   reason line on a locked Next, shape tiles as outlines, and the remaining
   typed glyphs (zoom, align).
 
+# v6.27
+
+## Review fixes, second batch
+- **Zoom is in the status bar** (−, %, +, Fit) with the slide size. Nothing
+  floats over the slide's bottom-right corner any more.
+- **Timeline rows are 26px** (were 34px), so more blocks show at once.
+- **Player bar keeps its shape.** Slides with no timeline show an idle
+  transport instead of dropping it, so the caption no longer jumps sides.
+  Play and pause are icons.
+- **A locked Next says why** ("Finish this slide to continue"), and disabled
+  player buttons use a dashed outline, not a fade.
+- **Align buttons are icons with names**, not block characters.
+- **Shape tiles are outlines**, matching the line icons around them.
+- **Menus share one look** (File, Preview, right-click).
+- Still open from the review: collapsible sections in the inspector, a
+  dedicated Menu component with shortcuts, the Publish dialog's column layout,
+  moving Pen tool / Welcome / Story view onto the shared dialog shell, a More
+  menu for the ribbon under 1280px, and the phone player's single top bar.
+
