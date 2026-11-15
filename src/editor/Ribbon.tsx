@@ -1,22 +1,16 @@
 import { useUiStore, RibbonTab } from '../state/uiStore';
 import { Toolbar } from './Toolbar';
 import { Lucide } from './lucide';
-import { RibbonHome } from './ribbon/RibbonHome';
-import { RibbonSlide } from './ribbon/RibbonSlide';
 import { RibbonInsert } from './ribbon/RibbonInsert';
 import { RibbonFormat } from './ribbon/RibbonFormat';
 import { RibbonAnimations } from './ribbon/RibbonAnimations';
-import { RibbonTriggers } from './ribbon/RibbonTriggers';
-import { RibbonVariables } from './ribbon/RibbonVariables';
+import { RibbonView } from './ribbon/RibbonView';
 
 const TABS: { id: RibbonTab; label: string }[] = [
-  { id: 'home', label: 'Home' },
   { id: 'insert', label: 'Insert' },
-  { id: 'slide', label: 'Slide' },
-  { id: 'format', label: 'Format' },
-  { id: 'animations', label: 'Animations' },
-  { id: 'triggers', label: 'Triggers' },
-  { id: 'variables', label: 'Variables' }
+  { id: 'arrange', label: 'Arrange' },
+  { id: 'animate', label: 'Animate' },
+  { id: 'view', label: 'View' }
 ];
 
 export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
@@ -57,13 +51,10 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
       {/* Ribbon body content */}
       {!collapsed && (
         <div className="ribbon-body">
-          {activeTab === 'home' && <RibbonHome />}
-          {activeTab === 'slide' && <RibbonSlide />}
           {activeTab === 'insert' && <RibbonInsert />}
-          {activeTab === 'format' && <RibbonFormat />}
-          {activeTab === 'animations' && <RibbonAnimations />}
-          {activeTab === 'triggers' && <RibbonTriggers />}
-          {activeTab === 'variables' && <RibbonVariables />}
+          {activeTab === 'arrange' && <RibbonFormat />}
+          {activeTab === 'animate' && <RibbonAnimations />}
+          {activeTab === 'view' && <RibbonView />}
         </div>
       )}
     </div>

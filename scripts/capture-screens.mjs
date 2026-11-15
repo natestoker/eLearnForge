@@ -53,28 +53,28 @@ const tryDo = async (label, fn) => { try { await fn(); } catch (e) { console.log
   await page.goto(`${BASE}/index.html`); await page.waitForTimeout(1500);
   await shot(page, 'ed-00-welcome', 'First-run welcome dialog');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  for (const t of ['Home', 'Insert', 'Slide']) {
+  for (const t of ['Insert', 'View']) {
     await tryDo(t, async () => { await page.locator('.ribbon-tab', { hasText: t }).click(); await shot(page, `ed-01-ribbon-${t.toLowerCase()}`, `${t} ribbon tab, nothing selected`); });
   }
   // select the title (text) block
-  await page.locator('.ribbon-tab', { hasText: 'Home' }).click();
+  await shot(page, 'ed-01-inspector-slide', 'Nothing selected: the inspector shows the slide settings');
   await tryDo('select', async () => { await page.locator('.stage-block').first().click({ force: true }); });
-  for (const t of ['Format', 'Animations']) {
+  for (const t of ['Arrange', 'Animate']) {
     await tryDo(t, async () => { await page.locator('.ribbon-tab', { hasText: t }).click(); await shot(page, `ed-02-ribbon-${t.toLowerCase()}`, `${t} ribbon tab, a text block selected`); });
   }
   for (const t of ['Properties', 'Effects', 'Animate']) {
     await tryDo(t, async () => { await page.locator('.tab', { hasText: t }).first().click(); await shot(page, `ed-03-panel-${t.toLowerCase()}`, `Right panel, ${t} tab, text block`); });
   }
-  await tryDo('triggers', async () => { await page.locator('.ribbon-tab', { hasText: 'Triggers' }).click(); await shot(page, 'ed-04-triggers', 'Triggers tab with the trigger list'); });
+  await tryDo('triggers', async () => { await page.locator('.rtab', { hasText: 'Triggers' }).click(); await shot(page, 'ed-04-triggers', 'Triggers tab with the trigger list'); });
   await tryDo('trigger open', async () => { await page.locator('.tp-row, .tp-card, [class*="tp-trigger"]').first().click(); await shot(page, 'ed-04b-trigger-open', 'A trigger expanded'); });
-  await tryDo('variables', async () => { await page.locator('.ribbon-tab', { hasText: 'Variables' }).click(); await shot(page, 'ed-05-variables', 'Variables tab'); });
+  await tryDo('variables', async () => { await page.locator('.rtab', { hasText: 'Variables' }).click(); await shot(page, 'ed-05-variables', 'Variables tab'); await page.locator('.rtab', { hasText: 'Inspect' }).click(); });
   await page.locator('.ribbon-tab', { hasText: 'Insert' }).click();
   await tryDo('all shapes', async () => { await page.locator('.rbn-mbtn', { hasText: 'All shapes' }).click(); await shot(page, 'ed-06-all-shapes', 'All shapes menu'); await page.keyboard.press('Escape'); await page.mouse.click(700, 400); });
   await tryDo('pen', async () => { await page.locator('.rbn-mbtn', { hasText: 'Custom' }).click(); await shot(page, 'ed-07-pen-tool', 'Pen tool dialog'); await page.keyboard.press('Escape'); });
   await tryDo('file menu', async () => { await page.getByRole('button', { name: /File/ }).first().click(); await shot(page, 'ed-08-file-menu', 'File menu'); await page.keyboard.press('Escape'); await page.mouse.click(700, 500); });
   await tryDo('quiz', async () => { await page.locator('.slide-item').nth(2).click(); await shot(page, 'ed-09-quiz-slide', 'A quiz slide in the editor'); await page.locator('.stage-block').nth(1).click({ force: true }); await shot(page, 'ed-09b-quiz-props', 'Quiz block properties'); });
   await tryDo('slide ctx', async () => { await page.locator('.stage').click({ button: 'right', position: { x: 50, y: 50 } }); await shot(page, 'ed-10-context-menu', 'Canvas right-click menu'); await page.keyboard.press('Escape'); });
-  await tryDo('story view', async () => { await page.locator('.ribbon-tab', { hasText: 'Home' }).click(); await page.locator('button', { hasText: 'Story View' }).first().click(); await shot(page, 'ed-11-story-view', 'Story View'); await page.keyboard.press('Escape'); });
+  await tryDo('story view', async () => { await page.locator('.ribbon-tab', { hasText: 'View' }).click(); await page.locator('button', { hasText: 'Story View' }).first().click(); await shot(page, 'ed-11-story-view', 'Story View'); await page.keyboard.press('Escape'); });
   for (const [name, label] of [['theme', 'Theme'], ['player', 'Player'], ['resources', 'Resources'], ['glossary', 'Glossary'], ['banks', 'Question banks']]) {
     await tryDo(name, async () => {
       if (!(await page.locator('.cs-root').count())) await page.getByRole('button', { name: 'Course', exact: true }).click();

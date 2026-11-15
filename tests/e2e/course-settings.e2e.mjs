@@ -54,10 +54,9 @@ check('a bank was created with slides ticked', (await page.locator('.cs-banks .b
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 eq('Escape closes the dialog', await page.locator('.cs-root').count(), 0);
-await page.locator('.ribbon-tab', { hasText: 'Home' }).click();
-await page.locator('.rbn-course-btn', { hasText: 'Glossary' }).click();
+await page.getByRole('button', { name: 'Course', exact: true }).click();
 await page.waitForTimeout(200);
-eq('Home > Glossary opens the Glossary section', (await page.locator('.cs-nav-item.active').innerText()).includes('Glossary'), true);
+eq('reopening remembers nothing odd: it opens on Theme', (await page.locator('.cs-nav-item.active').innerText()).includes('Theme'), true);
 await page.locator('.cs-done').click();
 eq('Done closes it', await page.locator('.cs-root').count(), 0);
 

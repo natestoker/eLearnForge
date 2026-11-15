@@ -126,35 +126,47 @@ await page.waitForSelector('.pen-dialog');
 {
   const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-  await page.locator('.ribbon-tab', { hasText: 'Home' }).click();
+  await page.getByRole('button', { name: 'Course', exact: true }).click();
+  await page.waitForSelector('.cs-root');
   for (const color of ['#1a237e', '#ff5a8a', '#ffd600']) {
-    await page.evaluate((c) => { const i = document.querySelector('.ribbon-body input[type=color]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, c); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, color);
+    await page.evaluate((c) => { const i = document.querySelector('.cs-body input[type=color]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, c); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, color);
     await page.waitForTimeout(300);
     const v = await page.evaluate(() => { const s = getComputedStyle(document.documentElement); return { a: s.getPropertyValue('--accent').trim(), ink: s.getPropertyValue('--accent-ink').trim() }; });
     check(`accent ${color} reaches the editor`, /^#[0-9a-f]{6}$/i.test(v.a), JSON.stringify(v));
     check(`accent ${color} reads on the dark panels (>= 4.5:1)`, ratio(v.a, '#171b18') >= 4.4, `${v.a} ${ratio(v.a, '#171b18').toFixed(2)}`);
     check(`text on ${color} buttons is readable`, ratio(v.a, v.ink) >= 4.5, `${v.a} on ${v.ink}`);
   }
+  await page.locator('.cs-done').click();
   const active = await page.locator('.ribbon-tab.active').evaluate((el) => getComputedStyle(el).color);
   check('the active ribbon tab uses the accent', active !== 'rgb(61, 220, 151)', active);
 }
 
-// ---- Ribbon: same height on every tab, no clipped labels
+// ---- Ribbon: four command tabs, one height, nothing overflowing, at 1500 and 1280 wide
 {
-  const heights = [];
-  for (const t of ['Home', 'Insert', 'Slide', 'Format', 'Animations', 'Triggers', 'Variables']) {
-    await page.locator('.ribbon-tab', { hasText: t }).click();
-    await page.waitForTimeout(150);
-    heights.push(Math.round((await page.locator('.ribbon-body').boundingBox()).height));
+  eq('the ribbon has four tabs', await page.locator('.ribbon-tab').allInnerTexts(), ['Insert', 'Arrange', 'Animate', 'View']);
+  for (const width of [1500, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.locator('.stage-block').first().click({ force: true });
+    const bad = [];
+    for (const t of ['Insert', 'Arrange', 'Animate', 'View']) {
+      await page.locator('.ribbon-tab', { hasText: t }).click();
+      await page.waitForTimeout(150);
+      const m = await page.evaluate(() => { const e = document.querySelector('.ribbon-body'); return { h: e.clientHeight, w: e.clientWidth, sw: e.scrollWidth, tall: Math.max(0, ...[...e.querySelectorAll('.ribbon-group')].map((g) => g.scrollHeight)) }; });
+      if (m.h !== 96 || m.sw > m.w || m.tall > m.h) bad.push(`${t}: ${JSON.stringify(m)}`);
+    }
+    eq(`every tab fits a 96px shelf at ${width}px`, bad, []);
   }
-  check('every ribbon tab has the same height', new Set(heights).size === 1, heights.join(','));
-  await page.locator('.ribbon-tab', { hasText: 'Slide' }).click();
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.keyboard.press('Escape');
+}
+// ---- Slide settings live in the inspector when nothing is selected
+{
+  await page.locator('.canvas-area').click({ position: { x: 8, y: 8 } });
   await page.waitForTimeout(200);
-  const clipped = await page.evaluate(() => {
-    const body = document.querySelector('.ribbon-body').getBoundingClientRect();
-    return [...document.querySelectorAll('.ribbon-body .field-label')].filter((el) => el.getBoundingClientRect().left < body.left - 0.5).map((el) => el.textContent);
-  });
-  eq('no Slide-tab label is cut off on the left', clipped, []);
+  check('with nothing selected the inspector shows the slide', (await page.locator('.slide-props').count()) === 1 && (await page.locator('.slide-props').innerText()).includes('TRANSITION'.toLowerCase()) || (await page.locator('.slide-props .field-label').allInnerTexts()).some((t) => /transition/i.test(t)));
+  await page.locator('.rtab', { hasText: 'Variables' }).click();
+  check('Variables is a right-panel tab with a count', /\d/.test(await page.locator('.rtab', { hasText: 'Variables' }).innerText()));
+  await page.locator('.rtab', { hasText: 'Inspect' }).click();
 }
 // ---- Hovering a layer row must not change its height (rows used to dance)
 {

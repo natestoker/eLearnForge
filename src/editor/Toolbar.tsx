@@ -120,21 +120,6 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       <div className="toolbar-group">
         <button className="iconbtn" disabled={!canUndo} onClick={undo} title={canUndo ? 'Undo (Ctrl+Z)' : 'Nothing to undo'} aria-label="Undo"><Lucide name="undo-2" size={18} /></button>
         <button className="iconbtn" disabled={!canRedo} onClick={redo} title={canRedo ? 'Redo (Ctrl+Shift+Z)' : 'Nothing to redo'} aria-label="Redo"><Lucide name="redo-2" size={18} /></button>
-        <div className="toolbar-divider" />
-        {/* Fast inserts for the three most-reached-for blocks; the full
-            catalog lives on the Insert tab. */}
-        <button className="iconbtn" title="Insert text" onClick={() => addBlock('text')}>
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M5 7V5.5h14V7M12 5.5v13M9 18.5h6" /></svg>
-        </button>
-        <button className="iconbtn" title="Insert image" onClick={() => addBlock('image')}>
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 6h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM5 16l4.5-4.5 3.5 3.5 3-3 4 4" /></svg>
-        </button>
-        <button className="iconbtn" title="Insert rectangle" onClick={() => addBlock('shape')}>
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="6" width="16" height="12" rx="1.5" /></svg>
-        </button>
-        <button className="iconbtn" title="Insert button" onClick={() => addBlock('button')}>
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3.5" y="9" width="17" height="6" rx="3" /><path d="M9 12h6" /></svg>
-        </button>
       </div>
 
       <div className="toolbar-group toolbar-right">

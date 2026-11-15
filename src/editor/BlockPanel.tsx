@@ -40,7 +40,7 @@ function PropertiesTab() {
   if (selectedIds(selection).length >= 2) {
     return (
       <div className="panel-scroll">
-        <p className="hint">Multiple blocks selected — size, align, and arrange them from the Format ribbon. Select a single block to edit its options here.</p>
+        <p className="hint">Multiple blocks selected — size, align, and arrange them from the Arrange tab. Select a single block to edit its options here.</p>
       </div>
     );
   }

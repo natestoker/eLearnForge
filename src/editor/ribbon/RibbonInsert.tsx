@@ -206,7 +206,7 @@ export function RibbonInsert() {
 
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <div className="rbn-grid3">
+          <div className="rbn-grid4">
             <MBtn icon="button" label="Button" onClick={() => addBlock('button')} />
             <MBtn icon="hotspot" label="Hotspot" onClick={() => addBlock('hotspot')} />
             <MBtn icon="multipleChoice" label="Quiz" onClick={() => addBlock('multipleChoice')} />

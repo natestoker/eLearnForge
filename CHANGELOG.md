@@ -1566,3 +1566,28 @@ Large-media "Compress" is not built; the check only warns.
   still use their own dialog shells; Accent and the default transition are
   still also on the Home tab until the ribbon is reorganised.
 
+# v6.24
+
+## The ribbon holds commands; forms moved to the inspector (phase 3)
+- **Four ribbon tabs** instead of seven: Insert, Arrange, Animate, View. The
+  shelf is 96px (was 128px) and every tab fits without scrolling at 1280px
+  wide; a test checks both widths.
+- **Slide settings moved to the inspector.** With nothing selected, the right
+  panel shows the slide: name, size, transition, background, timeline, player
+  buttons, narration. The old Slide tab is gone.
+- **Triggers and Variables are right-panel tabs** (Inspect / Triggers /
+  Variables) with count badges. Switching to them no longer changes the ribbon.
+- **Arrange** (was Format): align, distribute, order, group, clipboard, lock.
+  X/Y/W/H and rotation are edited only in the inspector. Delete is a small
+  button, no longer the biggest thing on the tab.
+- **Animate**: the preset gallery, exit, emphasis and motion path. Delay and
+  duration are no longer duplicated in the ribbon; timing is edited in the
+  inspector's Animate tab or by dragging the bar in the timeline.
+- **View**: grid, snap, guides and Story view (from the old Home tab). Accent,
+  brand colors and the default transition now live only in Course settings.
+- The four unlabelled quick-insert icons in the top bar are gone; they
+  duplicated the Insert tab.
+- Not done from the review's ribbon section: a More menu for windows narrower
+  than 1280px (the shelf scrolls there), clipboard and delete in a block
+  context menu, and collapsible inspector sections.
+

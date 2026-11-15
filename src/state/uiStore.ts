@@ -3,13 +3,18 @@ import { create } from 'zustand';
 // Editor-only state. Deliberately separate from the project store: nothing in
 // here is part of the document, so it never touches undo history or saves.
 
-export type RibbonTab = 'home' | 'slide' | 'insert' | 'format' | 'animations' | 'triggers' | 'variables';
+export type RibbonTab = 'insert' | 'arrange' | 'animate' | 'view';
+// The right panel: the inspector (selected block, or the slide when nothing
+// is selected), or the slide's triggers, or the project's variables.
+export type RightTab = 'inspect' | 'triggers' | 'variables';
 
 export type CourseSettingsSection = 'theme' | 'player' | 'resources' | 'glossary' | 'banks';
 
 interface UiStore {
   hiddenLayerIds: Record<string, boolean>; // editor-only eye toggle
   ribbonTab: RibbonTab;
+  rightTab: RightTab;
+  setRightTab: (tab: RightTab) => void;
   snapEnabled: boolean;
   setSnapEnabled: (on: boolean) => void;
   timelineSnap: boolean;
@@ -57,7 +62,9 @@ interface UiStore {
 
 export const useUiStore = create<UiStore>((set) => ({
   hiddenLayerIds: {},
-  ribbonTab: 'home',
+  ribbonTab: 'insert',
+  rightTab: 'inspect',
+  setRightTab: (tab) => set({ rightTab: tab }),
   snapEnabled: true,
   timelineSnap: true,
   panelSizes: (() => {

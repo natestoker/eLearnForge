@@ -43,7 +43,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   const project = useProjectStore((s) => s.project);
   const mutate = useProjectStore((s) => s.mutate);
   const select = useProjectStore((s) => s.select);
-  const setRibbonTab = useUiStore((s) => s.setRibbonTab);
+  const setRightTab = useUiStore((s) => s.setRightTab);
   const setFocusTriggerId = useUiStore((s) => s.setFocusTriggerId);
 
   const [target, setTarget] = useState<DialogTarget>('scorm12');
@@ -139,8 +139,8 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
     const slide = project.slides.find((s) => s.id === c.fix!.slideId);
     if (!slide) return;
     select({ slideId: slide.id, layerId: slide.layers[0].id, blockId: c.fix.blockId ?? null });
-    if (c.fix.triggerId) { setRibbonTab('triggers'); setFocusTriggerId(c.fix.triggerId); }
-    else setRibbonTab('home');
+    if (c.fix.triggerId) { setRightTab('triggers'); setFocusTriggerId(c.fix.triggerId); }
+    else setRightTab('inspect');
     onClose();
   };
 

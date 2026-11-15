@@ -169,44 +169,6 @@ export function RibbonAnimations() {
         <span className="ribbon-group-title">Entrance</span>
       </div>
 
-      {/* Group: Timing */}
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div className="field">
-              <span className="field-label">Delay (s)</span>
-              <input
-                className="input input-number"
-                type="number" step="0.1" min="0"
-                value={timing?.start ?? 0}
-                onChange={(e) => {
-                  ensureTimeline();
-                  updateBlock(block.id, (b) => {
-                    if (!b.timing) b.timing = { start: 0 };
-                    b.timing.start = Math.max(0, parseFloat(e.target.value) || 0);
-                  });
-                }}
-              />
-            </div>
-            <div className="field">
-              <span className="field-label">Duration (s)</span>
-              <input
-                className="input input-number"
-                type="number" step="0.1" min="0.1"
-                value={timing?.animIn?.duration ?? 0.5}
-                onChange={(e) => {
-                  ensureTimeline();
-                  updateBlock(block.id, (b) => {
-                    if (!b.timing) b.timing = { start: 0 };
-                    if (b.timing.animIn) b.timing.animIn.duration = Math.max(0.1, parseFloat(e.target.value) || 0.5);
-                  });
-                }}
-              />
-            </div>
-          </div>
-        </div>
-        <span className="ribbon-group-title">Timing</span>
-      </div>
 
       {/* Group: Layered entrances (stack extra effects onto the base) */}
       <div className="ribbon-group">
@@ -294,11 +256,11 @@ export function RibbonAnimations() {
       {/* Group: pointer to the deep controls */}
       <div className="ribbon-group">
         <div className="ribbon-items">
-          <span className="hint" style={{ maxWidth: 190 }}>
-            Easing, direction, exit stacks, and previews are in the <b style={{ color: 'var(--text)' }}>Animate tab</b> of the block panel {'→'}
+          <span className="rbn-note" style={{ maxWidth: 240, whiteSpace: 'normal' }}>
+            Start, duration, direction and easing are edited in one place: the <b style={{ color: 'var(--text)' }}>Animate tab</b> of the inspector, or by dragging the bar in the timeline.
           </span>
         </div>
-        <span className="ribbon-group-title">More</span>
+        <span className="ribbon-group-title">Timing</span>
       </div>
     </div>
   );

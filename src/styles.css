@@ -3884,3 +3884,40 @@ label.cs-line { cursor: default; }
 .cs-banks .hint { color: var(--muted); }
 @media (max-width: 860px) { .cs-split, .cs-empty { flex-direction: column; } .cs-split-side, .cs-empty-example { width: 100%; position: static; } .cs-nav { width: 160px; } }
 .toolbar-course { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* ===== Redesign phase 3: a 96px command ribbon; forms live in the inspector ===== */
+.ribbon-body { height: 96px; padding: var(--sp-1) var(--sp-4); gap: var(--sp-3); }
+.ribbon-body .ribbon-group { gap: 2px; }
+.ribbon-group-title { padding-top: 2px; }
+.ribbon-empty { justify-content: center; }
+.rbn-mbtn { padding-top: 1px; padding-bottom: 1px; min-height: 22px; }
+.rbn-shape-tile { width: 24px; height: 24px; }
+.rtabs { display: flex; align-items: stretch; gap: 2px; padding: 0 var(--sp-5) 0 var(--sp-2); border-bottom: 1px solid var(--border); background: var(--bg); flex: none; }
+.rtab { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 var(--sp-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: 500 var(--fs-md)/1 var(--content); cursor: pointer; }
+.rtab:hover { color: var(--text); }
+.rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.rtab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rtab-count { font: 500 var(--fs-micro)/1 var(--mono); padding: 2px 6px; border-radius: var(--r-pill); background: var(--panel-2); color: var(--muted); }
+.rtab.active .rtab-count { color: var(--accent); }
+.slide-props .insp-section { padding-top: var(--sp-3); margin-top: var(--sp-3); border-top: 1px solid var(--border-soft); }
+.slide-props .insp-items { display: flex; flex-direction: column; gap: var(--sp-2); align-items: stretch; }
+.slide-props .insp-grid { display: flex; flex-direction: column; gap: var(--sp-2); }
+.slide-props .field { margin-bottom: 0; }
+.slide-props .btn { align-self: flex-start; }
+.rbn-grid4 { display: grid; grid-template-columns: repeat(4, auto); gap: 2px 2px; }
+.rbn-grid3 { gap: 2px 2px; }
+.ribbon-body .ribbon-group { padding: 0 var(--sp-2); }
+.ribbon-body { gap: var(--sp-1); }
+.rbn-mbtn { gap: 5px; padding-left: 4px; padding-right: 6px; }
+.rbn-shape-grid { grid-template-columns: repeat(8, 24px); grid-auto-rows: 24px; gap: 2px; }
+/* Arrange: align buttons, then distribute and group side by side, two rows tall. */
+.ribbon-body .align-controls { display: flex; flex-direction: row; align-items: flex-start; gap: var(--sp-2); }
+.ribbon-body .align-controls .align-target { display: flex; flex-direction: column; gap: 2px; }
+.ribbon-body .align-controls .align-target .chip { font-size: var(--fs-micro); padding: 1px 8px; }
+.ribbon-body .align-controls .field-row { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.ribbon-body .align-grid { gap: 4px; }
+.ribbon-body { padding-left: var(--sp-2); padding-right: var(--sp-2); }
+.ribbon-body .ribbon-group { padding: 0 6px; }
+.rbn-mbtn { padding-left: 3px; padding-right: 4px; gap: 4px; }
+.ribbon-body .align-controls .align-target .chip { height: 18px; line-height: 16px; padding: 0 8px; }
+.ribbon-body .btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }

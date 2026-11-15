@@ -56,7 +56,7 @@ check('and says where it went', /placed in/.test(await page.locator('.dd-block .
 
 // ---- editor dialogs
 const ed = await editorPage(browser);
-await ed.locator('.ribbon-tabs button').filter({ hasText: /^Triggers$/ }).click();
+await ed.locator('.rtab', { hasText: 'Triggers' }).click();
 await ed.locator('.tp-summary').first().click(); await ed.waitForTimeout(300);
 eq('axe: Triggers panel', await axeViolations(ed, '.tp-root'), []);
 await ed.locator('button:has-text("Publish")').first().click(); await ed.waitForTimeout(400);

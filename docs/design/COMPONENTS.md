@@ -5,7 +5,9 @@
 | --- | --- | --- |
 | App frame, panel layout | `App.tsx`, `Splitter.tsx` | left rail / canvas / right panel / timeline |
 | Top bar | `Toolbar.tsx` | undo/redo, quick-insert, File menu, Preview, Publish |
-| Ribbon (7 tabs) | `Ribbon.tsx`, `ribbon/Ribbon{Home,Insert,Slide,Format,Animations,Triggers,Variables}.tsx`, `ribbon/RibbonEmpty.tsx` | fixed 128 px shelf; Format and Slide overflow it (see ISSUES) |
+| Ribbon (4 tabs) | `Ribbon.tsx`, `ribbon/Ribbon{Insert,Format,Animations,View}.tsx` (Format is the Arrange tab), `ribbon/RibbonEmpty.tsx` | 96 px shelf, commands only |
+| Slide inspector | `SlideProperties.tsx` | shown in the right panel when nothing is selected |
+| Course settings | `CourseSettingsDialog.tsx` | theme, player, resources, glossary, banks |
 | Slides panel | `SlidesPanel.tsx`, `SlidePreview.tsx` | real thumbnails, drag to reorder |
 | Layers panel | `LayersPanel.tsx` | |
 | Canvas | `EditorCanvas.tsx` | pasteboard, handles, guides, marquee |

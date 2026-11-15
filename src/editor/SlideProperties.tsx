@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
-import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker, ColorInput } from '../fields';
-import { Slide, NavOverride, SlideBackground } from '../../schema/types';
-import { NAV_OVERRIDE_OPTIONS } from '../../runtime/PlayerChrome';
-import { BakeNarration } from '../BakeNarration';
-import { VoiceRecorder } from '../VoiceRecorder';
-import { Modal } from '../Modal';
+import { useCurrentSlide, useProjectStore } from '../state/projectStore';
+import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker, ColorInput } from './fields';
+import { Slide, NavOverride, SlideBackground } from '../schema/types';
+import { NAV_OVERRIDE_OPTIONS } from '../runtime/PlayerChrome';
+import { BakeNarration } from './BakeNarration';
+import { VoiceRecorder } from './VoiceRecorder';
+import { Modal } from './Modal';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -20,7 +20,7 @@ const TRANSITION_OPTIONS = [
   { value: 'pageFlip', label: 'Page flip' }
 ];
 
-export function RibbonSlide() {
+export function SlideProperties() {
   const slide = useCurrentSlide();
   const mutate = useProjectStore((s) => s.mutate);
   const [audioOpen, setAudioOpen] = useState(false);
@@ -55,10 +55,13 @@ export function RibbonSlide() {
     });
 
   return (
-    <>
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div className="rbn-fgrid">
+    <div className="panel-scroll slide-props">
+      <div className="panel-title-row"><h3 className="panel-title">Slide</h3></div>
+      <p className="hint">Nothing is selected, so these are the slide's own settings. Click a block to edit it.</p>
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Slide</h4>
+        <div className="insp-items">
+          <div className="insp-grid">
             <Field label="Name">
               <TextInput
                 value={slide.name}
@@ -96,12 +99,12 @@ export function RibbonSlide() {
             </Field>
           </div>
         </div>
-        <span className="ribbon-group-title">Slide Settings</span>
-      </div>
+      </section>
 
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div className="rbn-fgrid">
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Background</h4>
+        <div className="insp-items">
+          <div className="insp-grid">
             <Field label="Background">
               <SelectInput
                 value={bg?.type ?? ''}
@@ -138,11 +141,11 @@ export function RibbonSlide() {
             <ImagePicker src={bg.src ?? ''} onChange={(src) => patchBg({ src })} />
           )}
         </div>
-        <span className="ribbon-group-title">Background</span>
-      </div>
+      </section>
 
-      <div className="ribbon-group">
-        <div className="ribbon-items">
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Timeline</h4>
+        <div className="insp-items">
           {!slide.timeline ? (
             <button className="btn" onClick={() => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.timeline = { duration: 10, autoAdvance: false }; })}>
               Add Timeline
@@ -161,7 +164,7 @@ export function RibbonSlide() {
                 onChange={(v) => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s?.timeline) s.timeline.autoAdvance = v; })}
               />
               <button className="btn btn-ghost btn-danger" onClick={() => mutate((p) => { const s = p.slides.find(sl => sl.id === slide.id); if (s) s.timeline = undefined; })}>
-                Remove
+                Remove timeline
               </button>
               <span className={`cc-badge ${hasCaptions ? 'on' : 'off'}`} title={hasCaptions ? 'This slide has closed captions - they play over the stage and the CC button shows in the player.' : 'No captions yet. Bake narration from notes (Audio) to auto-generate them, or paste WebVTT.'}>
                 <b>CC</b> {hasCaptions ? 'on this slide' : 'none yet'}
@@ -169,12 +172,12 @@ export function RibbonSlide() {
             </>
           )}
         </div>
-        <span className="ribbon-group-title">Timeline</span>
-      </div>
+      </section>
 
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div className="rbn-fgrid">
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Player buttons on this slide</h4>
+        <div className="insp-items">
+          <div className="insp-grid">
             <Field label="Next button">
               <SelectInput value={slide.nav?.next ?? ''} options={NAV_OVERRIDE_OPTIONS} onChange={(v) => setNav('next', v)} />
             </Field>
@@ -186,14 +189,14 @@ export function RibbonSlide() {
             </Field>
           </div>
         </div>
-        <span className="ribbon-group-title">Nav (this slide)</span>
-      </div>
+      </section>
 
-      <div className="ribbon-group">
-        <div className="ribbon-items">
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Audio</h4>
+        <div className="insp-items">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
             <button
-              className="flex flex-col items-center justify-center gap-1 p-2 bg-surface-container-highest hover:bg-surface-variant border border-outline-variant rounded transition-colors text-on-surface hover:text-primary min-w-[76px]"
+              className="btn"
               title="Bake speaker notes into narration, or record your own - the voice model and controls open in a dialog"
               onClick={() => setAudioOpen(true)}
             >
@@ -203,8 +206,7 @@ export function RibbonSlide() {
             {slide.timeline?.narrationSrc && <span className="hint" style={{ fontSize: 10 }}>Narration set</span>}
           </div>
         </div>
-        <span className="ribbon-group-title">Audio</span>
-      </div>
+      </section>
 
       {audioOpen && (
         <Modal title={`Narration - ${slide.name}`} onClose={() => setAudioOpen(false)} width="min(860px, 92vw)">
@@ -223,6 +225,6 @@ export function RibbonSlide() {
           />
         </Modal>
       )}
-    </>
+    </div>
   );
 }

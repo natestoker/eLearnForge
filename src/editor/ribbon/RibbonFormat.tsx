@@ -22,40 +22,13 @@ export function RibbonFormat() {
   }
 
   if (!block) {
-    return <RibbonEmpty title="Select a block to format">Fonts, colors and borders show up here once a block is selected.</RibbonEmpty>;
+    return <RibbonEmpty title="Select a block to arrange">Align, distribute, order, group and lock act on the selected blocks. Size and position are in the inspector on the right.</RibbonEmpty>;
   }
 
   const def = BLOCKS[block.type];
 
   return (
     <>
-      <div className="ribbon-group">
-        <div className="ribbon-items">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <Field label="X"><NumberInput value={Math.round(block.x)} onChange={(v) => updateBlock(block.id, (b) => { b.x = v; })} /></Field>
-            <Field label="Y"><NumberInput value={Math.round(block.y)} onChange={(v) => updateBlock(block.id, (b) => { b.y = v; })} /></Field>
-            <Field label="W"><NumberInput value={Math.round(block.w)} min={40} onChange={(v) => updateBlock(block.id, (b) => { b.w = v; })} /></Field>
-            <Field label="H"><NumberInput value={Math.round(block.h)} min={40} onChange={(v) => updateBlock(block.id, (b) => { b.h = v; })} /></Field>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
-            <Field label="Rotation">
-              <NumberInput
-                value={block.rotation ?? 0} step={15}
-                onChange={(v) => updateBlock(block.id, (b) => { b.rotation = v ? ((v % 360) + 360) % 360 : undefined; })}
-              />
-            </Field>
-            <button
-              className="btn"
-              style={block.locked ? { color: 'var(--danger)' } : undefined}
-              onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
-            >
-              <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Unlocked'}
-            </button>
-          </div>
-        </div>
-        <span className="ribbon-group-title">Size & Position</span>
-      </div>
-
       <div className="ribbon-group">
         <div className="ribbon-items">
           <AlignControls />
@@ -74,10 +47,25 @@ export function RibbonFormat() {
             <button className="btn" onClick={() => moveBlockZ(block.id, 'forward')}>Fwd</button>
             <button className="btn" onClick={() => moveBlockZ(block.id, 'front')}>To front</button>
           </div>
-          <ClipboardControls />
-          <button className="btn btn-danger-solid" onClick={() => deleteBlock(block.id)}>Delete block</button>
         </div>
-        <span className="ribbon-group-title">Arrange</span>
+        <span className="ribbon-group-title">Order</span>
+      </div>
+
+      <div className="ribbon-group">
+        <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+          <ClipboardControls />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              className="btn"
+              style={block.locked ? { color: 'var(--error)' } : undefined}
+              onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
+            >
+              <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Lock'}
+            </button>
+            <button className="btn btn-ghost btn-danger" title="Delete this block (Del)" onClick={() => deleteBlock(block.id)}><Lucide name="trash-2" size={14} /> Delete</button>
+          </div>
+        </div>
+        <span className="ribbon-group-title">Block</span>
       </div>
     </>
   );

@@ -16,7 +16,7 @@ await page.waitForTimeout(200);
 
 // Point a trigger at a layer, then delete the layer.
 await page.locator('button[title="Add layer"]').click();
-await page.locator('.ribbon-tabs button').filter({ hasText: /^Triggers$/ }).click();
+await page.locator('.rtab', { hasText: 'Triggers' }).click();
 await page.locator('.tp-add').click();
 await page.locator('.tp-opt').filter({ hasText: /^Show layer$/ }).first().click();
 await page.locator('.tp-tray .tp-opt').last().click();

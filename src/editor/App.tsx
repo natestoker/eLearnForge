@@ -8,6 +8,7 @@ import { LayersPanel } from './LayersPanel';
 import { TriggersPanel } from './TriggersPanel';
 import { VariablesPanel } from './VariablesPanel';
 import { BlockPanel } from './BlockPanel';
+import { SlideProperties } from './SlideProperties';
 import { StoryView } from './StoryView';
 import { DesktopGate } from './DesktopGate';
 import { Welcome, WELCOME_SEEN_KEY } from './Welcome';
@@ -27,12 +28,13 @@ export function App() {
   const panelSizes = useUiStore((s) => s.panelSizes);
   const collapsed = useUiStore((s) => s.collapsed);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
-  const ribbonTab = useUiStore((s) => s.ribbonTab);
+  const rightTab = useUiStore((s) => s.rightTab);
+  const setRightTab = useUiStore((s) => s.setRightTab);
+  const triggerCount = useProjectStore((s) => s.project.slides.find((sl) => sl.id === s.selection.slideId)?.triggers.length ?? 0);
+  const variableCount = useProjectStore((s) => s.project.variables.length);
+  const hasSelection = useProjectStore((s) => !!s.selection.blockId || (s.selection.blockIds ?? []).length > 0);
   const storyViewOpen = useUiStore((s) => s.storyViewOpen);
   const welcomeOpen = useUiStore((s) => s.welcomeOpen);
-  // Triggers and Variables are full-height panels, not ribbon shelves - the
-  // lists are too tall for a 120px strip. The shelf keeps a slim summary.
-  const rightPanel = ribbonTab === 'triggers' || ribbonTab === 'variables' ? ribbonTab : null;
   const fonts = useProjectStore((s) => s.project.fonts);
   const embeddedFonts = useProjectStore((s) => s.project.embeddedFonts);
   useEffect(() => { (fonts ?? []).forEach((f) => ensureFont(f)); }, [fonts]);
@@ -146,7 +148,14 @@ export function App() {
             <Splitter target="right" />
             <aside className="sidebar-right bg-surface-container-low border-l border-outline-variant" style={{ width: panelSizes.right }}>
               <button className="panel-collapse-btn right" onClick={() => toggleCollapsed('right')} title="Hide this panel">{'›'}</button>
-              {rightPanel === 'triggers' ? <TriggersPanel /> : rightPanel === 'variables' ? <VariablesPanel /> : <BlockPanel />}
+              <div className="rtabs" role="tablist" aria-label="Right panel">
+                {([['inspect', 'Inspect', null], ['triggers', 'Triggers', triggerCount], ['variables', 'Variables', variableCount]] as const).map(([id, label, count]) => (
+                  <button key={id} role="tab" aria-selected={rightTab === id} className={`rtab${rightTab === id ? ' active' : ''}`} onClick={() => setRightTab(id)}>
+                    {label}{count !== null && <span className="rtab-count">{count}</span>}
+                  </button>
+                ))}
+              </div>
+              {rightTab === 'triggers' ? <TriggersPanel /> : rightTab === 'variables' ? <VariablesPanel /> : hasSelection ? <BlockPanel /> : <SlideProperties />}
             </aside>
           </>
         )}

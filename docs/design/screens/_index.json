@@ -4,24 +4,24 @@
     "note": "First-run welcome dialog"
   },
   {
-    "name": "ed-01-ribbon-home",
-    "note": "Home ribbon tab, nothing selected"
-  },
-  {
     "name": "ed-01-ribbon-insert",
     "note": "Insert ribbon tab, nothing selected"
   },
   {
-    "name": "ed-01-ribbon-slide",
-    "note": "Slide ribbon tab, nothing selected"
+    "name": "ed-01-ribbon-view",
+    "note": "View ribbon tab, nothing selected"
   },
   {
-    "name": "ed-02-ribbon-format",
-    "note": "Format ribbon tab, a text block selected"
+    "name": "ed-01-inspector-slide",
+    "note": "Nothing selected: the inspector shows the slide settings"
   },
   {
-    "name": "ed-02-ribbon-animations",
-    "note": "Animations ribbon tab, a text block selected"
+    "name": "ed-02-ribbon-arrange",
+    "note": "Arrange ribbon tab, a text block selected"
+  },
+  {
+    "name": "ed-02-ribbon-animate",
+    "note": "Animate ribbon tab, a text block selected"
   },
   {
     "name": "ed-03-panel-properties",
