@@ -76,20 +76,28 @@
     "note": "Story View"
   },
   {
-    "name": "ed-12-player-settings",
-    "note": "Player dialog (Home ribbon)"
+    "name": "ed-12-course-theme",
+    "note": "Course settings, Theme section"
   },
   {
-    "name": "ed-12-resources",
-    "note": "Resources dialog (Home ribbon)"
+    "name": "ed-12-course-player",
+    "note": "Course settings, Player section"
   },
   {
-    "name": "ed-12-glossary",
-    "note": "Glossary dialog (Home ribbon)"
+    "name": "ed-12-course-resources",
+    "note": "Course settings, Resources section"
   },
   {
-    "name": "ed-12-banks",
-    "note": "Banks dialog (Home ribbon)"
+    "name": "ed-12-course-glossary",
+    "note": "Course settings, Glossary section"
+  },
+  {
+    "name": "ed-12-course-banks",
+    "note": "Course settings, Question banks section"
+  },
+  {
+    "name": "ed-12-course-glossary-filled",
+    "note": "Course settings, Glossary with a term"
   },
   {
     "name": "ed-13-publish",

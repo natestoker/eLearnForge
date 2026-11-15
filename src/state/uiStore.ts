@@ -5,6 +5,8 @@ import { create } from 'zustand';
 
 export type RibbonTab = 'home' | 'slide' | 'insert' | 'format' | 'animations' | 'triggers' | 'variables';
 
+export type CourseSettingsSection = 'theme' | 'player' | 'resources' | 'glossary' | 'banks';
+
 interface UiStore {
   hiddenLayerIds: Record<string, boolean>; // editor-only eye toggle
   ribbonTab: RibbonTab;
@@ -30,6 +32,9 @@ interface UiStore {
   toggleShowGrid: () => void;
   // First-run welcome / quick tour; reopenable from the toolbar Help button.
   welcomeOpen: boolean;
+  // Which section of the Course settings dialog is open (null = closed).
+  courseSettings: CourseSettingsSection | null;
+  setCourseSettings: (s: CourseSettingsSection | null) => void;
   setWelcomeOpen: (open: boolean) => void;
   // Pen editor: draw/edit a custom polygon for a shape block or an image clip.
   penEditor: { blockId: string; mode: 'shape' | 'imageClip' } | null;
@@ -117,6 +122,8 @@ export const useUiStore = create<UiStore>((set) => ({
       try { localStorage.setItem('elearnforge.showGrid', v ? '1' : '0'); } catch { /* ignore */ }
       return { showGrid: v };
     }),
+  courseSettings: null,
+  setCourseSettings: (s) => set({ courseSettings: s }),
   welcomeOpen: false,
   setWelcomeOpen: (open) => set({ welcomeOpen: open }),
   scrubT: null,

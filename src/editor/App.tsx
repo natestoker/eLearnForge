@@ -15,6 +15,7 @@ import { EditorCanvas } from './EditorCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { Splitter } from './Splitter';
 import { PenEditor } from './PenEditor';
+import { CourseSettingsDialog } from './CourseSettingsDialog';
 import { ensureFont, ensureEmbeddedFonts } from '../shared/fonts';
 import { deriveAccent } from '../shared/accent';
 import { Player } from '../runtime/Player';
@@ -157,6 +158,7 @@ export function App() {
       {storyViewOpen && <StoryView />}
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
+      <CourseSettingsDialog />
       <DesktopGate />
     </div>
   );

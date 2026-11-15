@@ -30,12 +30,13 @@ export function Row({ children }: { children: ReactNode }) {
 }
 
 export function TextInput(props: {
-  value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean;
+  value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean; ariaLabel?: string;
 }) {
   return (
     <input
       className="input"
       type="text"
+      aria-label={props.ariaLabel}
       value={props.value}
       placeholder={props.placeholder}
       onChange={(e) => props.onChange(e.target.value)}
@@ -104,10 +105,10 @@ export function TextArea(props: {
 export function SelectInput(props: {
   value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[];
-  disabled?: boolean;
+  disabled?: boolean; ariaLabel?: string;
 }) {
   return (
-    <select className="input" value={props.value} onChange={(e) => props.onChange(e.target.value)} disabled={props.disabled}>
+    <select className="input" aria-label={props.ariaLabel} value={props.value} onChange={(e) => props.onChange(e.target.value)} disabled={props.disabled}>
       {props.options.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
       ))}

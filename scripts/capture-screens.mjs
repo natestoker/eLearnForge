@@ -75,9 +75,15 @@ const tryDo = async (label, fn) => { try { await fn(); } catch (e) { console.log
   await tryDo('quiz', async () => { await page.locator('.slide-item').nth(2).click(); await shot(page, 'ed-09-quiz-slide', 'A quiz slide in the editor'); await page.locator('.stage-block').nth(1).click({ force: true }); await shot(page, 'ed-09b-quiz-props', 'Quiz block properties'); });
   await tryDo('slide ctx', async () => { await page.locator('.stage').click({ button: 'right', position: { x: 50, y: 50 } }); await shot(page, 'ed-10-context-menu', 'Canvas right-click menu'); await page.keyboard.press('Escape'); });
   await tryDo('story view', async () => { await page.locator('.ribbon-tab', { hasText: 'Home' }).click(); await page.locator('button', { hasText: 'Story View' }).first().click(); await shot(page, 'ed-11-story-view', 'Story View'); await page.keyboard.press('Escape'); });
-  for (const [name, label] of [['player-settings', 'Player'], ['resources', 'Resources'], ['glossary', 'Glossary'], ['banks', 'Banks']]) {
-    await tryDo(name, async () => { await page.locator('.ribbon-tab', { hasText: 'Home' }).click(); await page.locator('.ribbon-body button', { hasText: label }).first().click(); await shot(page, `ed-12-${name}`, `${label} dialog (Home ribbon)`); await page.keyboard.press('Escape'); await page.waitForTimeout(200); });
+  for (const [name, label] of [['theme', 'Theme'], ['player', 'Player'], ['resources', 'Resources'], ['glossary', 'Glossary'], ['banks', 'Question banks']]) {
+    await tryDo(name, async () => {
+      if (!(await page.locator('.cs-root').count())) await page.getByRole('button', { name: 'Course', exact: true }).click();
+      await page.locator('.cs-nav-item', { hasText: label }).click();
+      await shot(page, `ed-12-course-${name}`, `Course settings, ${label} section`);
+    });
   }
+  await tryDo('glossary filled', async () => { await page.locator('.cs-nav-item', { hasText: 'Glossary' }).click(); await page.locator('.cs-body button', { hasText: 'Add term' }).click(); await shot(page, 'ed-12-course-glossary-filled', 'Course settings, Glossary with a term'); await page.keyboard.press('Control+z'); });
+  await tryDo('close cs', async () => { await page.locator('.cs-done').click(); });
   await tryDo('publish', async () => { await page.getByRole('button', { name: 'Publish' }).click(); await shot(page, 'ed-13-publish', 'Publish dialog'); await page.keyboard.press('Escape'); });
   await tryDo('timeline', async () => { await shot(page, 'ed-14-timeline', 'Timeline strip', { clip: { x: 240, y: 690, width: 940, height: 190 } }); });
   await tryDo('layers', async () => { await shot(page, 'ed-15-left-panels', 'Slides and Layers panels', { clip: { x: 0, y: 200, width: 240, height: 680 } }); });

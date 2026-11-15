@@ -39,7 +39,7 @@ const EMPHASIS_OPERATORS: { value: ConditionOperator; label: string }[] = [
 
 // When to turn ON the Next/Submit emphasis: always, once the slide's
 // timeline finishes, or once a course variable meets a condition.
-function EmphasisTriggerSection({ player, mutate }: {
+export function EmphasisTriggerSection({ player, mutate }: {
   player: PlayerSettings;
   mutate: (fn: (p: Project) => void, history?: boolean) => void;
 }) {

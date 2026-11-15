@@ -1546,3 +1546,23 @@ Large-media "Compress" is not built; the check only warns.
 - Not done yet: spacing and z-index literals, a lint rule to enforce the
   tokens, and the separate course-content color namespace.
 
+# v6.23
+
+## Course settings dialog (phase 2 of the redesign review)
+- **One dialog** replaces the four old ones. A Course button in the top bar
+  opens Course settings with five sections: Theme, Player, Resources, Glossary
+  and Question banks. The Home ribbon's buttons open the same dialog at their
+  section.
+- **Player** settings are laid out as labelled rows in three groups
+  (navigation buttons, controls, appearance) with a live preview of the player
+  bar that follows every change.
+- **Resources**: upload a file or add a link; embedded files show their size.
+- **Glossary**: "Paste a list" turns lines like "Term: definition" into terms.
+- **Question banks**: one click starts a bank from the course's quiz slides.
+- **Empty states** say what the thing is for and show an example of what
+  learners will see.
+- Settings apply as you change them; Ctrl+Z undoes. Escape or Done closes.
+- Not done yet from this phase: Pen tool, Welcome, Story view and Publish
+  still use their own dialog shells; Accent and the default transition are
+  still also on the Home tab until the ribbon is reorganised.
+

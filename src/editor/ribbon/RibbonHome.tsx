@@ -1,11 +1,7 @@
-import { useState } from 'react';
 import { useCurrentSlide, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { ColorInput, Field, SelectInput } from '../fields';
-import { PlayerSettingsSection, ResourcesEditor, GlossaryEditor } from '../GlobalSettings';
 import { Lucide } from '../lucide';
-import { Modal } from '../Modal';
-import { BanksEditor } from '../BanksEditor';
 
 const TRANSITION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -29,7 +25,6 @@ export function RibbonHome() {
   const toggleShowGrid = useUiStore((s) => s.toggleShowGrid);
   const snapEnabled = useUiStore((s) => s.snapEnabled);
   const setSnapEnabled = useUiStore((s) => s.setSnapEnabled);
-  const [activeModal, setActiveModal] = useState<'player' | 'resources' | 'glossary' | 'banks' | null>(null);
 
   return (
     <>
@@ -116,42 +111,22 @@ export function RibbonHome() {
           <button className="rbn-course-btn" title="See the whole course as a branching map" onClick={() => useUiStore.getState().setStoryViewOpen(true)}>
             <Lucide name="git-fork" size={18} /><span>Story View</span>
           </button>
-          <button className="rbn-course-btn" onClick={() => setActiveModal('player')}>
+          <button className="rbn-course-btn" onClick={() => useUiStore.getState().setCourseSettings('player')}>
             <Lucide name="settings" size={18} /><span>Player</span>
           </button>
-          <button className="rbn-course-btn" onClick={() => setActiveModal('resources')}>
+          <button className="rbn-course-btn" onClick={() => useUiStore.getState().setCourseSettings('resources')}>
             <Lucide name="file-text" size={18} /><span>Resources</span>
           </button>
-          <button className="rbn-course-btn" onClick={() => setActiveModal('glossary')}>
+          <button className="rbn-course-btn" onClick={() => useUiStore.getState().setCourseSettings('glossary')}>
             <Lucide name="book-open" size={18} /><span>Glossary</span>
           </button>
-          <button className="rbn-course-btn" title="Give each learner a random selection of slides" onClick={() => setActiveModal('banks')}>
+          <button className="rbn-course-btn" title="Give each learner a random selection of slides" onClick={() => useUiStore.getState().setCourseSettings('banks')}>
             <Lucide name="shuffle" size={18} /><span>Banks</span>
           </button>
         </div>
         <span className="ribbon-group-title">Course</span>
       </div>
 
-      {activeModal === 'player' && (
-        <Modal title="Player Settings" onClose={() => setActiveModal(null)} width="500px">
-          <PlayerSettingsSection />
-        </Modal>
-      )}
-      {activeModal === 'resources' && (
-        <Modal title="Resources" onClose={() => setActiveModal(null)} width="600px">
-          <ResourcesEditor />
-        </Modal>
-      )}
-      {activeModal === 'banks' && (
-        <Modal title="Question banks" onClose={() => setActiveModal(null)} width="560px">
-          <BanksEditor />
-        </Modal>
-      )}
-      {activeModal === 'glossary' && (
-        <Modal title="Glossary" onClose={() => setActiveModal(null)} width="600px">
-          <GlossaryEditor />
-        </Modal>
-      )}
     </>
   );
 }
