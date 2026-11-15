@@ -10,6 +10,7 @@ import {
 import { createDemoProject, createProject } from '../schema/factory';
 import { PublishDialog } from './PublishDialog';
 import { importPptx } from '../publish/pptxImport';
+import { importStory } from '../publish/storyImport';
 
 import { Lucide } from './lucide';
 // Toolbar layout principle: the bar itself holds only the always-on editing
@@ -76,6 +77,7 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const pptxRef = useRef<HTMLInputElement>(null);
+  const storyRef = useRef<HTMLInputElement>(null);
 
   const onPptx = async (file: File) => {
     try {
@@ -86,6 +88,20 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'PPTX import failed.');
+    }
+  };
+
+  const onStory = async (file: File) => {
+    try {
+      useUiStore.getState().setToast({ message: `Opening ${file.name}…` });
+      const { project: imported, warnings } = await importStory(file, file.name);
+      setProject(imported);
+      // Storyline slides often stack many layers. Start with only the base
+      // layer showing on the canvas; the eye in the Layers panel brings one back.
+      useUiStore.setState({ hiddenLayerIds: Object.fromEntries(imported.slides.flatMap((s) => s.layers.slice(1).map((l) => [l.id, true]))) });
+      useUiStore.getState().setStoryImportReport({ fileName: file.name, slides: imported.slides.length, warnings });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not open that Storyline file.');
     }
   };
 
@@ -193,6 +209,9 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
               <button className="menu-item" onClick={() => { close(); pptxRef.current?.click(); }}>
                 <Icon.pptx /> Import PPTX
               </button>
+              <button className="menu-item" onClick={() => { close(); storyRef.current?.click(); }}>
+                <Lucide name="upload" size={15} /> Open Storyline (.story)
+              </button>
             </>
           )}
         </ToolbarMenu>
@@ -215,6 +234,18 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
         <button className="btn btn-accent" onClick={() => setPublishOpen(true)} title="Package the course for SCORM / web">
           Publish
         </button>
+        <input
+          ref={storyRef}
+          type="file"
+          accept=".story"
+          aria-label="Storyline file"
+          style={{ display: 'none' }}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (file) await onStory(file);
+            e.target.value = '';
+          }}
+        />
         <input
           ref={pptxRef}
           type="file"

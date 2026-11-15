@@ -45,6 +45,7 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings, onFin
   settings: PlayerSettings;
 }) {
   const go = (dir: 1 | -1) => {
+    if (runtime.pressNav(dir)) return;
     const next = runtime.neighborSlideId(runtime.currentSlide().id, dir);
     if (next) runtime.enterSlide(next);
   };
@@ -76,19 +77,19 @@ export function PlayerNavButtons({ runtime, project, slideIndex, settings, onFin
       {shown('back') && (
         <button
           className="player-chrome-btn"
-          disabled={forcedOff('back') || slideIndex === 0 || !runtime.isPlayerButtonEnabled('back')}
+          disabled={forcedOff('back') || (slideIndex === 0 && !runtime.hasNavTrigger(-1)) || !runtime.isPlayerButtonEnabled('back')}
           onClick={() => go(-1)}
         >
           {settings.back.label}
         </button>
       )}
-      {shown('next') && onFinish && runtime.neighborSlideId(runtime.currentSlide().id, 1) === null && !forcedOff('next') && runtime.isPlayerButtonEnabled('next') ? (
+      {shown('next') && onFinish && runtime.neighborSlideId(runtime.currentSlide().id, 1) === null && !runtime.hasNavTrigger(1) && !forcedOff('next') && runtime.isPlayerButtonEnabled('next') ? (
         // The last slide: Next has nowhere to go, so it ends the course.
         <button className="player-chrome-btn accent" onClick={onFinish}>Finish</button>
       ) : shown('next') && (
         <button
           className="player-chrome-btn accent"
-          disabled={forcedOff('next') || runtime.neighborSlideId(runtime.currentSlide().id, 1) === null || !runtime.isPlayerButtonEnabled('next')}
+          disabled={forcedOff('next') || (runtime.neighborSlideId(runtime.currentSlide().id, 1) === null && !runtime.hasNavTrigger(1)) || !runtime.isPlayerButtonEnabled('next')}
           aria-describedby={nextLocked ? 'player-next-reason' : undefined}
           onClick={() => go(1)}
         >

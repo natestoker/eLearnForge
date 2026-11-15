@@ -1737,3 +1737,22 @@ Large-media "Compress" is not built; the check only warns.
   (`docs/design/mockups/`) are in the repo for reference.
 - Not brought back: the Layer ribbon tab from the July branch. The ribbon holds
   commands only now, and its layer settings already live in the Layers panel.
+
+# v6.32
+
+## Open Storyline files
+- **File > Open Storyline (.story).** Reads an Articulate Storyline 360
+  project: slides in scene order, text, pictures, shapes, buttons, markers,
+  layers, master and layout artwork, timing, entrance animations, states,
+  variables, notes and triggers. A report after opening lists what could not
+  be converted, by slide. See `docs/storyline-import.md` for the full mapping.
+- Triggers with no equivalent are kept as Run JavaScript triggers that say
+  what the original did.
+- **Three new trigger events**, added because Storyline courses lean on them:
+  "Next is pressed" and "Back is pressed" (they replace the button's default
+  move when their conditions pass), and "a layer is shown".
+- After a Storyline import, extra layers start hidden on the canvas so a slide
+  with many layers is readable. The eye in the Layers panel shows one.
+- The Live values panel in Preview no longer covers Back and Next.
+- New tests: `tests/story-events.test.ts`, `tests/e2e/story-import.e2e.mjs`
+  (builds a small Storyline-shaped package, so no real course is in the repo).

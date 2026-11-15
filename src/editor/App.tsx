@@ -10,6 +10,7 @@ import { VariablesPanel } from './VariablesPanel';
 import { BlockPanel } from './BlockPanel';
 import { SlideProperties } from './SlideProperties';
 import { StoryView } from './StoryView';
+import { StoryImportReport } from './StoryImportReport';
 import { DesktopGate } from './DesktopGate';
 import { Welcome, WELCOME_SEEN_KEY } from './Welcome';
 import { EditorCanvas } from './EditorCanvas';
@@ -170,6 +171,7 @@ export function App() {
       {previewOpen && <PreviewModal startSlideId={previewStartSlideId} onClose={() => setPreviewOpen(false)} />}
       <PenEditor />
       <CourseSettingsDialog />
+      <StoryImportReport />
       <Toast />
       <DesktopGate />
     </div>

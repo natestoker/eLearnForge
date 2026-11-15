@@ -36,6 +36,9 @@ interface UiStore {
   showGrid: boolean;
   toggleShowGrid: () => void;
   // First-run welcome / quick tour; reopenable from the toolbar Help button.
+  // What the last Storyline import could not convert, shown once after it opens.
+  storyImportReport: { fileName: string; slides: number; warnings: string[] } | null;
+  setStoryImportReport: (r: { fileName: string; slides: number; warnings: string[] } | null) => void;
   toast: { message: string; action?: { label: string; run: () => void } } | null;
   setToast: (t: { message: string; action?: { label: string; run: () => void } } | null) => void;
   // Canvas zoom: 'fit' follows the window, 'manual' holds manualScale.
@@ -153,6 +156,8 @@ export const useUiStore = create<UiStore>((set) => ({
     }),
   courseSettings: null,
   setCourseSettings: (s) => set({ courseSettings: s }),
+  storyImportReport: null,
+  setStoryImportReport: (r) => set({ storyImportReport: r }),
   toast: null,
   setToast: (t) => set({ toast: t }),
   zoomMode: 'fit',

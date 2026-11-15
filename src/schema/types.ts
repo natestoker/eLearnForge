@@ -539,7 +539,10 @@ export type TriggerEvent =
   | 'onDoubleClick'        // source block double-clicked
   | 'onCuePoint'           // the timeline playhead crosses a named cue
   | 'onSubmit'             // the player Submit button
-  | 'onKeyPress';          // a keyboard key (Trigger.key) is pressed on this slide
+  | 'onKeyPress'           // a keyboard key (Trigger.key) is pressed on this slide
+  | 'onNext'               // the player Next button; replaces going to the next slide
+  | 'onBack'               // the player Back button; replaces going to the previous slide
+  | 'onLayerShown';        // a layer (Trigger.layerId) is shown
 
 // Persistent block states an author or trigger can set. hover/down are
 // transient pointer states handled by the player, never stored here.
@@ -619,6 +622,7 @@ export interface Trigger {
   watchBlockIds?: string[]; // onStateAll
   watchState?: BlockState;  // onStateAll
   cueId?: string;           // onCuePoint
+  layerId?: string;         // onLayerShown: which layer
   key?: string;             // onKeyPress: a KeyboardEvent.key value ('Enter', ' ', 'ArrowRight', 'a')
   // Authoring switch: false skips the trigger in the player without deleting
   // it. Absent = on.

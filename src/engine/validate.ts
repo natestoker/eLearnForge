@@ -71,6 +71,7 @@ export function slideTriggerIssues(slide: Slide, project: Project): TriggerIssue
       add('watch', 'variable', 'deleted', 'The watched variable was deleted.');
     }
     if (t.event === 'onKeyPress' && !t.key) add('watch', 'key', 'unset', 'No key chosen.');
+    if (t.event === 'onLayerShown' && !(t.layerId && layers.has(t.layerId))) add('watch', 'layer', t.layerId ? 'deleted' : 'unset', t.layerId ? 'The layer was deleted.' : 'No layer chosen.');
 
     t.conditions.forEach((c, i) => {
       if (c.blockId) {

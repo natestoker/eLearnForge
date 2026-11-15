@@ -152,6 +152,9 @@ const EVENTS: Record<TriggerEvent, EventDef> = {
   onTimelineEnd: { label: 'timeline ends', short: 'timeline ends', icon: 'timer', scope: 'slide' },
   onSubmit: { label: 'Submit is pressed', short: 'Submit pressed', icon: 'check', scope: 'slide' },
   onKeyPress: { label: 'a key is pressed', short: 'key pressed', icon: 'keyboard', scope: 'slide' },
+  onNext: { label: 'Next is pressed', short: 'Next pressed', icon: 'skip-forward', scope: 'slide' },
+  onBack: { label: 'Back is pressed', short: 'Back pressed', icon: 'skip-back', scope: 'slide' },
+  onLayerShown: { label: 'a layer is shown', short: 'layer shown', icon: 'layers', scope: 'slide' },
   onCuePoint: { label: 'timeline reaches a cue', short: 'reaches a cue', icon: 'flag', scope: 'slide' },
   onVariableChange: { label: 'a variable changes', short: 'variable changes', icon: 'variable', scope: 'slide' },
   onStateAll: { label: 'blocks all reach a state', short: 'blocks reach a state', icon: 'list-checks', scope: 'slide' }
@@ -515,6 +518,7 @@ export function TriggersPanel() {
             if (k !== 'onCuePoint') x.cueId = undefined;
             if (k === 'onCuePoint') x.cueId = x.cueId ?? slide.timeline?.cues?.[0]?.id;
             if (k !== 'onVariableChange') x.watchVariableId = undefined;
+            if (k === 'onLayerShown') x.layerId = x.layerId ?? slide.layers[1]?.id; else x.layerId = undefined;
             if (k === 'onStateAll') { x.watchState = x.watchState ?? 'selected'; x.watchBlockIds = x.watchBlockIds ?? []; }
           })
         })));
@@ -531,6 +535,10 @@ export function TriggersPanel() {
           pick: () => edit(t.id, (x) => { x.cueId = c.id; })
         })), { note: 'Add a cue on the timeline ruler first (right-click the ruler).' });
       }
+      case 'watchLayer':
+        return list('Which layer', slide.layers.slice(1).map((l) => ({
+          label: l.name, icon: 'layers', selected: t.layerId === l.id, pick: () => edit(t.id, (x) => { x.layerId = l.id; })
+        })), { note: 'Add a layer in the Layers panel first.' });
       case 'watchVar':
         return list('Watch variable', [
           { label: 'Any variable', icon: 'variable', selected: !t.watchVariableId, pick: () => edit(t.id, (x) => { x.watchVariableId = undefined; }) },
@@ -839,6 +847,14 @@ export function TriggersPanel() {
                         return (
                           <Chip icon="flag" chevron error={!c} active={isOpen(t.id, 'cue')} onClick={() => toggleOpen(t.id, 'cue')}>
                             {c ? `${c.name} (${c.time.toFixed(1)}s)` : 'choose cue…'}
+                          </Chip>
+                        );
+                      })()}
+                      {t.event === 'onLayerShown' && (() => {
+                        const l = slide.layers.find((x) => x.id === t.layerId);
+                        return (
+                          <Chip icon="layers" chevron error={!l} active={isOpen(t.id, 'watchLayer')} onClick={() => toggleOpen(t.id, 'watchLayer')}>
+                            {l ? l.name : 'choose layer…'}
                           </Chip>
                         );
                       })()}

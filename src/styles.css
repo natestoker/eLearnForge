@@ -1463,7 +1463,7 @@ select.input { appearance: auto; }
   position: absolute;
   top: 48px;
   right: 12px;
-  bottom: 12px;
+  bottom: 76px; /* clear of Back and Next */
   width: min(300px, 82%);
   background: #141814;
   border: 1px solid var(--border);
@@ -4191,3 +4191,11 @@ label.cs-line { cursor: default; }
 .welcome-step-num { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-bottom: var(--sp-2); border-radius: var(--r-pill); background: var(--accent-dim); color: var(--accent); font: 600 var(--fs-sm)/1 var(--mono); }
 .welcome-foot, .welcome-foot a { font-size: var(--fs-sm); }
 .welcome-foot a { display: inline-flex; align-items: center; gap: var(--sp-1); }
+
+/* ---------- Storyline import report ---------- */
+.story-report { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 0; }
+.story-report-lead { margin: 0; font-size: var(--fs-md); color: var(--text); line-height: 1.5; }
+.story-report-list { max-height: 46vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); background: var(--bg-deep); }
+.story-report-list h3 { margin: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.story-report-list ul { margin: 0 0 var(--sp-2); padding-left: 18px; font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
+.story-report-foot { display: flex; justify-content: flex-end; gap: var(--sp-2); }

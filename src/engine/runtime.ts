@@ -609,6 +609,26 @@ export class Runtime {
     return true;
   }
 
+  // The player's Next (1) or Back (-1) was pressed. A slide can take the
+  // button over with an onNext / onBack trigger whose conditions pass; then
+  // those run and the default move is skipped. Returns true when handled.
+  pressNav(dir: 1 | -1): boolean {
+    const matches = this.navTriggers(dir).filter((t) => this.conditionsPass(t.conditions, t.conditionLogic ?? 'and'));
+    if (!matches.length) return false;
+    this.runTriggers(matches, 0);
+    this.emit();
+    return true;
+  }
+
+  hasNavTrigger(dir: 1 | -1): boolean {
+    return this.navTriggers(dir).length > 0;
+  }
+
+  private navTriggers(dir: 1 | -1): Trigger[] {
+    const event = dir === 1 ? 'onNext' : 'onBack';
+    return this.currentSlide().triggers.filter((t) => t.event === event && t.enabled !== false);
+  }
+
   submit(): void {
     const slide = this.currentSlide();
     this.runTriggers(slide.triggers.filter((t) => t.event === 'onSubmit'), 0);
@@ -704,12 +724,19 @@ export class Runtime {
     // no-op rather than an error.
     const self = (blockId: string) => (blockId === SELF_TARGET ? (sourceBlockId ?? '') : blockId);
     switch (action.type) {
-      case 'showLayer':
+      case 'showLayer': {
+        const wasShown = this.snapshot.layerVisible[action.layerId] === true;
         this.snapshot = {
           ...this.snapshot,
           layerVisible: { ...this.snapshot.layerVisible, [action.layerId]: true }
         };
+        // "When this layer is shown" triggers (Storyline: when the layer's
+        // timeline starts). Only on the hidden -> shown edge.
+        if (!wasShown) {
+          this.runTriggers(this.liveTriggers().filter((t) => t.event === 'onLayerShown' && t.layerId === action.layerId), depth);
+        }
         break;
+      }
       case 'hideLayer':
         this.snapshot = {
           ...this.snapshot,
