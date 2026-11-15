@@ -1,0 +1,178 @@
+[
+  {
+    "name": "ed-00-welcome",
+    "note": "First-run welcome dialog"
+  },
+  {
+    "name": "ed-01-ribbon-home",
+    "note": "Home ribbon tab, nothing selected"
+  },
+  {
+    "name": "ed-01-ribbon-insert",
+    "note": "Insert ribbon tab, nothing selected"
+  },
+  {
+    "name": "ed-01-ribbon-slide",
+    "note": "Slide ribbon tab, nothing selected"
+  },
+  {
+    "name": "ed-02-ribbon-format",
+    "note": "Format ribbon tab, a text block selected"
+  },
+  {
+    "name": "ed-02-ribbon-animations",
+    "note": "Animations ribbon tab, a text block selected"
+  },
+  {
+    "name": "ed-03-panel-properties",
+    "note": "Right panel, Properties tab, text block"
+  },
+  {
+    "name": "ed-03-panel-effects",
+    "note": "Right panel, Effects tab, text block"
+  },
+  {
+    "name": "ed-03-panel-animate",
+    "note": "Right panel, Animate tab, text block"
+  },
+  {
+    "name": "ed-04-triggers",
+    "note": "Triggers tab with the trigger list"
+  },
+  {
+    "name": "ed-04b-trigger-open",
+    "note": "A trigger expanded"
+  },
+  {
+    "name": "ed-05-variables",
+    "note": "Variables tab"
+  },
+  {
+    "name": "ed-06-all-shapes",
+    "note": "All shapes menu"
+  },
+  {
+    "name": "ed-07-pen-tool",
+    "note": "Pen tool dialog"
+  },
+  {
+    "name": "ed-08-file-menu",
+    "note": "File menu"
+  },
+  {
+    "name": "ed-09-quiz-slide",
+    "note": "A quiz slide in the editor"
+  },
+  {
+    "name": "ed-09b-quiz-props",
+    "note": "Quiz block properties"
+  },
+  {
+    "name": "ed-10-context-menu",
+    "note": "Canvas right-click menu"
+  },
+  {
+    "name": "ed-11-story-view",
+    "note": "Story View"
+  },
+  {
+    "name": "ed-12-player-settings",
+    "note": "Player dialog (Home ribbon)"
+  },
+  {
+    "name": "ed-12-resources",
+    "note": "Resources dialog (Home ribbon)"
+  },
+  {
+    "name": "ed-12-glossary",
+    "note": "Glossary dialog (Home ribbon)"
+  },
+  {
+    "name": "ed-12-banks",
+    "note": "Banks dialog (Home ribbon)"
+  },
+  {
+    "name": "ed-13-publish",
+    "note": "Publish dialog"
+  },
+  {
+    "name": "ed-14-timeline",
+    "note": "Timeline strip"
+  },
+  {
+    "name": "ed-15-left-panels",
+    "note": "Slides and Layers panels"
+  },
+  {
+    "name": "pl-desktop-01-start",
+    "note": "Player, first slide"
+  },
+  {
+    "name": "pl-desktop-02-menu",
+    "note": "Course menu open"
+  },
+  {
+    "name": "pl-desktop-03-slide2",
+    "note": "Second slide"
+  },
+  {
+    "name": "pl-desktop-04-quiz",
+    "note": "Quiz slide"
+  },
+  {
+    "name": "pl-desktop-05-quiz-feedback",
+    "note": "Quiz feedback after a wrong answer"
+  },
+  {
+    "name": "pl-desktop-06-resources",
+    "note": "Resources panel"
+  },
+  {
+    "name": "pl-desktop-07-glossary",
+    "note": "Glossary panel"
+  },
+  {
+    "name": "pl-desktop-08-dragdrop",
+    "note": "Drag and drop slide"
+  },
+  {
+    "name": "pl-desktop-09-last",
+    "note": "Last slide"
+  },
+  {
+    "name": "pl-phone-01-start",
+    "note": "Player, first slide"
+  },
+  {
+    "name": "pl-phone-02-menu",
+    "note": "Course menu open"
+  },
+  {
+    "name": "pl-phone-03-slide2",
+    "note": "Second slide"
+  },
+  {
+    "name": "pl-phone-04-quiz",
+    "note": "Quiz slide"
+  },
+  {
+    "name": "pl-phone-05-quiz-feedback",
+    "note": "Quiz feedback after a wrong answer"
+  },
+  {
+    "name": "pl-phone-06-resources",
+    "note": "Resources panel"
+  },
+  {
+    "name": "pl-phone-07-glossary",
+    "note": "Glossary panel"
+  },
+  {
+    "name": "pl-phone-08-dragdrop",
+    "note": "Drag and drop slide"
+  },
+  {
+    "name": "pl-phone-09-last",
+    "note": "Last slide"
+  }
+]
