@@ -1248,66 +1248,90 @@ select.input { appearance: auto; }
   color: #1c211d;
   width: 100%;
   height: 100%;
-  padding: 22px;
+  padding: 24px 26px;
   background: #ffffff;
-  border: 1px solid #dae0da;
-  border-radius: 8px;
+  border: 1px solid #dfe5e0;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.05), 0 8px 24px rgba(16, 24, 20, 0.06);
   overflow: auto;
   display: flex;
   flex-direction: column;
 }
-.mc-question { margin: 0 0 14px; font-size: 17px; font-weight: 600; line-height: 1.4; }
-.mc-choices { display: flex; flex-direction: column; gap: 8px; }
+.mc-question { margin: 0 0 6px; font-size: 19px; font-weight: 700; line-height: 1.35; letter-spacing: -0.005em; }
+.mc-hint { margin: 0 0 4px; font-size: 13px; color: #5d6a62; }
+.mc-choices { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .mc-choice {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border: 1px solid #dae0da;
-  border-radius: 6px;
-  background: #fbfcfd;
+  gap: 14px;
+  min-height: 52px;
+  padding: 10px 16px 10px 10px;
+  border: 1.5px solid #d5dcd6;
+  border-radius: 12px;
+  background: #ffffff;
   font-family: var(--content);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.35;
   text-align: left;
   color: #1c211d;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.06s;
 }
 .mc-choice.live { cursor: pointer; }
-.mc-choice.live:hover:not(:disabled) { border-color: #0e9f66; }
-.mc-choice.selected { border-color: #0e9f66; background: rgba(var(--accent-rgb), 0.1); }
-.mc-choice:disabled { opacity: 0.75; cursor: default; }
+.mc-choice.live:hover:not(:disabled) { border-color: var(--c-accent-text); background: #f7faf8; }
+.mc-choice.live:active:not(:disabled) { transform: scale(0.995); }
+.mc-choice.live:focus-visible { outline: 3px solid var(--c-accent-text); outline-offset: 2px; }
+.mc-choice.selected { border-color: var(--c-accent-text); background: #f1f8f4; box-shadow: 0 0 0 1px var(--c-accent-text); }
+.mc-choice:disabled { cursor: default; color: #1c211d; }
+.mc-choice.right { border-color: var(--c-correct-border); background: var(--c-correct-surface); box-shadow: 0 0 0 1px var(--c-correct-border); }
+.mc-choice.wrong { border-color: var(--c-incorrect-border); background: var(--c-incorrect-surface); box-shadow: 0 0 0 1px var(--c-incorrect-border); }
 .mc-choice-text { flex: 1; }
+/* The letter badge doubles as the radio or checkbox mark. */
 .mc-mark {
-  width: 16px; height: 16px;
-  border: 2px solid #9aa6b3;
+  width: 32px; height: 32px;
   flex-shrink: 0;
-  background: #fff;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #c3ccc5;
+  background: #f4f7f5;
+  color: #3d4a42;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .mc-mark.round { border-radius: 50%; }
-.mc-mark.square { border-radius: 3px; }
-.mc-mark.filled { border-color: var(--c-correct-border); background: var(--c-correct-border); box-shadow: inset 0 0 0 3px #fff; }
+.mc-mark.square { border-radius: 8px; }
+.mc-mark.filled { border-color: var(--c-accent-text); background: var(--c-accent-text); color: #ffffff; }
+.mc-choice.right .mc-mark { border-color: var(--c-correct); background: var(--c-correct); color: #ffffff; }
+.mc-choice.wrong .mc-mark { border-color: var(--c-incorrect); background: var(--c-incorrect); color: #ffffff; }
 .mc-correct-tag {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--c-correct);
-  border: 1px dashed var(--c-correct-border);
-  border-radius: 3px;
-  padding: 0 5px;
+  background: var(--c-correct-surface);
+  border: 1px solid var(--c-correct-border);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 .mc-submit {
-  margin-top: 14px;
+  margin-top: 18px;
   align-self: flex-start;
-  background: #0e9f66;
+  min-height: 44px;
+  background: var(--c-accent-text);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 8px 22px;
+  border-radius: 999px;
+  padding: 10px 28px;
   font-family: var(--content);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
 }
 .mc-submit.live { cursor: pointer; }
-.mc-submit.live:hover:not(:disabled) { filter: brightness(1.08); }
-.mc-submit:disabled { opacity: 0.5; cursor: default; }
-.mc-feedback { margin-top: 14px; padding: 12px 14px; border-radius: 6px; font-size: 14px; }
+.mc-submit.live:hover:not(:disabled) { filter: brightness(1.1); }
+.mc-submit.live:focus-visible { outline: 3px solid var(--c-accent-text); outline-offset: 3px; }
+.mc-submit:disabled { background: #cfd6d1; color: #5d6a62; cursor: default; }
+.mc-feedback { margin-top: 16px; padding: 14px 16px; border-radius: 12px; font-size: 15px; line-height: 1.45; }
 .mc-feedback p { margin: 0 0 8px; }
 .mc-feedback p:last-child { margin-bottom: 0; }
 .mc-feedback.correct { background: var(--c-correct-surface); border: 1px solid var(--c-correct-border); color: #1c211d; }
@@ -4199,3 +4223,18 @@ label.cs-line { cursor: default; }
 .story-report-list h3 { margin: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
 .story-report-list ul { margin: 0 0 var(--sp-2); padding-left: 18px; font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
 .story-report-foot { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+
+/* ---------- quiz blocks: one look for the action buttons ---------- */
+.player-stage :is(.dd-check, .seq-check, .fb-check, .match-submit, .dd-retry, .seq-retry, .match-retry),
+.stage :is(.dd-check, .seq-check, .fb-check, .match-submit) {
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 8px 24px;
+  font-family: var(--content);
+  font-size: 15px;
+  font-weight: 700;
+}
+.player-stage :is(.dd-check, .seq-check, .fb-check, .match-submit),
+.stage :is(.dd-check, .seq-check, .fb-check, .match-submit) { background: var(--c-accent-text); color: #ffffff; border: none; }
+.player-stage :is(.dd-check, .seq-check, .fb-check, .match-submit):hover:not(:disabled) { filter: brightness(1.1); background: var(--c-accent-text); }
+.player-stage :is(.dd-check, .seq-check, .fb-check, .match-submit):disabled { background: #cfd6d1; color: #5d6a62; opacity: 1; }

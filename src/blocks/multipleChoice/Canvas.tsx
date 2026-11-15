@@ -7,9 +7,9 @@ export function MultipleChoiceCanvas({ block }: CanvasRendererProps) {
     <div className="mc-block">
       <p className="mc-question">{props.question}</p>
       <div className="mc-choices">
-        {props.choices.map((c) => (
+        {props.choices.map((c, i) => (
           <div key={c.id} className="mc-choice">
-            <span className={`mc-mark ${props.allowMultiple ? 'square' : 'round'}`} />
+            <span className={`mc-mark ${props.allowMultiple ? 'square' : 'round'}`}>{String.fromCharCode(65 + (i % 26))}</span>
             <span className="mc-choice-text">{c.text}</span>
             {props.correctChoiceIds.includes(c.id) && (
               <span className="mc-correct-tag" title="Correct answer (authoring only)">correct</span>
