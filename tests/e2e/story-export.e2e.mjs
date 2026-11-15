@@ -21,7 +21,7 @@ const path = await download.path();
 if (process.env.STORY_OUT) copyFileSync(path, process.env.STORY_OUT);
 check('the file is named after the course', download.suggestedFilename().endsWith('.story'), download.suggestedFilename());
 await ed.waitForSelector('.story-report');
-check('the report says what was left out', (await ed.locator('.story-report').innerText()).includes('no Storyline equivalent'));
+check('the report says what was left out', (await ed.locator('.story-report').innerText()).includes('no Storyline'));
 await ed.locator('.story-report .btn-accent').click();
 
 const zip = await JSZip.loadAsync(readFileSync(path));

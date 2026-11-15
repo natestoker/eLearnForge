@@ -434,6 +434,9 @@ async function importShapes(
           }
         } as Block);
       }
+    } else if (tag === 'clkAreaRect' || tag === 'clkAreaOval' || tag === 'clkAreaFreeform') {
+      // A Storyline hotspot: an invisible click area.
+      made.push({ id: uid('blk'), type: 'hotspot', ...box, ...common, props: { showHint: false, tooltip: name ?? '' } } as Block);
     } else if (tag === 'marker') {
       // A marker is a small icon that opens a label. Here: the icon, plus a
       // layer holding the label, shown when the icon is clicked and closed by

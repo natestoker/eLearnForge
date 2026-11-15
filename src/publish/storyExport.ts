@@ -270,6 +270,14 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
     return `<line ${head(b, g, z, '110855', 'Line')} autoFit="none" shdw="false" wrap="true" scrollOverflow="true" rtl="false" defHorzAlign="c" horzAlign="c" vertAlign="m" textDir="horz">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(null, hex6(p.borderColor as string, '000000'), Number(p.borderWidth) || 1)}${locXml(ctx, line)}${anim}${hLink}${propBag()}${t.tail}</line>`;
   }
 
+  if (b.type === 'hotspot') {
+    // Storyline's rectangular hotspot: an invisible click area. Copied from a
+    // real one, including the green tint Storyline shows only while editing.
+    const hotBg = `<bG shine="false"><marg l="1" t="1" r="1" b="1" /><solidFill><clr><srgbClr val="2F912F" /><alpha val="46666" /></clr></solidFill><solidLine><clr><srgbClr val="2F912F" /></clr></solidLine><lineStyle w="2" scale="1" cap="flat" join="rnd" dash="sld" cmpnd="sng"><arrow scale="1"><begin type="none" sz="size5" /><end type="none" sz="size5" /></arrow></lineStyle><gradOvrlyFill type="lin" style="lin" rot="true" angle="90" blendMode="ovrly" alpha="1" scale="1" reverse="false" adjustY="0" overlayFillType="None"><centerPt x="1" y="1" /><fillRect l="0" t="0" r="0" b="0" /><stops /></gradOvrlyFill><shdw sz="100" blur="5" angle="90" dist="5"><preset val="noShdw" mode="noShdw" /><clr><srgbClr val="000000" /><alpha val="42745" /></clr></shdw><reflection type="none" /><glow type="none" spread="0"><clr><srgbClr val="00205B" /></clr></glow><softEdge type="none" spread="0" /><foreClr><srgbClr val="FFFFFF" /></foreClr></bG>`;
+    const emptyDoc = xa('<Document xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Content><Block><Style /></Block></Content></Document>');
+    return `<clkAreaRect ${head(b, g, z, '107271', 'Rectangular Hotspot')} autoFit="none" shdw="false" wrap="true" scrollOverflow="true" rtl="false" defHorzAlign="c" horzAlign="c" vertAlign="m" textDir="horz">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${hotBg}${locXml(ctx, b)}<animEffect />${hLink}<text>${emptyDoc}</text><fmtText></fmtText>${propBag()}${DIAL}<textMargin l="10" t="5" r="10" b="5" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst /></clkAreaRect>`;
+  }
+
   // Shapes and buttons. Anything else becomes an outlined box that says what
   // it was, so the slide keeps its layout and nothing vanishes unnoticed.
   let tag = 'rect';
@@ -293,13 +301,29 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
     geom = '<prstGeom><roundRect vertexSet="true" radius="0.16667" /></prstGeom>';
     fill = hex6((p.fill as string) ?? ctx.project.theme?.accent, '3DDC97');
     text = { html: `<p>${xa(String(p.label ?? 'Button'))}</p>`, size: Number(p.fontSize) || 16, color: hex6(p.textColor as string, '111412'), font: 'Open Sans', align: 'center', valign: 'center', bold: true, inset: { l: 7, t: 3, r: 7, b: 3 } };
+  } else if (b.type === 'statement') {
+    // A statement card: a light rounded panel with a bold heading and body text.
+    tag = 'roundRect';
+    geom = '<prstGeom><roundRect vertexSet="true" radius="0.05" /></prstGeom>';
+    fill = 'F4F7F5'; line = 'C5CEC7'; lineW = 1;
+    const heading = String(p.heading ?? '');
+    const body = String(p.body ?? '');
+    text = { html: `${heading ? `<p><strong>${xa(heading)}</strong></p>` : ''}${body ? `<p>${xa(body)}</p>` : ''}` || '<p> </p>', size: 16, color: '1C211D', font: 'Open Sans', align: 'left', valign: 'top', bold: false, inset: { l: 16, t: 12, r: 16, b: 12 } };
+  } else if (b.type === 'varDisplay') {
+    // A variable readout: Storyline shows a variable's value wherever its
+    // name sits between percent signs.
+    const ref = String(p.reference ?? '').replace(/[^A-Za-z0-9_.]/g, '_');
+    const label = p.label ? `<p><span style="font-size: ${Math.round((Number(p.fontSize) || 32) * 0.4)}px">${xa(String(p.label))}</span></p>` : '';
+    if (p.tile) { tag = 'roundRect'; geom = '<prstGeom><roundRect vertexSet="true" radius="0.1" /></prstGeom>'; fill = 'FFFFFF'; line = 'C5CEC7'; lineW = 1; }
+    text = { html: `<p>${xa(String(p.prefix ?? ''))}%${ref}%${xa(String(p.suffix ?? ''))}</p>${label}`, size: Number(p.fontSize) || 32, color: hex6(p.color as string, '0B6B45'), font: 'Open Sans', align: String(p.align ?? 'center'), valign: 'center', bold: true, inset: { l: 7, t: 3, r: 7, b: 3 } };
+    if (!ctx.project.variables.some((v) => v.name.replace(/[^A-Za-z0-9_]/g, '_') === ref)) warn(ctx, `a value display points at "${ref}", which is not one of the course's own variables, so Storyline will show the name as text`);
   } else {
     warn(ctx, `"${b.type}" blocks have no Storyline equivalent; an outlined box marks where each one was`);
     line = 'C2410C'; lineW = 1;
     text = { html: `<p>${xa(`${b.name || b.type} (eLearnForge ${b.type} block, not converted)`)}</p>`, size: 14, color: 'C2410C', font: 'Open Sans', align: 'center', valign: 'center', bold: false, inset: { l: 7, t: 3, r: 7, b: 3 } };
   }
   const t = textTail(b, text);
-  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="none" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? 'c' : 'not'}" vertAlign="${text ? 'm' : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
+  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="none" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? halignAttr(text.align) : 'not'}" vertAlign="${text ? valignAttr(text.valign) : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
 }
 
 // ---------- triggers ----------
