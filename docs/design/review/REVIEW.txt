@@ -1,0 +1,405 @@
+ 
+ eLearnForge · redesign pass · 44 screens reviewed
+ Tokens, one dialog pattern, a ribbon that fits, and a phone player that reflows
+ Each change names the file from COMPONENTS.md it lands in. The mock-ups below are built on the proposed tokens and read the five accent variables, so the Accent tweak recolours everything except the semantic colours. Tabs in the mock-ups are clickable.
+ Ranking 1 Tokens 2 Dialogs 3 Ribbon 4 Phone player 5 Everything else 
+ What I would rank above your list
+ Major · joins your #1
+ Quiz feedback is colour-only, and the course never ends 
+ Wrong answers get a pink box with no icon or "Incorrect" word (WCAG 1.4.1). The last slide shows a dimmed Next and nothing else: no completion state, no exit. pl-*-05 , pl-*-09 
+ blocks/multipleChoice/Runtime.tsx · runtime/Player.tsx 
+ Major · above your #4
+ Animation has two sources of truth 
+ The Animations ribbon has Delay/Duration; the Animate panel has Start/End/Seconds for the same block, with different names and an "End of −1" magic number. ed-02-ribbon-animations , ed-03-panel-animate 
+ ribbon/RibbonAnimations.tsx · BlockPanel.tsx 
+ Major · your #10, raised
+ Destructive actions with no guard 
+ A red "x" deletes a slide; the same "x" deletes block-owned variables the player looks up by name; "Delete block" is the largest button on the Format tab. ed-15 , ed-05 , ed-02-ribbon-format 
+ SlidesPanel.tsx · VariablesPanel.tsx · ribbon/RibbonFormat.tsx 
+ Medium · shapes item 2
+ Publish and Triggers use different neutrals 
+ --pd-* and --tp-* are blue-grey (#15171a, #1a1d21); the rest of the editor is green charcoal. "Match Publish" below means Publish's structure on the root neutrals. 
+ styles.css · PublishDialog.tsx · TriggersPanel.tsx 
+ Medium · above your #9
+ Player panels cover the navigation 
+ Open Resources or Glossary on desktop and the drawer hides Back, Next and the caption. On a phone it leaves a 70px sliver of slide. pl-desktop-06/07 , pl-phone-06/07 
+ runtime/PlayerChrome.tsx 
+ Medium · cheap to fix
+ Typed glyphs standing in for icons 
+ "x", "+", "-", "^", "▶" and a coffee emoji appear as text in dialogs, slides, layers, zoom, variables, Story view and Welcome. All have Lucide equivalents. 
+ lucide.tsx (add) · icons.tsx (retire) 
+ 1 · styles.css
+ Design tokens
+ 18 font sizes become 6, 13 radii become 3 plus pill, 27 z-index values become 7 named layers. Existing neutrals and the five accent tokens are unchanged. One neutral is added: --border-strong , because --border is about 1.4:1 on --panel and control outlines need 3:1 (WCAG 1.4.11).
+ Type · editor minimum 11px
+ --fs-micro 11 Field label · group title 
+ --fs-sm 12 Hints, dense controls, timeline rows 
+ --fs-md 13 Default body and control text 
+ --fs-lg 15 Panel and section titles 
+ --fs-xl 18 Dialog titles 
+ --fs-2xl 22 Welcome, empty states 
+ Old → new: 7, 9, 10, 10.5 → 11 · 11.5, 12, 12.5 → 12 · 13, 13.5, 14 → 13 · 15, 16 → 15 · 17, 18, 20 → 18 · 22, 26 → 22. Weights 400 / 500 / 600 only. Player chrome minimum is 14px, 16px on phones. 
+ Radius · spacing · control height
+ --r-sm 4 
+ --r-md 8 
+ --r-lg 12 
+ --r-pill 
+ sm: inputs, chips, handles. md: buttons, cards, menus. lg: dialogs. Old 2–5 → 4, 6–9 → 8, 10–14 → 12. 
+ --sp-1…6 = 4 8 12 16 24 32 
+ Control heights: 24 (timeline, dense rows) · 28 (default) · 36 (dialog footers) · 44 (player, every target). 
+ Semantic colours · fixed, never the accent
+ Success 9.2:1
+ Warning 9.8:1
+ Error 7.7:1
+ Info 8.4:1
+ Ratios are text on --panel ; all four stay above 6.5:1 on --panel-2 and on their own surface. Success is a fixed green because a user can pick a red accent. Replaces --danger , --pd-warn , --pd-err , --tp-err* . --audio stays as a timeline track colour, not a status. Every status also carries an icon. 
+ Elevation layers
+ --z-canvas 10 handles, guides, selection label 
+ --z-sticky 20 panel headers, timeline ruler 
+ --z-dropdown 100 menus, selects, shape gallery 
+ --z-popover 200 colour picker, tooltips 
+ --z-dialog 300 scrim and dialog 
+ --z-toast 400 undo toasts 
+ --z-drag 500 drag ghosts 
+ Three shadows go with them: --shadow-1 dropdown, --shadow-2 popover, --shadow-3 dialog. Focus is one token: 2px --accent ring with a 2px --bg-deep gap. 
+ Neutrals · kept, one added
+bg-deep
+bg
+panel
+panel-2
+border-strong
+ Map the local sets onto these and delete them: pd-bg, tp-bg → --panel · pd-card, tp-card, *-chip → --panel-2 · *-well → --bg-deep · *-line → --border · *-text2/3 → --muted . 
+ Course content colours · separate namespace
+ --c-correct on --c-correct-surface
+ --c-incorrect on --c-incorrect-surface
+ --c-* tokens are scoped to the slide root, used by .mc-* , .dd-* and the other block runtimes, and themeable per course. They never reference chrome tokens. --c-accent-text comes from shared/accent.ts , darkened until it clears 4.5:1 on the slide background (raw mint on white is 1.7:1). 
+ Enforcement. Add a stylelint rule ( declaration-property-value-allowed-list ) so font-size , border-radius , z-index , gap and padding in src/styles.css accept only var(--…) , with the --c-* block exempt. Chrome hex literals are allowed only inside :root . CI fails on a new literal.
+ 2 · Modal.tsx · GlobalSettings.tsx · BanksEditor.tsx · PublishDialog.tsx
+ One dialog pattern
+ Player Settings, Resources, Glossary and Banks become sections of one Course settings dialog, opened from a Course button in the top bar. It also takes Accent, Brand colours and the default transition from the Home tab, which removes the duplicate "Player accent" field. Publish keeps its layout and moves onto the same shell and neutrals.
+ Shell 
+Widths 480 / 720 / 980. Radius 12. Header 64px with 18px title, 13px context line and a 28px Lucide close button. Body padding 24. Footer 64px on --bg .
+ Body 
+Sections under 11px mono labels. Related rows share one --panel-2 card. Every control has a visible label. Body scrolls; header and footer stay put.
+ Footer 
+Status on the left, actions on the right, primary last. Settings apply live, so the footer has one Done button and says how to undo.
+ Empty state 
+Icon, what the thing is for in one sentence, primary action, one shortcut action, and a ghosted example of what the learner will see.
+ Course settings
+ Phishing Awareness · 6 slides
+ Theme
+ Player
+ Resources 2 
+ Glossary 0 
+ Question banks 0 
+ Accent
+ {{ accentHex }}
+ Recolours the editor and the player. Kept readable automatically. 
+ Brand colours
+ Shown as swatches in every colour picker. 
+ Default slide transition
+ None 
+ Navigation buttons
+ Show Button Label learners see 
+ Back Back
+ Next Next
+ Submit Submit
+ Controls
+ Menu button · opens the slide list 
+ Lock menu · view only, no jumping ahead 
+ Course progress bar 
+ Closed captions button 
+ Appearance
+ Chrome Dark 
+ Button shape Rounded 
+ Button style Solid 
+ Hover effect None 
+ Next / Submit emphasis None 
+ Button position Bottom bar, right 
+ Course title Bottom bar 
+ Accent Course accent · Theme 
+ Live preview
+ Welcome · 1 / 6 Back Next 
+ Updates as settings change, so nobody has to open Preview to check a label. 
+ Resources · shown in the player's Resources panel
+ Add resource
+ Phishing checklist (PDF)
+ phishing-checklist.pdf · 212 KB
+ Report a suspicious email
+ https://intranet.example/report
+ Files are embedded in the published HTML and count toward package size. Links need a connection. 
+ No terms yet
+ Define the words your learners might not know. They can open the list from the Glossary button on any slide.
+ Add term
+ Paste a list
+ Example · what learners see
+ Phishing
+ A fake message that tries to trick you into giving something away.
+ Spoofing
+ Faking the sender of a message so it looks trustworthy.
+ No question banks yet
+ A bank is a pool of questions. A slide can draw a random set from it, so each attempt is different.
+ New bank
+ Start from this course's 1 quiz
+ Example · a bank
+ Red flags draw 3 of 8 
+ Changes apply as you make them · Ctrl+Z to undo 
+ Done
+ Same shell for the other dialogs: Pen tool (L, canvas left, tool groups in a 200px right column: Generate / Points / History, Cancel and Apply in the footer; seed path drawn as an outline with visible nodes, not a filled square) in PenEditor.tsx ; Welcome (M, one primary action, steps numbered 1–4, footer links at 12px with Lucide icons) in Welcome.tsx ; Story view (L, cards wrap into a grid sized to the window) in StoryView.tsx . Publish: move --pd-* to root tokens, pin its footer, give "about 196" a unit.
+ Before
+ 3 · Ribbon.tsx · ribbon/*.tsx · BlockPanel.tsx · App.tsx
+ The ribbon holds commands. Forms move to the inspector.
+ The test: a ribbon control does something once (insert, align, apply a preset). Anything that shows a stored value you read back and edit (name, size, duration, nav overrides) is a form and lives in the right panel. Seven tabs become four, on a 96px shelf where every tab fits at 1280px. Overflow is not allowed: when the window is narrower, the last group collapses into a More menu. Triggers and Variables stop being ribbon tabs and become tabs of the right panel, where their UI already is.
+ eF
+ eLearnForge 
+ Phishing Awareness
+ Saved 
+ Course
+ File 
+ Preview 
+ Publish
+ Insert
+ Arrange
+ Animate
+ View
+ {{ it.label }}
+ {{ g.title }}
+ {{ it.label }}
+ {{ g.title }}
+ Acts on Title . Disabled, with a reason, when nothing is selected.
+ {{ p.label }}
+ All 20
+ Entrance · click to apply
+ Exit 
+ Emphasis 
+ Motion path 
+ Add
+ Presets only. Start, duration, direction and easing are edited in one place: the inspector's Animate section, or by dragging the bar in the timeline.
+ {{ it.label }}
+ {{ g.title }}
+ Slides 
+ 1 Welcome 
+ Copy link to slide
+ Use as lightbox
+ Delete slide Del 
+ 2 Spot the red flags
+ Layer: Base · 5 blocks 
+ Text · Title Phishing Awareness
+ Learn to spot deceptive emails and social-engineering tactics — six short slides, two quick checks.
+ Start the course →
+ Timeline 
+ Length 12 s
+ Snap 
+ Base layer
+ 0s 2s 4s 6s 8s 10s 12s 
+ {{ r.name }} 
+ Inspect
+ Triggers 2 
+ Variables 5 
+ Title
+ Text
+ Style Heading 1 
+ Content Double-click the block to edit · Edit HTML 
+ Layout
+ X 80
+ Y 150
+ W 720
+ H 130
+ 0°
+ Animate Float in · 0.3s → end of slide 
+ Effects & states None 
+ Accessibility Screen reader: auto 
+ With nothing selected, Inspect shows the Slide : name, size, background, transition, duration, auto-advance, captions, nav overrides, phone layout. That is the old Slide tab, as one scrolling form.
+ Slide 1 · Welcome Add trigger
+ Start button clicked → go to slide 2 
+ This slide reaches a cue → emphasise Shield 
+ Unchanged design, moved onto root tokens. The count badge on the tab replaces the "2 triggers on this slide" line the empty ribbon tab used to show.
+ Yours · 3 Variable
+ {{ v }} boolean · false 
+ Set by blocks · 2 
+ Quiz · answered correctly
+ mc_blk_2wt9cqw3ks_correct
+ boolean 
+ Inbox sort · all correct
+ dd_blk_d5o2h1o3ks_correct
+ boolean 
+ Block-owned variables are read-only and cannot be deleted here; they go when the block goes. Clicking one selects its block.
+ Slide 1 of 6 Selected: Title 
+ 60% Fit 
+ Old tab
+ Commands stay in the ribbon
+ Forms move
+ File
+ Home 
+ Grid, snap, guides and Story view → View tab
+ Accent, brand colours, transition default, Player, Resources, Glossary, Banks → Course settings dialog
+ RibbonHome.tsx → RibbonView.tsx , GlobalSettings.tsx , Toolbar.tsx 
+ Insert 
+ Kept as is, on three 20px rows. The four unlabelled quick-insert icons in the top bar go; they duplicate this tab.
+ None
+ RibbonInsert.tsx , Toolbar.tsx 
+ Slide 
+ None. The tab is removed.
+ Everything → Inspect panel when no block is selected. "Remove" gets a noun ("Remove captions").
+ RibbonSlide.tsx → new SlideProperties.tsx in BlockPanel.tsx 
+ Format 
+ Renamed Arrange: align, distribute, order, group, lock
+ X/Y/W/H/rotation → inspector only. Copy/Cut/Paste/Delete → context menu.
+ RibbonFormat.tsx → RibbonArrange.tsx 
+ Animations 
+ Preset gallery, Exit, Emphasis, Motion path menus
+ Delay, duration, easing → Animate section. "End −1" becomes a "Until end of slide" checkbox.
+ RibbonAnimations.tsx , BlockPanel.tsx 
+ Triggers, Variables 
+ Removed from the ribbon
+ Right-panel tabs with count badges. The ribbon keeps whatever tab it was on, so nothing jumps.
+ RibbonTriggers/Variables/Empty.tsx deleted; App.tsx 
+ Before
+ 4 · runtime/Player.tsx · runtime/PlayerChrome.tsx · blocks/*/Runtime.tsx
+ Phone player: reflow by default, fit view as the fallback
+ Below 600px wide in portrait, the player stops scaling the 1280px stage. It renders the slide's blocks as one scrolling column, in the reading order the slide already has for screen readers, at real text sizes (16px body, 44px targets). Each block's Runtime renders at container width. Decorative shapes are dropped. Slides whose meaning depends on position (hotspots, labelled graphics, motion paths, overlapping blocks) keep the 16:9 stage with pinch-zoom and a rotate hint. The published file stays one HTML file with system fonts.
+ Phishing Awareness
+ 3 of 6 · Anatomy of a URL
+ Anatomy of a phishing URL
+ https:// paypal.evil-site.ru /secure/verify/login 
+ Protocol
+ Domain
+ Path
+ https:// only means the connection is encrypted, not that the site is honest. Phishing sites use HTTPS too.
+40% complete
+ Back
+ Next
+ Text slide, reflowed One top bar: menu, position, and an overflow sheet for Resources, Glossary and captions. Nothing floats over the slide. The slide's own Continue button merges into Next when it only goes to the next slide. 
+ Phishing Awareness
+ 4 of 6 · Knowledge check
+ An email demands you "verify your account within 24 hours". What do you do?
+ Go to the site directly, never through the email link
+ Click the link, but read the page carefully
+ Reply and ask if the email is real
+ Not quite
+ The link (and the reply address) belong to the attacker.
+ Try again
+ Answer correctly to continue
+ Back
+ Next
+ Quiz with feedback Options are full-width 52px rows. Feedback has an icon and a word as well as colour, and is announced as a status. A locked Next says why it is locked instead of fading to 40%. blocks/multipleChoice/Runtime.tsx 
+ Phishing Awareness
+ 5 of 6 · Sort the inbox
+ Phishing or safe?
+ Tap a subject line, then tap its pile. You can also drag.
+ You've won a $500 gift card – claim today
+ Minutes from Tuesday's team meeting
+ Invoice #4471 from your printing vendor
+ Phishing 1 
+ URGENT: verify your password now
+ Tap to place here
+ Probably safe 0 
+ Tap to place here
+ Check · 3 left to sort
+ Back
+ Next
+ Drag and drop as tap-to-place Select an item, tap a pile. Piles sit side by side so both stay on screen while choosing. The same path works from the keyboard, which covers WCAG 2.2's dragging-alternative criterion (2.5.7) on desktop too. blocks/dragDrop/Runtime.tsx 
+ Phishing Awareness
+ 2 of 6 · Spot the red flags
+ This slide is laid out for a wide screen. Turn your phone sideways , or pinch to zoom. 
+ Spot the three red flags — click anything suspicious.
+ Zoom to fit height
+ Landscape: controls move to a side rail so the slide gets the full height
+ Back
+ Next
+ Fit view, for position-dependent slides The hint is dismissible and shown once per course. In landscape the bottom bar becomes a 52px side rail, which gives a 16:9 slide roughly 20% more height than today's layout. 
+ How a slide chooses its mode 
+Auto picks reflow unless the slide has a hotspot, labelled graphic, motion path, or blocks that overlap by more than a threshold. Authors can override per slide: Auto / Reflow / Fit, in the Slide inspector. Player.tsx , new SlideProperties.tsx 
+ Authoring support 
+Preview ▾ gets a Phone option that shows the reflowed column next to the canvas. Reading order is the existing screen-reader order, so fixing one fixes both. Publish checks gains "2 slides fall back to fit view on phones". Toolbar.tsx , PublishDialog.tsx 
+ What stays the same 
+Timeline animation still runs: entrances play as blocks scroll into view, in order. Triggers and variables are untouched. The existing five media queries collapse into one container query on .player-stage . styles.css , BlockFx.tsx 
+ Before
+ 5 · the rest of ISSUES.md, then new findings
+ Everything else
+ Numbers are yours. Letters are findings that were not on the list, each with the screenshot that shows it.
+ Ref
+ Problem
+ Change
+ File
+ 4 
+ 9–10px micro-labels
+ All become --fs-micro 11px with .06em tracking. Field labels that sit beside a control switch to 12px sentence case; uppercase mono is kept for group and section titles only. Selection tag on canvas goes from 7px to 11px.
+ styles.css , fields.tsx , EditorCanvas.tsx 
+ 5 
+ Timeline shows two rows
+ 24px rows, one 32px header, 20px ruler: six rows in the same 204px (see mock). Drag handle to resize, height remembered. The ribbon's 32px saving goes to the canvas. Cue label moves off the ruler numbers.
+ TimelinePanel.tsx , Splitter.tsx 
+ 6 
+ Empty ribbon tabs
+ Resolved by section 3: those tabs no longer exist.
+ Ribbon.tsx 
+ 7 
+ Raw HTML textarea
+ Panel shows a Style select and "Double-click the block to edit". An "Edit HTML" link opens the textarea in a popover. Pasted PPTX spans are cleaned to semantic tags on paste.
+ blocks/text/Properties.tsx 
+ 8 
+ Raw variable names
+ "Quiz · answered correctly" as primary text, technical name in mono below, grouped as Yours / Set by blocks, block-owned ones locked (see mock).
+ VariablesPanel.tsx 
+ 9 
+ Tiny player controls
+ Caption at 14px in --text . Resources and Glossary move into the bottom bar next to the caption so nothing floats over the slide. Disabled buttons use a dashed outline plus a reason line, not opacity.
+ PlayerChrome.tsx 
+ 10 
+ Unlabelled thumbnail controls
+ Duplicate stays as an icon with a tooltip; the rest move into a labelled "more" menu. Delete shows an undo toast for 6 seconds ("Slide deleted · Undo") instead of a confirm dialog.
+ SlidesPanel.tsx 
+ 11 
+ Right-panel density
+ Collapsible sections with a one-line summary when closed. Block-specific section first and open; Layout is one five-field row; Effects, Animate and Accessibility start closed. Open state remembered per block type.
+ BlockPanel.tsx , blocks/*/Properties.tsx 
+ 12–14 
+ Welcome, Story view, Pen tool
+ Specified at the end of section 2, on the shared dialog shell.
+ Welcome.tsx , StoryView.tsx , PenEditor.tsx 
+ 15 
+ Inconsistent menus
+ One Menu primitive: 28px rows, 16px icon column, 12px text, right-aligned shortcut in mono, 1px --border dividers with 4px margin, radius 8, --z-dropdown . Used by File, context, slide "more" and the shape gallery.
+ new Menu.tsx , Toolbar.tsx , EditorCanvas.tsx 
+ A 
+ Player bar changes shape between slides pl-desktop-01 vs -03 
+ The seekbar appears on some slides and not others, so the caption jumps from right to left. Reserve the seekbar slot; show it disabled when a slide has no timeline.
+ PlayerChrome.tsx 
+ B 
+ Phone menu drawer pl-phone-02 
+ The menu button stays on top of the drawer and there is no close control or visited state. Make it a full-height sheet with a close button, a tick on visited slides, and a lock on unavailable ones.
+ PlayerChrome.tsx 
+ C 
+ Three save indicators ed-01 
+ "saved" pill, "Ready" dot and "Auto-save · up to date" all say the same thing. Keep one, in the top bar, with --warning while saving and --error on failure.
+ Toolbar.tsx , App.tsx 
+ D 
+ Zoom control floats over the canvas ed-06 
+ It sits on the slide's bottom-right corner, where Continue buttons usually are. Move zoom into the status bar; the "1280 × 720 @ 60%" tag goes with it.
+ EditorCanvas.tsx , App.tsx 
+ E 
+ Layers panel takes a third of the rail for one layer ed-15 
+ Collapse to a one-line "Layer: Base · 5 blocks" bar when a slide has only the base layer; expand on click or when a second layer exists.
+ LayersPanel.tsx 
+ F 
+ Control outlines under 3:1 everywhere
+ Inputs, selects and checkboxes are outlined in --border (about 1.4:1 on --panel ). Use --border-strong for interactive outlines; keep --border for dividers and cards.
+ styles.css , fields.tsx 
+ G 
+ Shape glyphs are a different icon style ed-06 
+ Filled grey glyphs, some emoji-like (smiley, heart), next to Lucide line icons. Render each tile from the shape's own path as a 1.5px outline so the gallery matches what gets inserted.
+ RibbonInsert.tsx , blocks/shape/Properties.tsx 
+ H 
+ Publish dialog loose ends ed-13 
+ Pass mark and Max attempts show even when the completion rule ignores them; hide or disable with a reason. The 0/0/2 check counters need labels. Right column is empty below Package size; move Tracking there.
+ PublishDialog.tsx 
+ I 
+ Inspector empty state is two grey lines ed-01 
+ Replaced by the Slide inspector (section 3), so the panel is never empty.
+ BlockPanel.tsx 
+ J 
+ Effects panel hint is a paragraph ed-03-panel-effects 
+ Six lines of help under the States list. Move it behind an info icon on the section title; when a state is ticked, reveal its colour and emphasis fields inline under that row.
+ BlockPanel.tsx 
+ 

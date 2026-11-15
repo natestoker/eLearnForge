@@ -1530,3 +1530,19 @@ Large-media "Compress" is not built; the check only warns.
   percentage on Progress and the buttons of Tabs, now take a font, size, weight,
   italic and color. Courses that don't set one look exactly as before.
 
+# v6.22
+
+## Design tokens (phase 1 of the redesign review)
+- Claude Design's review is in `docs/design/review/` with a phased plan.
+- `src/styles.css` gains a token set: six type sizes with an 11px minimum,
+  three radii plus pill, a 4px spacing scale, named z layers, three shadows,
+  fixed status colors (success, warning, error, info) and `--border-strong`.
+- The editor chrome now uses them: 145 font sizes and 110 radii moved onto
+  tokens, so nothing in the editor is under 11px. Course content (quiz, drag
+  and drop, the player) keeps its own sizes.
+- Publish and Triggers moved off their blue-grey neutrals onto the same green
+  charcoal as the rest of the editor.
+- Inputs and selects are outlined in `--border-strong` (3:1 on the panels).
+- Not done yet: spacing and z-index literals, a lint rule to enforce the
+  tokens, and the separate course-content color namespace.
+
