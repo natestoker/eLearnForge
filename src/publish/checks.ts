@@ -1,3 +1,4 @@
+import { phoneLayoutFor } from '../runtime/phoneLayout';
 import type { Block, Project, Slide } from '../schema/types';
 import { gradedBlockIds, completionNeedsPass, passingScoreOf } from '../engine/scoring';
 import { projectTriggerIssues } from '../engine/validate';
@@ -278,6 +279,18 @@ export function runChecks(project: Project, target: string): Check[] {
     });
   } else {
     out.push({ sev: 'pass', title: `All ${project.slides.length} slides reachable from slide 1` });
+  }
+  // Phones: say how many slides stay as a scaled 16:9 stage instead of reflowing.
+  const fit = project.slides.filter((s) => !s.lightbox).map((s, i) => ({ s, i, d: phoneLayoutFor(s) })).filter((x) => x.d.mode === 'fit');
+  if (fit.length) {
+    out.push({
+      sev: 'pass',
+      title: `${fit.length} slide${fit.length === 1 ? '' : 's'} keep${fit.length === 1 ? 's' : ''} the wide layout on phones`,
+      detail: fit.slice(0, 4).map((x) => `Slide ${x.i + 1}: ${x.d.reason}`).join(' · ') + (fit.length > 4 ? ' · …' : '') + '. Other slides reflow into one column. Change it per slide in the Slide inspector.',
+      fix: { label: 'Go to slide', slideId: fit[0].s.id }
+    });
+  } else {
+    out.push({ sev: 'pass', title: 'Every slide reflows into one column on phones' });
   }
   const fonts = (project.fonts?.length ?? 0) + new Set((project.embeddedFonts ?? []).map((f) => f.family)).size;
   if (fonts > 0) out.push({ sev: 'pass', title: `${fonts} font ${fonts === 1 ? 'family' : 'families'} included` });

@@ -14,6 +14,7 @@ import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
 import { PlayerNavButtons, PlayerSideNav } from './PlayerChrome';
 import { accessibilityFor } from './accessibility';
+import { isDecorative, phoneLayoutFor, reflowFontScale, reflowOrder } from './phoneLayout';
 import { blockDisplayName } from '../shared/blockName';
 import { runEmphasis } from '../blocks/emphasis';
 import type { Emphasis } from '../blocks/emphasis';
@@ -87,6 +88,10 @@ export function Player({ project, adapter, startSlideId }: {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageAreaRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  // A phone held upright: narrow and taller than wide. Measured on the player
+  // itself, not the window, so the editor's phone preview behaves the same.
+  const [narrow, setNarrow] = useState(false);
+  const [fitHintOff, setFitHintOff] = useState(() => { try { return sessionStorage.getItem('elearnforge.fitHint') === '1'; } catch { return false; } });
 
   useEffect(() => {
     const el = stageAreaRef.current;
@@ -98,6 +103,8 @@ export function Player({ project, adapter, startSlideId }: {
         (el.clientHeight - pad) / slide.height
       );
       setScale(Math.max(0.1, Math.min(s, 2)));
+      const box = containerRef.current;
+      if (box) setNarrow(box.clientWidth < 600 && box.clientHeight > box.clientWidth);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -420,6 +427,8 @@ export function Player({ project, adapter, startSlideId }: {
     }
   }, [slide.id, effectiveTransition]);
 
+  const phone = narrow ? phoneLayoutFor(slide) : null;
+  const reflow = phone?.mode === 'reflow' && !runtime.getLightbox();
   const settings = project.player ?? defaultPlayerSettings();
   const playerAccent = settings.accent ?? project.theme?.accent ?? '#3ddc97';
   // Whether the Next/Submit emphasis animation is actually allowed to run
@@ -515,11 +524,11 @@ export function Player({ project, adapter, startSlideId }: {
               <span className="player-titlebar-slide">{slide.name} ({slideIndex + 1}/{slideTotal})</span>
             </div>
           )}
-          <div className="player-stage-area" ref={stageAreaRef}>
+          <div className={`player-stage-area${reflow ? ' reflow' : ''}`} ref={stageAreaRef}>
         <div
-          className="player-stage"
+          className={`player-stage${reflow ? ' reflow' : ''}`}
           ref={stageAnimRef}
-          style={{
+          style={reflow ? slideBackgroundStyle(slide.background) : {
             width: slide.width,
             height: slide.height,
             transform: `scale(${scale})`,
@@ -557,7 +566,7 @@ export function Player({ project, adapter, startSlideId }: {
               {...(layerIndex < modalIndex || runtime.getLightbox() ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
             >
               {layerIndex === modalIndex && <div className="player-modal-backdrop" />}
-              {layer.blocks.map((block) => {
+              {(reflow ? reflowOrder(layer.blocks).filter((b) => !isDecorative(b, slide)) : layer.blocks).map((block) => {
                 if (!runtime.isBlockVisible(block.id)) return null;
                 const def = BLOCKS[block.type];
                 const pState = runtime.getBlockState(block.id);
@@ -580,7 +589,15 @@ export function Player({ project, adapter, startSlideId }: {
                     key={block.id}
                     data-block-id={block.id}
                     className={`player-block ${clickable ? 'clickable' : ''}`}
-                    style={{
+                    style={reflow ? {
+                      // One column: natural height, full width. Timed blocks fade
+                      // in on schedule without shifting the layout.
+                      ...(tState ? { opacity: tState.present ? tState.opacity : 0, pointerEvents: tState.present ? undefined : 'none' as const, visibility: tState.present ? undefined : 'hidden' as const } : {}),
+                      ...(block.type === 'image' || block.type === 'video' ? { aspectRatio: `${block.w} / ${block.h}` } : {}),
+                      ...(block.type === 'text' ? { zoom: reflowFontScale((block.props as { fontSize?: number }).fontSize ?? 16) } : {}),
+                      ...(block.type === 'button' ? { minHeight: 48 } : {}),
+                      ...(disabled ? { cursor: 'default' } : {})
+                    } : {
                       left: block.x, top: block.y, width: block.w, height: block.h,
                       ...(tState ? styleFor(tState) : {}),
                       ...(stateStyle?.opacity !== undefined ? { opacity: stateStyle.opacity } : {}),
@@ -645,6 +662,12 @@ export function Player({ project, adapter, startSlideId }: {
         })}
       </div>
       {runtime.getLightbox() && <Lightbox runtime={runtime} slide={runtime.getLightbox()!} stageW={slide.width} stageH={slide.height} />}
+      {phone?.mode === 'fit' && !fitHintOff && (
+        <div className="player-fit-hint" role="status">
+          <span>This slide is laid out for a wide screen. <b>Turn your phone sideways</b>, or pinch to zoom.</span>
+          <button type="button" aria-label="Dismiss" onClick={() => { setFitHintOff(true); try { sessionStorage.setItem('elearnforge.fitHint', '1'); } catch { /* private mode */ } }}>×</button>
+        </div>
+      )}
       {activeCue && (
         <div className="player-captions" aria-live="polite">
           <span>{activeCue.text}</span>

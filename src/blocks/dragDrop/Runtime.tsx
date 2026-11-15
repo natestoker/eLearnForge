@@ -66,6 +66,14 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
 
   const reset = () => { setPlacement(Object.fromEntries(props.items.map((i) => [i.id, 'bank']))); setResult(null); };
 
+  const togglePick = (itemId: string) => {
+    const item = props.items.find((i) => i.id === itemId);
+    if (!item || !pickable) return;
+    const next = picked === itemId ? null : itemId;
+    setPicked(next);
+    setNote(next ? `${item.text} picked up. Choose a place for it.` : `${item.text} put down.`);
+  };
+
   const startDrag = (e: React.PointerEvent, itemId: string) => {
     if (result === true || locked || e.button > 0) return;
     e.preventDefault();
@@ -101,7 +109,10 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
       window.removeEventListener('pointerup', onUp);
       el.classList.remove('dragging');
       el.style.transform = '';
-      if (!moved) return;
+      // A tap or click without a drag picks the item up (or puts it down):
+      // then tap a Place button. Same path as the keyboard, so touch users
+      // never have to drag (WCAG 2.5.7).
+      if (!moved) { togglePick(itemId); return; }
       const zone = zoneAt(ev.clientX, ev.clientY);
       if (zone && zone !== placement[itemId]) move(itemId, zone);
     };
@@ -135,9 +146,7 @@ export function DragDropRuntime({ block, runtime }: RuntimeRendererProps) {
       onKeyDown={(e) => {
         if (!pickable || (e.key !== 'Enter' && e.key !== ' ')) return;
         e.preventDefault();
-        const next = picked === i.id ? null : i.id;
-        setPicked(next);
-        setNote(next ? `${i.text} picked up. Choose a place for it.` : `${i.text} put down.`);
+        togglePick(i.id);
       }}
     >
       {i.text}

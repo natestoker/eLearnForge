@@ -633,6 +633,9 @@ export interface Slide {
   width: number;
   height: number;
   layers: Layer[]; // layers[0] is always the base layer
+  // On a phone held upright: reflow the blocks into one column, or keep the
+  // 16:9 stage scaled to fit. Absent = decide from the slide's content.
+  phoneLayout?: 'reflow' | 'fit';
   // A lightbox slide is shown as a popup over another slide (openLightbox
   // action). It is left out of Next/Back, the menu and completion.
   lightbox?: boolean;

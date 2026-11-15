@@ -200,13 +200,20 @@ function PreviewModal({ onClose, startSlideId }: { onClose: () => void; startSli
   // Snapshot the project once on open so authoring edits mid-preview cannot
   // desync a live runtime.
   const [snapshot] = useState(() => structuredClone(useProjectStore.getState().project));
+  const phone = useUiStore((s) => s.previewPhone);
+  const setPhone = useUiStore((s) => s.setPreviewPhone);
   return (
     <div className="preview-overlay">
       <div className="preview-chrome">
-        <span>Preview - runtime engine live</span>
-        <button className="btn btn-ghost" onClick={onClose}>Close (Esc)</button>
+        <span>Preview{phone ? ' · phone (390 × 780)' : ''}</span>
+        <span className="preview-actions">
+          <button className="btn btn-ghost" aria-pressed={phone} onClick={() => setPhone(!phone)}>{phone ? 'Desktop' : 'Phone'}</button>
+          <button className="btn btn-ghost" onClick={onClose}>Close (Esc)</button>
+        </span>
       </div>
-      <Player project={snapshot} startSlideId={startSlideId ?? undefined} />
+      {phone
+        ? <div className="preview-phone"><div className="preview-phone-frame"><Player project={snapshot} startSlideId={startSlideId ?? undefined} /></div></div>
+        : <Player project={snapshot} startSlideId={startSlideId ?? undefined} />}
     </div>
   );
 }

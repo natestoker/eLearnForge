@@ -455,7 +455,7 @@ button { font-family: inherit; }
 /* Player at phone widths: the bottom chrome crams onto one row and collides,
    so drop the least-load-bearing bits (running timecode, course title) and
    tighten spacing. The scrubber and Back/Next stay. */
-@media (max-width: 640px) {
+@container player (max-width: 640px) {
   .player-chrome-bar { gap: 8px; padding: 8px 10px; flex-wrap: wrap; }
   .player-time { display: none; }
   .player-hud-title { display: none; }
@@ -2694,7 +2694,9 @@ select.input { appearance: auto; }
 .btn-icon-label svg { flex: none; opacity: 0.9; }
 
 /* ---- player chrome variants + options ---- */
-.player { --player-accent: var(--accent); }
+.player { --player-accent: var(--accent); container-type: inline-size; container-name: player; }
+/* Phone rules are container queries on the player, so the editor's phone
+   preview and an LMS iframe get them at the same width a real phone does. */
 
 /* v6.4: player navigation lives in a collapsible left sidebar (hamburger).
    The bar below the stage keeps only the transport + HUD. */
@@ -3724,7 +3726,7 @@ select.input { appearance: auto; }
    base rules for .player-controls and .player-hud come later than the first
    mobile block and used to override it, so the seek bar was cut off. Row 1 is
    the slide name and Back/Next; row 2 is the full-width transport. */
-@media (max-width: 640px) {
+@container player (max-width: 640px) {
   .player-chrome-bar { flex-wrap: wrap; gap: 8px 10px; padding: 8px 10px; }
   .player-hud { order: 1; flex: 1 1 0; min-width: 0; }
   .player-hud-slide { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3744,11 +3746,11 @@ select.input { appearance: auto; }
 /* Phone: the course menu floats over the slide instead of pushing it off the
    screen, leaves room for the hamburger, and hides the Resources / Glossary
    buttons while it is open (they used to sit on top of its heading). */
-@media (max-width: 640px) {
+@container player (max-width: 640px) {
   .player-body { position: relative; }
   .player-sidenav { position: absolute; top: 0; bottom: 0; left: 0; z-index: 35; box-shadow: none; }
-  .player-sidenav.open { width: min(300px, 86vw); box-shadow: 8px 0 32px rgba(0, 0, 0, 0.55); }
-  .player-sidenav-inner { width: min(300px, 86vw); padding-top: 64px; }
+  .player-sidenav.open { width: min(300px, 86cqw); box-shadow: 8px 0 32px rgba(0, 0, 0, 0.55); }
+  .player-sidenav-inner { width: min(300px, 86cqw); padding-top: 64px; }
   .nav-open .player-info-tabs { display: none; }
 }
 
@@ -3921,3 +3923,27 @@ label.cs-line { cursor: default; }
 .rbn-mbtn { padding-left: 3px; padding-right: 4px; gap: 4px; }
 .ribbon-body .align-controls .align-target .chip { height: 18px; line-height: 16px; padding: 0 8px; }
 .ribbon-body .btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+/* ===== Phone player: one scrolling column (redesign phase 4) ===== */
+.player-stage-area.reflow { align-items: stretch; justify-content: flex-start; overflow-y: auto; overflow-x: hidden; padding: 0; -webkit-overflow-scrolling: touch; }
+.player-stage.reflow { width: 100%; min-height: 100%; height: auto; transform: none; box-shadow: none; overflow: visible; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 16px; }
+.player-stage.reflow .player-layer { position: static; display: flex; flex-direction: column; gap: 16px; }
+.player-stage.reflow .player-block { position: static; width: 100%; min-width: 0; }
+.player-stage.reflow .player-block > div, .player-stage.reflow .player-block > div > div { height: auto !important; }
+.player-stage.reflow .player-block img, .player-stage.reflow .player-block video { width: 100%; height: 100%; object-fit: contain; }
+.player-stage.reflow .player-modal-backdrop { display: none; }
+/* Real sizes: 16px text and 44px targets inside the blocks. */
+.player-stage.reflow :is(.mc-block, .dd-block, .seq-block, .cl-block, .fb-block, .match-block, .sc-block, .tabs-block, .statement-block, .slider-block) { font-size: 16px; }
+.player-stage.reflow :is(.mc-question, .dd-question, .seq-question, .fb-prompt, .cl-title) { font-size: 18px; line-height: 1.35; }
+.player-stage.reflow :is(.mc-choice, .cl-row, .seq-row, .match-item, .sc-choice) { min-height: 52px; font-size: 16px; padding-top: 12px; padding-bottom: 12px; }
+.player-stage.reflow :is(.mc-submit, .dd-check, .seq-check, .fb-check, .dd-place, .tab-btn, .acc-head) { min-height: 44px; font-size: 16px; padding-left: 16px; padding-right: 16px; }
+.player-stage.reflow .dd-item { min-height: 44px; font-size: 16px; padding: 10px 14px; display: flex; align-items: center; }
+.player-stage.reflow .mc-feedback { font-size: 16px; }
+.player-fit-hint { display: flex; align-items: center; gap: 8px; margin: 6px 8px 0; padding: 8px 8px 8px 12px; border-radius: 8px; background: #16281c; border: 1px solid #2c5a3a; color: #e7ece8; font-size: 14px; line-height: 1.35; }
+.player-fit-hint span { flex: 1; }
+.player-fit-hint button { width: 44px; height: 44px; flex: none; border: 0; background: transparent; color: inherit; font-size: 22px; cursor: pointer; }
+.player-stage.reflow { padding-top: 60px; } /* clear the floating menu, Resources and Glossary buttons */
+.preview-actions { display: flex; gap: 6px; }
+.preview-phone { flex: 1; min-height: 0; display: grid; place-items: center; padding: 16px; overflow: auto; }
+.preview-phone-frame { width: 390px; height: min(780px, 100%); border: 1px solid var(--border-strong); border-radius: 28px; overflow: hidden; display: flex; box-shadow: var(--shadow-3); }
+.preview-phone-frame .player { flex: 1; min-width: 0; height: 100%; }

@@ -200,11 +200,14 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
         <ToolbarMenu label={<><Icon.play /> Preview</>} align="right" title="Run the project in the player">
           {(close) => (
             <>
-              <button className="menu-item" onClick={() => { setPreviewOpen(true); close(); }}>
+              <button className="menu-item" onClick={() => { useUiStore.getState().setPreviewPhone(false); setPreviewOpen(true); close(); }}>
                 <Icon.play /> Preview project
               </button>
-              <button className="menu-item" onClick={() => { setPreviewOpen(true, selection.slideId); close(); }}>
+              <button className="menu-item" onClick={() => { useUiStore.getState().setPreviewPhone(false); setPreviewOpen(true, selection.slideId); close(); }}>
                 <Icon.slide /> Preview this slide
+              </button>
+              <button className="menu-item" onClick={() => { useUiStore.getState().setPreviewPhone(true); setPreviewOpen(true, selection.slideId); close(); }}>
+                <Lucide name="app-window" size={15} /> Phone: this slide
               </button>
             </>
           )}

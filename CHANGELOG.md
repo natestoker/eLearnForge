@@ -1591,3 +1591,30 @@ Large-media "Compress" is not built; the check only warns.
   than 1280px (the shelf scrolls there), clipboard and delete in a block
   context menu, and collapsible inspector sections.
 
+# v6.25
+
+## Phone player: slides reflow into one column (phase 4)
+- **Reflow.** On a phone held upright (the player is under 600px wide and
+  taller than wide), a slide's blocks become one scrolling column in reading
+  order, at real sizes: 16px text, answers at least 52px tall, buttons at least
+  44px. Headings sized for a 1280px slide are pulled in; decorative shapes are
+  left out. Landscape and desktop are unchanged.
+- **Fit view** for slides whose meaning depends on position (a hotspot, a
+  labelled graphic, a motion path, grouped or overlapping blocks): the 16:9
+  stage stays, with a one-time "turn your phone sideways" hint.
+- **Per slide**: Slide inspector > Phone layout: Auto, One column, or Wide
+  layout. Auto says which it picked and why.
+- **Drag and drop by tapping.** Tap an item, then tap "Place in ...". The same
+  path as the keyboard, so nobody has to drag.
+- **Preview > Phone** shows the course in a 390px frame. The player's phone
+  rules are now container queries, so the preview (and an LMS iframe) behaves
+  like a real phone.
+- **Publish checks** say how many slides keep the wide layout on phones, and why.
+- **Fixed:** Statement blocks were hidden from screen readers (the code read a
+  `text` field that statements don't have), so "Exactly right" after a correct
+  answer was never announced.
+- Not done from the review's phone section: the single top bar with an
+  overflow sheet (Resources and Glossary still float), the landscape side
+  rail, entrances that play as blocks scroll into view (timed blocks fade in
+  on schedule instead), and merging a slide's own Continue button into Next.
+

@@ -11,7 +11,9 @@ export function blockText(block: Block): string {
   }
   if (block.type === 'image') return String(p.alt ?? '').trim();
   if (block.type === 'button') return String(p.label ?? '').trim();
-  if (block.type === 'statement') return String(p.text ?? '').trim();
+  // A statement's words are its heading and body (there is no `text` prop):
+  // reading the wrong field hid every statement from screen readers.
+  if (block.type === 'statement') return [p.heading, p.body, p.text].filter(Boolean).map(String).join(' ').replace(/<[^>]+>/g, ' ').trim();
   if (block.type === 'multipleChoice') return String(p.question ?? '').trim();
   return '';
 }

@@ -1,3 +1,4 @@
+import { phoneLayoutFor } from '../runtime/phoneLayout';
 import { useState } from 'react';
 import { useCurrentSlide, useProjectStore } from '../state/projectStore';
 import { Field, NumberInput, SelectInput, TextInput, CheckboxInput, ImagePicker, ColorInput } from './fields';
@@ -98,6 +99,24 @@ export function SlideProperties() {
               />
             </Field>
           </div>
+        </div>
+      </section>
+
+      <section className="insp-section">
+        <h4 className="panel-subtitle">Phone layout</h4>
+        <div className="insp-items">
+          <Field label="On a phone held upright">
+            <SelectInput
+              value={slide.phoneLayout ?? ''}
+              options={[
+                { value: '', label: `Auto (${phoneLayoutFor({ ...slide, phoneLayout: undefined }).mode === 'reflow' ? 'one column' : 'wide layout'})` },
+                { value: 'reflow', label: 'One column (reflow)' },
+                { value: 'fit', label: 'Wide layout (fit to screen)' }
+              ]}
+              onChange={(v) => mutate((p) => { const s = p.slides.find((sl) => sl.id === slide.id); if (s) s.phoneLayout = v === '' ? undefined : (v as 'reflow' | 'fit'); })}
+            />
+          </Field>
+          <p className="hint">Auto: {phoneLayoutFor({ ...slide, phoneLayout: undefined }).reason}. One column shows the blocks top to bottom at readable sizes. See it with Preview &gt; Phone.</p>
         </div>
       </section>
 

@@ -46,6 +46,8 @@ interface UiStore {
   openPenEditor: (blockId: string, mode: 'shape' | 'imageClip') => void;
   closePenEditor: () => void;
   previewOpen: boolean;
+  previewPhone: boolean;
+  setPreviewPhone: (v: boolean) => void;
   previewStartSlideId: string | null;
   toggleLayerHidden: (layerId: string) => void;
   setRibbonTab: (tab: RibbonTab) => void;
@@ -72,6 +74,8 @@ export const useUiStore = create<UiStore>((set) => ({
     catch { return { left: 240, right: 320, timeline: 180 }; }
   })(),
   previewOpen: false,
+  previewPhone: false,
+  setPreviewPhone: (v) => set({ previewPhone: v }),
   previewStartSlideId: null,
   collapsed: (() => {
     try { return { left: false, right: false, timeline: false, ...JSON.parse(localStorage.getItem('elearnforge.collapsed') ?? '{}') }; }
