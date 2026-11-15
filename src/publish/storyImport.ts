@@ -368,7 +368,7 @@ async function importShapes(
       const src = await mediaDataUrl(ctx, shape.getAttribute('assetG'));
       if (src) made.push({ id: uid('blk'), type: 'image', ...box, ...common, props: { src, fit: 'contain', alt: alt ?? '' } } as Block);
       else ctx.note(slideName, `picture "${name ?? ''}" has no media file in the package`);
-    } else if (tag === 'video' || tag === 'audio') {
+    } else if (tag === 'video' || tag === 'audio' || tag === 'sound') {
       const src = await mediaDataUrl(ctx, shape.getAttribute('assetG'));
       if (!src) ctx.note(slideName, `${tag} "${name ?? ''}" has no media file in the package`);
       else if (tag === 'video') made.push({ id: uid('blk'), type: 'video', ...box, ...common, props: { src, controls: false, autoplay: true, loop: false } } as Block);
@@ -651,8 +651,8 @@ function convertTrigger(
       ctx.note(slideName, 'a "when state changes" trigger on a custom state was dropped');
       return [];
     }
-    case 'OnVarChange': case 'OnVariableChange': {
-      const v = ctx.varByG.get(other?.getAttribute('varG') ?? kid(data, 'varChange')?.getAttribute('varG') ?? '');
+    case 'OnVarChange': case 'OnVariableChange': case 'OnVariableValueChange': {
+      const v = ctx.varByG.get(other?.getAttribute('varChangeG') ?? other?.getAttribute('varG') ?? '');
       return [one({ event: 'onVariableChange', ...(v ? { watchVariableId: v.id } : {}) })];
     }
     case 'OnKeyPress': {
@@ -738,7 +738,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     if (!/^story\/media\/[^/]+\.(png|jpe?g|gif|svg|webp|bmp|mp3|m4a|wav|ogg|mp4|webm|mov)$/i.test(path)) continue;
     byHash.set(md5(await zip.file(path)!.async('uint8array')), path);
   }
-  const mediaEls = [...Array.from(story.getElementsByTagName('media')), ...Array.from(story.getElementsByTagName('svgasset'))];
+  const mediaEls = ['media', 'svgasset', 'audio', 'video'].flatMap((tag) => Array.from(story.getElementsByTagName(tag)));
   for (const m of mediaEls) {
     const hash = kid(kid(m, 'md5Checksum'), 'stream')?.textContent?.trim();
     const g = m.getAttribute('g');

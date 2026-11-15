@@ -154,7 +154,7 @@ function entranceXml(a: AnimSpec | undefined): string {
     case 'slide': case 'slideUp': case 'slideDown': case 'slideLeft': case 'slideRight':
       fx = `<fly dur="${dur}" lvl="none" easingDir="out" easingType="cubic" dir="${side(a.direction, 'b')}" />`; break;
     case 'rise': fx = `<float ${common} dir="asc" />`; break;
-    case 'wipe': case 'wipeUp': fx = `<wipe ${common} wd="${side(a.direction, 'l')}" />`; break;
+    case 'wipe': case 'wipeUp': fx = `<wipe ${common} dir="none" wd="${side(a.direction, 'l')}" />`; break;
     case 'grow': fx = `<growShrink ${common} dir="none" />`; break;
     default: fx = `<fade ${common} dir="none" />`;
   }
@@ -303,11 +303,13 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
 }
 
 // ---------- triggers ----------
-interface TrigParts { g?: string; keys?: string; js?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
+interface TrigParts { g?: string; keys?: string; js?: string; open?: string; varChange?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
 function trigXml(owner: string, t: TrigParts): string {
   const shape = t.shape ?? 'setStateName="" setstateop="ass" stateInclude="all" statesNot="are" stateName=""';
   const other = t.other ?? 'op="ass" varVal1="" useVar="false" dblVal="0" boolVal="True"';
-  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="${t.keys ?? 'None'}" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="${t.js ? xa(t.js).replace(/\r?\n/g, '&#xA;') : ''}" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
+  // "When a variable changes" names the watched variable next to the target one.
+  const otherAttrs = t.varChange ? (other.includes('varG=') ? other.replace(/(varG="[^"]+")/, `$1 varChangeG="${t.varChange}"`) : `varChangeG="${t.varChange}" ${other}`) : other;
+  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="${t.keys ?? 'None'}" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="${t.open ? xa(t.open) : ''}" email="" js="${t.js ? xa(t.js).replace(/\r?\n/g, '&#xA;') : ''}" ${otherAttrs} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0"${t.open ? '><browserOptions action="new" ctrls="def" wndSz="def"><custWndSz w="800" h="600" /></browserOptions></other>' : ' />'}<interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
 }
 const NAV_EDIT = 'variablename, subslides, keypresskeys, actions, operators, variablevalue, variableoperators';
 const defaultNext = (owner: string) => trigXml(owner, { name: 'Navigation', edit: NAV_EDIT, group: 'next', event: 'OnNextButtonClick', action: 'jumpToSlide', sub: 'next', intent: 'Next', navState: 'Button, Gesture', cue: '0', frameAction: '0ec0db78-2e1d-4919-bde6-6824587f77c4' });
@@ -351,7 +353,7 @@ function actionParts(ctx: Ctx, a: Action, sourceBlockId: string | undefined): Pa
     case 'executeJs':
       return { action: 'executeJavaScript', js: `// From eLearnForge. forge.get / forge.set calls need rewriting for Storyline: GetPlayer().GetVar / SetVar.\n${a.code}` };
     case 'openUrl':
-      return { action: 'executeJavaScript', js: `window.open(${JSON.stringify(a.url)}, "_blank");` };
+      return { action: 'jumpToFileUrl', open: a.url };
     case 'resetVariable': {
       const v = variable(a.variableId);
       return v ? { action: 'executeJavaScript', js: `GetPlayer().SetVar(${JSON.stringify(v.name.replace(/[^A-Za-z0-9_]/g, '_'))}, ${JSON.stringify(v.defaultValue)});` } : 'reset a deleted variable';
@@ -363,7 +365,7 @@ function actionParts(ctx: Ctx, a: Action, sourceBlockId: string | undefined): Pa
   }
 }
 
-const COND_OPS: Record<string, string> = { eq: 'eq', lt: 'lt', gt: 'gt' };
+const COND_OPS: Record<string, string> = { eq: 'eq', lt: 'lt', gt: 'gt', gte: 'gte' };
 function condXml(ctx: Ctx, conds: Condition[], logic: 'and' | 'or'): string | null {
   let out = '';
   for (const c of conds) {
@@ -410,6 +412,12 @@ function sortTriggers(ctx: Ctx, slide: Slide): { slideTrigs: string; layerTrigs:
         case 'onBlockEnters': if (src) push(blockTrigs, t.sourceBlockId!, trigXml(src, { ...base, event: 'OnStart' })); break;
         case 'onSlideLoad': case 'onTimelineStart': slideTrigs += trigXml(slideG, { ...base, event: 'OnStart' }); break;
         case 'onTimelineEnd': slideTrigs += trigXml(slideG, { ...base, event: 'OnEnd', cue: '0' }); break;
+        case 'onVariableChange': {
+          const wg = t.watchVariableId && ctx.varG.get(t.watchVariableId);
+          if (wg) slideTrigs += trigXml(slideG, { ...base, event: 'OnVariableValueChange', varChange: wg });
+          else warn(ctx, 'a "when any variable changes" trigger was left out: Storyline needs one named variable');
+          break;
+        }
         case 'onNext': customNext = true; slideTrigs += trigXml(slideG, { ...base, name: 'Navigation', edit: NAV_EDIT, group: 'next', event: 'OnNextButtonClick', intent: 'Next', navState: 'Button, Gesture', cue: '0' }); break;
         case 'onLayerShown': {
           const lg = t.layerId && ctx.layerG.get(t.layerId);
