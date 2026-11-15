@@ -289,15 +289,16 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
 }
 
 // ---------- triggers ----------
-interface TrigParts { event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
+interface TrigParts { g?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
 function trigXml(owner: string, t: TrigParts): string {
   const shape = t.shape ?? 'setStateName="" setstateop="ass" stateInclude="all" statesNot="are" stateName=""';
   const other = t.other ?? 'op="ass" varVal1="" useVar="false" dblVal="0" boolVal="True"';
-  return `<trig ${gv()} name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="None" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
+  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="None" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
 }
 const NAV_EDIT = 'variablename, subslides, keypresskeys, actions, operators, variablevalue, variableoperators';
 const defaultNext = (owner: string) => trigXml(owner, { name: 'Navigation', edit: NAV_EDIT, group: 'next', event: 'OnNextButtonClick', action: 'jumpToSlide', sub: 'next', intent: 'Next', navState: 'Button, Gesture', cue: '0', frameAction: '0ec0db78-2e1d-4919-bde6-6824587f77c4' });
-const defaultPrev = (owner: string) => trigXml(owner, { name: 'Previous', edit: NAV_EDIT, event: 'OnClick', action: 'jumpToSlide', sub: 'prev', intent: 'Previous', navState: 'Button, Gesture', cue: '0', frameAction: guid() });
+// Storyline writes the Previous trigger's own id as its frame action.
+const defaultPrev = (owner: string, g = guid()) => trigXml(owner, { g, name: 'Previous', edit: NAV_EDIT, event: 'OnClick', action: 'jumpToSlide', sub: 'prev', intent: 'Previous', navState: 'Button, Gesture', cue: '0', frameAction: g });
 
 const STATE_OUT: Record<string, string> = { normal: 'Normal', visited: 'Visited', selected: 'Selected', disabled: 'Disabled', hidden: 'Hidden' };
 
@@ -494,7 +495,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="${xa(m.name)}" source="${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');
   story = story.replace('<mediaLst><mediaLst /></mediaLst>', mediaXml ? `<mediaLst><mediaLst>${mediaXml}</mediaLst></mediaLst>` : '<mediaLst><mediaLst /></mediaLst>');
   story = story.replace(/<sldIdLst>.*?<\/sldIdLst>/, `<sldIdLst>${slideIds.map((id) => `<sldId>${id}</sldId>`).join('')}</sldIdLst>`);
-  const tocEntries = project.slides.map((s) => `<tocSlideEntry g="${guid()}" refG="${ctx.slideG.get(s.id)}" corG="${guid()}" expanded="true"><entryLst /><localizedName /></tocSlideEntry>`).join('');
+  const tocEntries = project.slides.map((s) => `<tocSlideEntry g="${guid()}" verG="${guid()}" refG="${ctx.slideG.get(s.id)}" corG="${guid()}" expanded="true"><entryLst /><localizedName /></tocSlideEntry>`).join('');
   story = story.replace(/(<tocSceneEntry [^>]*>)<entryLst>.*?<\/entryLst>(<localizedName \/><\/tocSceneEntry>)/, `$1<entryLst>${tocEntries}</entryLst>$2`);
   story = story.replace(/<prop id="15"><sz w="\d+" h="\d+" \/><\/prop>/, `<prop id="15"><sz w="${ctx.w}" h="${ctx.h}" /></prop>`);
   put('story/story.xml', BOM + story);
