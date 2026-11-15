@@ -108,10 +108,18 @@ Written:
   show and hide layer, lightbox, set/adjust variable, set state, show/hide block,
   complete course. Conditions on variables using =, < or >.
 
+Quiz blocks: a multiple-choice block is saved as a Storyline **freeform
+question** (Pick One, or Pick Many when it allows several answers). You get a
+question text box, one rounded rectangle per choice with Normal, Hover and
+Selected states, a Submit button, and Correct and Incorrect feedback layers.
+Storyline allows one question per slide, so a second quiz block on the same
+slide stays an outlined box. Each question is worth 10 points with one
+attempt; change that in Storyline's Question tab.
+
 Left out, and listed in the report:
 
-- Quiz, drag and drop, sliders and the other interactive blocks: an outlined
-  box marks where each one was.
+- Drag and drop, matching, sequence, fill-in, tabs, sliders and the other
+  interactive blocks: an outlined box marks where each one was.
 - Audio and video. Add narration in Storyline (Insert > Audio).
 - Actions with no Storyline equivalent are saved as Execute JavaScript
   triggers: Run JavaScript carries its code, Open URL becomes `window.open`,

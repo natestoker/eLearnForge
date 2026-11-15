@@ -1784,3 +1784,15 @@ Large-media "Compress" is not built; the check only warns.
   are saved as Execute JavaScript triggers.
 - Import also reads audio objects, Storyline hotspots, hover and
   variable-change triggers, and named keys.
+
+# v6.35
+
+## Quiz block: new look, and it saves to Storyline as a real question
+- **New look for the multiple-choice block.** Lettered choice cards, a clear
+  selected state, larger targets, and after Submit a tick or cross on each
+  marked choice. The right answer is only revealed when the learner got it or
+  has no attempts left. The action buttons on the other quiz blocks share the
+  same pill style.
+- **Save as Storyline writes quiz blocks as freeform questions** (Pick One or
+  Pick Many) with selectable choices, a Submit button and Correct / Incorrect
+  feedback layers. Experimental until confirmed in Storyline.

@@ -9,7 +9,7 @@ const browser = await launch();
 const ed = await editorPage(browser);
 const before = await ed.evaluate(() => {
   const p = window.__forgeStore.getState().project;
-  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length) };
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), quiz: p.slides.map((s) => s.layers[0].blocks.some((b) => b.type === 'multipleChoice')) };
 });
 
 await ed.getByRole('button', { name: /^File/ }).click();
@@ -46,6 +46,10 @@ check('pictures are listed in the theme as well', assets.every((g) => themeXml.i
 const b62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const partId = (g) => { const p = g.split('-'); let v = BigInt('0x' + p[0]) | (BigInt('0x' + p[1]) << 32n) | (BigInt('0x' + p[2]) << 48n); let o = ''; while (v > 0n) { o = b62[Number(v % 62n)] + o; v /= 62n; } return 'R' + o; };
 check('each picture file is named after its asset id, as Storyline requires', assets.every((g) => zip.file(`story/media/${partId(g)}.png`)));
+const quizSlide = (await Promise.all(slideRels.map((m) => text(m[1])))).find((x) => x.includes('<freePickOneIntr') || x.includes('<freePickManyIntr'));
+check('the quiz block is written as a freeform question', Boolean(quizSlide) && quizSlide.includes('layoutType="Quiz Questions"') && quizSlide.includes('action="submitInteraction"'));
+check('its choices have Normal, Hover and Selected states', ['Normal', 'Hover', 'Selected'].every((n) => quizSlide.includes(`name="${n}"`)));
+check('every choice the question lists is a shape on the slide, and both feedback layers exist', [...quizSlide.matchAll(/(?:shpG|corFbG|incFbG|submitG)="([^"]+)"/g)].every((m) => m[1].startsWith('00000000') || quizSlide.includes(` g="${m[1]}"`)));
 check('every GUID a trigger points at exists', [...allSlides.matchAll(/(?:jumpG|showG|setStateG|lightBoxG)="([^"]+)"/g)].every((m) => allSlides.includes(`g="${m[1]}"`)));
 
 // Round trip: open what was just saved.
@@ -54,10 +58,12 @@ await ed.waitForSelector('.story-report');
 await ed.locator('.story-report .btn-accent').click();
 const after = await ed.evaluate(() => {
   const p = window.__forgeStore.getState().project;
-  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), text: p.slides[0].layers[0].blocks.filter((b) => b.type === 'text').length, jumps: p.slides.flatMap((s) => s.triggers).filter((t) => ['goToSlide', 'nextSlide'].includes(t.actions[0].type)).length };
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), text: p.slides[0].layers[0].blocks.filter((b) => b.type === 'text').length, quizTriggers: p.slides.flatMap((s) => s.triggers.filter((t) => t.actions[0].type === 'showLayer' && ['Correct', 'Incorrect'].includes(s.layers.find((l) => l.id === t.actions[0].layerId)?.name))).length, jumps: p.slides.flatMap((s) => s.triggers).filter((t) => ['goToSlide', 'nextSlide'].includes(t.actions[0].type)).length };
 });
 eq('slides survive the round trip', after.slides, before.slides);
-eq('layers survive the round trip', after.layers, before.layers);
+// A quiz block is saved as a Storyline question, which adds its two feedback layers.
+eq('layers survive the round trip (a question adds Correct and Incorrect)', after.layers, before.layers.map((n, i) => n + (before.quiz[i] ? 2 : 0)));
+check('the question comes back as a working pick question', after.quizTriggers >= 2, String(after.quizTriggers));
 eq('variables survive the round trip', after.vars, before.vars.map((v) => v.replace(/[^A-Za-z0-9_]/g, '_')));
 check('text comes back as text', after.text > 0);
 
