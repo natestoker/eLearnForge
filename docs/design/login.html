@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in - eLearnForge</title>
+<!-- Static mockup. Not wired to any auth; the editor stays a client-only single file.
+     Tokens match tailwind.config.js / src/styles.css. -->
+<style>
+  :root {
+    --bg: #111412; --bg-deep: #0d100e; --panel: #171b18; --panel-2: #1d221e;
+    --border: #2c3630; --outline: #3b463f; --text: #e7ece8; --muted: #93a598;
+    --faint: #869789; --accent: #3ddc97; --accent-bright: #5cf0b4;
+    --on-accent: #052a1b; --error: #ff6b5e;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/22px Inter, system-ui, sans-serif;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+  .brand-side {
+    background: var(--bg-deep);
+    background-image: radial-gradient(circle at 1px 1px, #26302a 1px, transparent 0);
+    background-size: 24px 24px;
+    border-right: 1px solid var(--border);
+    padding: 48px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font: 600 18px "Hanken Grotesk", Inter, sans-serif; }
+  .logo i { width: 28px; height: 28px; border-radius: 4px; background: var(--accent); display: grid; place-items: center; color: var(--on-accent); font: 700 15px "JetBrains Mono", monospace; font-style: normal; }
+  .pitch h2 { font: 600 32px/40px "Hanken Grotesk", Inter, sans-serif; letter-spacing: -0.02em; margin: 0 0 12px; max-width: 14em; }
+  .pitch p { color: var(--muted); margin: 0; max-width: 30em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .chip { border: 1px solid var(--border); background: var(--panel); border-radius: 2px; padding: 4px 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .foot { color: var(--faint); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+
+  main { display: grid; place-items: center; padding: 48px 24px; }
+  form { width: 100%; max-width: 360px; }
+  h1 { font: 600 26px/32px "Hanken Grotesk", Inter, sans-serif; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  label { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .row a { font-size: 12px; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; height: 40px; padding: 0 12px; border-radius: 4px;
+    background: var(--panel); border: 1px solid var(--outline); color: var(--text); font: inherit;
+  }
+  input::placeholder { color: var(--faint); }
+  input:hover { border-color: #4b5850; }
+  input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+  input[aria-invalid=true] { border-color: var(--error); }
+  .err { color: var(--error); font-size: 12px; margin: 6px 0 0; }
+  .pw { position: relative; }
+  .pw button { position: absolute; right: 4px; top: 4px; height: 32px; padding: 0 8px; background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; border-radius: 4px; }
+  .pw button:hover { color: var(--text); }
+  .remember { display: flex; gap: 8px; align-items: center; margin: 16px 0 24px; color: var(--muted); font-size: 13px; }
+  .remember input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  .primary { width: 100%; height: 42px; border: 0; border-radius: 4px; background: var(--accent); color: var(--on-accent); font: 600 14px Inter, sans-serif; cursor: pointer; }
+  .primary:hover { background: var(--accent-bright); }
+  .divider { display: flex; align-items: center; gap: 12px; color: var(--faint); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin: 20px 0; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .ghost { width: 100%; height: 40px; border-radius: 4px; background: transparent; border: 1px solid var(--outline); color: var(--text); font: 500 14px Inter, sans-serif; cursor: pointer; }
+  .ghost:hover { background: var(--panel-2); }
+  .alt { margin: 24px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-bright); text-decoration: underline; }
+  @media (max-width: 800px) {
+    body { grid-template-columns: 1fr; }
+    .brand-side { display: none; }
+  }
+</style>
+</head>
+<body>
+  <aside class="brand-side">
+    <div class="logo"><i>eF</i> eLearnForge</div>
+    <div class="pitch">
+      <h2>Build the course. Publish one file.</h2>
+      <p>Slides, layers, triggers and narration in the browser, shipped as SCORM, xAPI or a single offline HTML page.</p>
+      <div class="chips"><span class="chip mono">SCORM 1.2</span><span class="chip mono">SCORM 2004</span><span class="chip mono">xAPI</span><span class="chip mono">Web</span></div>
+    </div>
+    <div class="foot mono">v0.1 - runs in your browser</div>
+  </aside>
+
+  <main>
+    <form onsubmit="return false" novalidate>
+      <h1>Sign in</h1>
+      <p class="sub">Pick up where you left off.</p>
+
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@company.com" aria-describedby="email-err" aria-invalid="true" value="nate@company">
+      <p class="err" id="email-err">That email looks incomplete. Try name@company.com.</p>
+
+      <div class="row"><label for="pw">Password</label><a href="#">Forgot it?</a></div>
+      <div class="pw">
+        <input id="pw" type="password" autocomplete="current-password" value="correct horse">
+        <button type="button" aria-label="Show password">Show</button>
+      </div>
+
+      <div class="remember"><input id="rem" type="checkbox" checked><label for="rem" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px">Keep me signed in on this device</label></div>
+
+      <button class="primary" type="submit">Sign in</button>
+      <div class="divider">or</div>
+      <button class="ghost" type="button">Continue with SSO</button>
+
+      <p class="alt">New here? <a href="#">Create an account</a></p>
+    </form>
+  </main>
+</body>
+</html>
