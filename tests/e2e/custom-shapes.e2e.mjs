@@ -156,6 +156,17 @@ await page.waitForSelector('.pen-dialog');
     }
     eq(`every tab fits a 96px shelf at ${width}px`, bad, []);
   }
+  // Narrower than 1280: no sideways scroll; a More button opens the rest.
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.locator('.ribbon-tab', { hasText: 'Insert' }).click();
+  await page.waitForTimeout(300);
+  eq('at 1000px Insert offers More', await page.locator('.ribbon-more').count(), 1);
+  eq('and does not scroll sideways', await page.locator('.ribbon-body').evaluate((e) => getComputedStyle(e).overflowX), 'hidden');
+  await page.locator('.ribbon-more').click();
+  await page.waitForTimeout(200);
+  const vis = await page.locator('.rbn-mbtn', { hasText: 'Results' }).boundingBox();
+  check('More shows the groups that did not fit', vis && vis.x >= 0 && vis.x + vis.width <= 1000, JSON.stringify(vis));
+  await page.locator('.ribbon-more').click();
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.keyboard.press('Escape');
 }

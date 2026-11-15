@@ -1673,3 +1673,24 @@ Large-media "Compress" is not built; the check only warns.
 - **A test keeps the chrome on the tokens**: a literal font size or radius in
   an editor rule now fails `npm test` (`tests/css-tokens.test.ts`).
 
+# v6.29
+
+## Review fixes, fourth batch
+- **Phone player top bar.** In portrait a single bar holds the menu button,
+  the course title, "3 of 6 · Slide name", and Resources and Glossary. Nothing
+  floats over the slide.
+- **Landscape side rail.** On a phone on its side, Back and Next move to a rail
+  at the right, so the slide gets the full height.
+- **Continue merges into Next.** In the one-column view, a slide's own button
+  that only goes to the next slide is left out; Next does that job.
+- **Ribbon "More".** Narrower than about 1280px, the ribbon no longer scrolls
+  sideways: a More button opens the whole shelf over the canvas.
+- **Pen tool and Welcome use the shared dialog frame.** The pen tool has its
+  canvas on the left and Draw / Points / History groups on the right, with
+  Cancel and Apply in the footer. Welcome's steps are numbered.
+- **Spacing tokens** now back 72 gap, padding and margin values in the chrome.
+- Decided against: moving Tracking to Publish's right column. It would leave
+  the left column nearly empty and the right one very tall.
+- Not done: Story view as a wrapping grid, z-index values on the named layers,
+  entrances that play as blocks scroll into view on phones.
+

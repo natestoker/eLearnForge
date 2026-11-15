@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useUiStore, RibbonTab } from '../state/uiStore';
 import { Toolbar } from './Toolbar';
 import { Lucide } from './lucide';
@@ -18,6 +19,26 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
   const setTab = useUiStore((s) => s.setRibbonTab);
   const collapsed = useUiStore((s) => s.ribbonCollapsed);
   const toggleCollapsed = useUiStore((s) => s.toggleRibbonCollapsed);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => { setMoreOpen(false); }, [activeTab]);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    // Natural width of the groups vs the room there is (ignoring the More
+    // button's own reserve, so the answer doesn't flip-flop).
+    const measure = () => {
+      const need = Array.from(el.children).reduce((w, c) => w + (c as HTMLElement).offsetWidth, 0) + 24;
+      setOverflow(need > (el.parentElement?.clientWidth ?? el.clientWidth));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el.parentElement ?? el);
+    const mo = new MutationObserver(measure);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => { ro.disconnect(); mo.disconnect(); };
+  }, [activeTab, collapsed]);
 
   return (
     <div className="ribbon">
@@ -48,13 +69,22 @@ export function Ribbon({ saveState }: { saveState: 'saved' | 'saving' }) {
         </button>
       </div>
 
-      {/* Ribbon body content */}
+      {/* Ribbon body content. When the window is too narrow for a tab, the
+          groups that don't fit are cut off and a More button drops the whole
+          shelf open over the canvas, wrapped onto extra rows. */}
       {!collapsed && (
-        <div className="ribbon-body">
-          {activeTab === 'insert' && <RibbonInsert />}
-          {activeTab === 'arrange' && <RibbonFormat />}
-          {activeTab === 'animate' && <RibbonAnimations />}
-          {activeTab === 'view' && <RibbonView />}
+        <div className="ribbon-shelf">
+          <div ref={bodyRef} className={`ribbon-body${overflow ? ' has-more' : ''}${overflow && moreOpen ? ' more-open' : ''}`}>
+            {activeTab === 'insert' && <RibbonInsert />}
+            {activeTab === 'arrange' && <RibbonFormat />}
+            {activeTab === 'animate' && <RibbonAnimations />}
+            {activeTab === 'view' && <RibbonView />}
+          </div>
+          {overflow && (
+            <button className="ribbon-more" aria-expanded={moreOpen} title="Show the commands that don't fit" onClick={() => setMoreOpen((v) => !v)}>
+              <Lucide name={moreOpen ? 'chevron-up' : 'chevron-down'} size={14} /> More
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -48,6 +48,18 @@ export function phoneLayoutFor(slide: Slide): PhoneDecision {
   return { mode: 'reflow', reason: 'nothing depends on position' };
 }
 
+// A slide's own "Continue" button that only goes to the next slide duplicates
+// the player's Next. In the column it is left out, so there is one way forward.
+export function isPlainNextButton(block: Block, slide: Slide, nextSlideId: string | null): boolean {
+  if (block.type !== 'button') return false;
+  const mine = slide.triggers.filter((t) => t.sourceBlockId === block.id && t.enabled !== false);
+  if (mine.length !== 1) return false;
+  const t = mine[0];
+  if (t.event !== 'onClick' || t.conditions.length || t.actions.length !== 1) return false;
+  const a = t.actions[0];
+  return a.type === 'nextSlide' || (a.type === 'goToSlide' && nextSlideId !== null && a.slideId === nextSlideId);
+}
+
 // Reading order for the column: top to bottom, and left to right within a row
 // (blocks whose tops are within 32px count as one row).
 export function reflowOrder(blocks: Block[]): Block[] {

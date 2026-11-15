@@ -14,7 +14,7 @@ import { TimelineClock } from './TimelineClock';
 import { TimedMedia } from './TimedMedia';
 import { PlayerNavButtons, PlayerSideNav } from './PlayerChrome';
 import { accessibilityFor } from './accessibility';
-import { isDecorative, phoneLayoutFor, reflowFontScale, reflowOrder } from './phoneLayout';
+import { isDecorative, isPlainNextButton, phoneLayoutFor, reflowFontScale, reflowOrder } from './phoneLayout';
 import { blockDisplayName } from '../shared/blockName';
 import { runEmphasis } from '../blocks/emphasis';
 import type { Emphasis } from '../blocks/emphasis';
@@ -91,6 +91,9 @@ export function Player({ project, adapter, startSlideId }: {
   // A phone held upright: narrow and taller than wide. Measured on the player
   // itself, not the window, so the editor's phone preview behaves the same.
   const [narrow, setNarrow] = useState(false);
+  // A phone on its side: short and wide. The controls move to a side rail so
+  // the slide gets the full height.
+  const [rail, setRail] = useState(false);
   const [fitHintOff, setFitHintOff] = useState(() => { try { return sessionStorage.getItem('elearnforge.fitHint') === '1'; } catch { return false; } });
 
   useEffect(() => {
@@ -104,7 +107,10 @@ export function Player({ project, adapter, startSlideId }: {
       );
       setScale(Math.max(0.1, Math.min(s, 2)));
       const box = containerRef.current;
-      if (box) setNarrow(box.clientWidth < 600 && box.clientHeight > box.clientWidth);
+      if (box) {
+        setNarrow(box.clientWidth < 600 && box.clientHeight > box.clientWidth);
+        setRail(box.clientHeight < 480 && box.clientWidth > box.clientHeight && box.clientWidth < 1000);
+      }
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -445,7 +451,7 @@ export function Player({ project, adapter, startSlideId }: {
   const chromeClass =
     `player chrome-${settings.chrome ?? 'dark'} btn-shape-${settings.buttonShape ?? 'rounded'} btn-fill-${settings.buttonStyle ?? 'solid'}` +
     ` btnfx-hover-${settings.buttonHover ?? 'none'} btnfx-emph-${emphasisActive ? (settings.buttonEmphasis ?? 'none') : 'none'}` +
-    (navOpen ? ' nav-open' : '');
+    (navOpen ? ' nav-open' : '') + (rail ? ' rail' : '') + (narrow ? ' phone' : '');
 
   return (
     <div className={chromeClass} ref={containerRef} style={{ ['--player-accent' as string]: playerAccent, ...deriveAccent(playerAccent) } as React.CSSProperties}>
@@ -477,6 +483,12 @@ export function Player({ project, adapter, startSlideId }: {
           <h1 className="sr-only">{`${slide.name}, slide ${slideIndex + 1} of ${slideTotal}`}</h1>
           {/* A live region is what screen readers reliably speak when the slide changes; focus alone was silent in Orca. Empty on first load. */}
           {announcedSlide && <div className="sr-only" role="alert" key={slide.id}>{announcedSlide}</div>}
+          {narrow && (
+            <div className="player-topbar" aria-hidden="true">
+              <span className="player-topbar-title">{project.title}</span>
+              <span className="player-topbar-pos">{slideIndex + 1} of {slideTotal} · {slide.name}</span>
+            </div>
+          )}
           <button
             className="player-hamburger"
             aria-label={navOpen ? 'Hide navigation' : 'Show navigation'}
@@ -569,7 +581,7 @@ export function Player({ project, adapter, startSlideId }: {
               {...(layerIndex < modalIndex || runtime.getLightbox() ? ({ inert: '', 'aria-hidden': true } as Record<string, unknown>) : {})}
             >
               {layerIndex === modalIndex && <div className="player-modal-backdrop" />}
-              {(reflow ? reflowOrder(layer.blocks).filter((b) => !isDecorative(b, slide)) : layer.blocks).map((block) => {
+              {(reflow ? reflowOrder(layer.blocks).filter((b) => !isDecorative(b, slide) && !(settings.next.show && isPlainNextButton(b, slide, runtime.neighborSlideId(slide.id, 1)))) : layer.blocks).map((block) => {
                 if (!runtime.isBlockVisible(block.id)) return null;
                 const def = BLOCKS[block.type];
                 const pState = runtime.getBlockState(block.id);

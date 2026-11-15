@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useProjectStore, walkBlocks } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
+import { Lucide } from './lucide';
 import type { ImageProps, PathNode, ShapeProps } from '../schema/types';
 import {
   SHAPE_POINTS, SHAPE_PATHS, nodesFromPoints, nodesFromPresetPath, pathFromNodes
@@ -349,14 +350,16 @@ export function PenEditor() {
 
   return (
     <div className="pen-overlay" onClick={close}>
-      <div className="pen-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="pen-head">
-          <span>Pen tool - {penEditor.mode === 'imageClip' ? 'custom image clip' : 'custom shape'}</span>
-          <span className="pen-hint">
-            Click to add points (on the outline inserts mid-segment). Drag points and handles.
-            Double-click or press Delete to remove a point. Arrows nudge, Ctrl+Z undoes.
-          </span>
+      <div className="pen-dialog" role="dialog" aria-modal="true" aria-label="Pen tool" onClick={(e) => e.stopPropagation()}>
+        <div className="cs-head">
+          <div className="cs-head-text">
+            <h2>{penEditor.mode === 'imageClip' ? 'Custom image clip' : 'Custom shape'}</h2>
+            <p>Click to add points, drag to move them. Click the outline to insert a point.</p>
+          </div>
+          <button type="button" className="cs-icon-btn" aria-label="Close" title="Close" onClick={close}><Lucide name="x" size={18} /></button>
         </div>
+        <div className="pen-main">
+          <div className="pen-stage">
         <svg
           ref={svgRef}
           className="pen-canvas"
@@ -384,8 +387,8 @@ export function PenEditor() {
             <g transform={`scale(${EW / 100} ${EH / 100})`}>
               <path
                 d={d}
-                fill={nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.25)' : 'none'}
-                style={{ stroke: 'var(--accent)', fill: nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.25)' : 'none' }}
+                fill={nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.1)' : 'none'}
+                style={{ stroke: 'var(--accent)', fill: nodes.length >= 3 ? 'rgba(var(--accent-rgb), 0.1)' : 'none' }}
                 strokeWidth={1.5}
                 vectorEffect="non-scaling-stroke"
               />
@@ -430,59 +433,76 @@ export function PenEditor() {
             />
           ))}
         </svg>
-        <div className="pen-actions pen-tools">
-          <label className="pen-sides">
-            <span>Sides</span>
-            <input
-              type="number" min={3} max={24} value={sides}
-              onChange={(e) => setSides(Math.max(3, Math.min(24, Math.round(Number(e.target.value) || 5))))}
-              className="input input-number"
-              aria-label="Number of sides or points"
-            />
-          </label>
-          <button className="btn btn-ghost" onClick={() => generate('polygon')} title="Replace the path with a regular polygon">Polygon</button>
-          <button className="btn btn-ghost" onClick={() => generate('star')} title="Replace the path with a star">Star</button>
-          <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Replace the path with the largest outline in an SVG file">Import SVG</button>
-          <input
-            ref={fileRef} type="file" accept=".svg,image/svg+xml" hidden aria-label="Import an SVG outline"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importSvg(f); }}
-          />
-          {message && <span className="pen-message" role="status">{message}</span>}
+          </div>
+          <aside className="pen-side">
+            <section>
+              <h3 className="cs-label">Draw</h3>
+              <button
+                className={`btn btn-ghost${freehand ? ' active' : ''}`}
+                aria-pressed={freehand}
+                title="Draw freehand: drag on the canvas and release; the stroke is simplified and smoothed"
+                onClick={() => setFreehand((v) => !v)}
+              >
+                Freehand
+              </button>
+              <label className="pen-sides">
+                <span>Sides</span>
+                <input
+                  type="number" min={3} max={24} value={sides}
+                  onChange={(e) => setSides(Math.max(3, Math.min(24, Math.round(Number(e.target.value) || 5))))}
+                  className="input input-number"
+                  aria-label="Number of sides or points"
+                />
+              </label>
+              <div className="pen-row">
+                <button className="btn btn-ghost" onClick={() => generate('polygon')} title="Replace the path with a regular polygon">Polygon</button>
+                <button className="btn btn-ghost" onClick={() => generate('star')} title="Replace the path with a star">Star</button>
+              </div>
+              <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Replace the path with the largest outline in an SVG file">Import SVG</button>
+              <input
+                ref={fileRef} type="file" accept=".svg,image/svg+xml" hidden aria-label="Import an SVG outline"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importSvg(f); }}
+              />
+            </section>
+            <section>
+              <h3 className="cs-label">Points · <span className="pen-count">{nodes.length} points</span></h3>
+              {/* Always present, disabled until a point is selected, so the dialog never resizes. */}
+              <div className="pen-row pen-node-tools">
+                <button className="btn btn-ghost" title="Smooth point (mirrored handles)" disabled={!selNode} onClick={() => convertSel('smooth')}>Smooth</button>
+                <button className="btn btn-ghost" title="Corner point (independent handles)" onClick={() => convertSel('corner')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Corner</button>
+              </div>
+              <div className="pen-row">
+                <button className="btn btn-ghost" title="Remove this point's handles" onClick={() => convertSel('straight')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Straight</button>
+                <button className="btn btn-ghost btn-danger" title="Delete this point (Del)" disabled={!selNode} onClick={(e) => removeNode(sel!, e)}>Delete</button>
+              </div>
+              <button
+                className="btn btn-ghost"
+                title="Give every point smooth curve handles"
+                disabled={nodes.length < 3}
+                onClick={() => edit((ns) => ns.map((_, i) => smoothNode(ns, i)))}
+              >
+                Smooth all
+              </button>
+            </section>
+            <section>
+              <h3 className="cs-label">History</h3>
+              <div className="pen-row">
+                <button className="btn btn-ghost" disabled={!past.current.length} onClick={undo} title="Undo (Ctrl+Z)">Undo</button>
+                <button className="btn btn-ghost" disabled={!future.current.length} onClick={redo} title="Redo (Ctrl+Shift+Z)">Redo</button>
+              </div>
+              <button className="btn btn-ghost" onClick={() => { edit(() => []); setSel(null); }}>Clear</button>
+            </section>
+            {message && <p className="pen-message" role="status">{message}</p>}
+          </aside>
         </div>
-        <div className="pen-actions">
-          <button className="btn btn-ghost" disabled={!past.current.length} onClick={undo} title="Undo (Ctrl+Z)">Undo</button>
-          <button className="btn btn-ghost" disabled={!future.current.length} onClick={redo} title="Redo (Ctrl+Shift+Z)">Redo</button>
-          <button className="btn btn-ghost" onClick={() => { edit(() => []); setSel(null); }}>Clear</button>
-          <button
-            className={`btn btn-ghost${freehand ? ' active' : ''}`}
-            aria-pressed={freehand}
-            title="Draw freehand: drag on the canvas and release; the stroke is simplified and smoothed"
-            onClick={() => setFreehand((v) => !v)}
-          >
-            Freehand
-          </button>
-          <button
-            className="btn btn-ghost"
-            title="Give every point smooth curve handles"
-            disabled={nodes.length < 3}
-            onClick={() => edit((ns) => ns.map((_, i) => smoothNode(ns, i)))}
-          >
-            Smooth all
-          </button>
-          <span className="pen-count">{nodes.length} points</span>
-          <div className="pen-spacer" />
-          {/* Always present, disabled until a point is selected: showing and
-              hiding them resized the whole dialog every time you clicked a point. */}
-          <span className="pen-node-tools">
-            <button className="btn btn-ghost" title="Smooth point (mirrored handles)" disabled={!selNode} onClick={() => convertSel('smooth')}>Smooth</button>
-            <button className="btn btn-ghost" title="Corner point (independent handles)" onClick={() => convertSel('corner')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Corner</button>
-            <button className="btn btn-ghost" title="Remove this point's handles" onClick={() => convertSel('straight')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Straight</button>
-            <button className="btn btn-ghost btn-danger" title="Delete this point" disabled={!selNode} onClick={(e) => removeNode(sel!, e)}>Delete</button>
+        <div className="cs-foot">
+          <span>Arrows nudge a point · Del removes it · Ctrl+Z undoes</span>
+          <span className="pen-foot-actions">
+            <button className="btn" onClick={close}>Cancel</button>
+            <button className="btn btn-accent" onClick={apply} disabled={nodes.length > 0 && nodes.length < 3}>
+              {nodes.length === 0 ? (penEditor.mode === 'imageClip' ? 'Remove custom clip' : 'Remove custom shape') : 'Apply'}
+            </button>
           </span>
-          <button className="btn" onClick={close}>Cancel</button>
-          <button className="btn btn-accent" onClick={apply} disabled={nodes.length > 0 && nodes.length < 3}>
-            {nodes.length === 0 ? (penEditor.mode === 'imageClip' ? 'Remove custom clip' : 'Remove custom shape') : 'Apply'}
-          </button>
         </div>
       </div>
     </div>

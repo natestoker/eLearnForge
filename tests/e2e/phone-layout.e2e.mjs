@@ -71,11 +71,26 @@ check('the Glossary panel fits the screen', panel && panel.x >= 0 && panel.x + p
   eq('the hint can be dismissed', await pg.locator('.player-fit-hint').count(), 0);
   await pg.context().close();
 }
-// ---- Landscape and desktop keep the stage
+// ---- Landscape: the stage stays and the controls move to a side rail
 {
   const pg = await playerPage(browser, project, { viewport: { width: 780, height: 390 }, mobile: true });
   await goToSlideWith(pg, '.mc-choice.live');
   eq('landscape keeps the 16:9 stage', await pg.locator('.player-stage.reflow').count(), 0);
+  const bar = await pg.locator('.player-chrome-bar').boundingBox();
+  const stage = await pg.locator('.player-stage-area').boundingBox();
+  check('the controls are a rail at the side', bar && bar.width <= 90 && bar.height >= 300 && bar.x >= stage.x + stage.width - 1, JSON.stringify(bar));
+  check('the slide gets the full height', stage && stage.height >= 380, JSON.stringify(stage));
+  const nx = await pg.locator('.player-chrome-btn', { hasText: 'Next' }).boundingBox();
+  check('Next in the rail is a 44px target', nx && nx.height >= 44, JSON.stringify(nx));
+  await pg.context().close();
+}
+// ---- Portrait: one top bar with the position; a plain Continue button merges into Next
+{
+  const pg = await playerPage(browser, project, { viewport: { width: 390, height: 780 }, mobile: true });
+  check('the top bar says where you are', /1 of 6 · Welcome/.test(await pg.locator('.player-topbar').innerText()));
+  eq('the slide\'s own "Start the course" button is left to Next', await pg.locator('.player-stage.reflow .player-block', { hasText: 'Start the course' }).count(), 0);
+  const tabs = await pg.locator('.player-info-tabs').boundingBox();
+  check('Resources and Glossary sit in the top bar, not over the slide', tabs && tabs.y + tabs.height <= 52, JSON.stringify(tabs));
   await pg.context().close();
 }
 // ---- Editor: Preview > Phone shows the reflowed column, and the slide can override it
