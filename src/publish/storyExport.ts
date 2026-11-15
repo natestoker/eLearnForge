@@ -22,6 +22,8 @@ export interface StoryExportResult { blob: Blob; warnings: string[] }
 const ZERO = '00000000-0000-0000-0000-000000000000';
 const PX_TO_PT = 3 / 4;
 const BIG = '3.40282347E+38';
+// The blank layout Storyline gives new layers in the shell project.
+const LAYER_LAYOUT_G = '24c85052-eec7-4a8e-81ec-40552db6ddd0';
 
 function guid(): string {
   const b = new Uint8Array(16);
@@ -36,6 +38,20 @@ function shortId(len: number, prefix = ''): string {
   const b = new Uint8Array(len);
   crypto.getRandomValues(b);
   return prefix + Array.from(b, (v) => ALNUM[v % ALNUM.length]).join('');
+}
+// Storyline's part ids ("R5pGMn2y5GAn") are a 62-bit number with the top bit
+// set, written in base 62; they always start with 5 or 6. Names outside that
+// range may not decode, so ours are made the same way.
+const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function partId(): string {
+  const b = new Uint8Array(8);
+  crypto.getRandomValues(b);
+  let v = 0n;
+  for (const x of b) v = (v << 8n) | BigInt(x);
+  v = (v & ((1n << 60n) - 1n)) | (1n << 62n);
+  let out = '';
+  while (v > 0n) { out = B62[Number(v % 62n)] + out; v /= 62n; }
+  return `R${out.padStart(11, '0')}`;
 }
 const gv = () => `g="${guid()}" verG="${guid()}"`;
 const xa = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -188,7 +204,7 @@ async function mediaFor(ctx: Ctx, src: string, name: string): Promise<string | n
   const hash = md5(bytes);
   let m = ctx.media.get(hash);
   if (!m) {
-    m = { g: guid(), file: `${shortId(11, 'R')}.png`, bytes, hash, name: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'Picture'}.png` };
+    m = { g: guid(), file: `${partId()}.png`, bytes, hash, name: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'Picture'}.png` };
     ctx.media.set(hash, m);
   }
   ctx.slideMedia.add(m.file);
@@ -242,8 +258,7 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
   if (b.type === 'image') {
     const assetG = await mediaFor(ctx, String(p.src ?? ''), b.name || 'Picture');
     if (assetG) {
-      const alt = p.alt ? `<alt>${xa(String(p.alt))}</alt>` : '';
-      return `<pic ${head(b, g, z, '110663', 'Picture')} assetG="${assetG}" imgSet="true" blend="srcCpy" useFileName="false" freeForm="false">${tmCtx('tmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${BG_DEFAULT}${locXml(ctx, b)}${anim}${hLink}${propBag()}${alt}${DIAL}<picFormat><offset /><tile /><sourceRect l="0" t="0" r="0" b="0" /><pic><brightness /><contrast /><recolor><clr /></recolor><blend><clr /></blend></pic></picFormat></pic>`;
+      return `<pic ${head(b, g, z, '110663', 'Picture')} assetG="${assetG}" imgSet="true" blend="srcCpy" useFileName="false" freeForm="false">${tmCtx('tmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${BG_DEFAULT}${locXml(ctx, b)}${anim}${hLink}${propBag()}${DIAL}<langAltText /><picFormat><offset /><tile /><sourceRect l="0" t="0" r="0" b="0" /><pic><brightness /><contrast /><recolor><clr /></recolor><blend><clr /></blend></pic></picFormat></pic>`;
     }
     warn(ctx, 'a picture could not be read and was left as an outline');
   }
@@ -289,11 +304,11 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
 }
 
 // ---------- triggers ----------
-interface TrigParts { g?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
+interface TrigParts { g?: string; keys?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
 function trigXml(owner: string, t: TrigParts): string {
   const shape = t.shape ?? 'setStateName="" setstateop="ass" stateInclude="all" statesNot="are" stateName=""';
   const other = t.other ?? 'op="ass" varVal1="" useVar="false" dblVal="0" boolVal="True"';
-  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="None" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
+  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="${t.keys ?? 'None'}" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
 }
 const NAV_EDIT = 'variablename, subslides, keypresskeys, actions, operators, variablevalue, variableoperators';
 const defaultNext = (owner: string) => trigXml(owner, { name: 'Navigation', edit: NAV_EDIT, group: 'next', event: 'OnNextButtonClick', action: 'jumpToSlide', sub: 'next', intent: 'Next', navState: 'Button, Gesture', cue: '0', frameAction: '0ec0db78-2e1d-4919-bde6-6824587f77c4' });
@@ -310,6 +325,7 @@ function actionParts(ctx: Ctx, a: Action, sourceBlockId: string | undefined): Pa
     case 'prevSlide': return { action: 'jumpToSlide', sub: 'prev' };
     case 'goToSlide': return ctx.slideG.has(a.slideId) ? { action: 'jumpToSlide', sub: 'spec', slide: `jumpG="${ctx.slideG.get(a.slideId)}" ` } : 'a jump to a deleted slide';
     case 'showLayer': return ctx.layerG.has(a.layerId) ? { action: 'showSubSlide', sub: 'spec', layer: `showG="${ctx.layerG.get(a.layerId)}" ` } : 'show a deleted layer';
+    case 'hideLayer': return ctx.layerG.has(a.layerId) ? { action: 'hideSubSlide', sub: 'spec', layer: `showG="${ctx.layerG.get(a.layerId)}" hideG="${ctx.layerG.get(a.layerId)}" ` } : 'hide a deleted layer';
     case 'openLightbox': return ctx.slideG.has(a.slideId) ? { action: 'LightboxSlide', sub: 'spec', slide: `lightBoxG="${ctx.slideG.get(a.slideId)}" ` } : 'a lightbox of a deleted slide';
     case 'completeCourse': return { action: 'CompleteCourse' };
     case 'setVariable': {
@@ -342,8 +358,9 @@ function condXml(ctx: Ctx, conds: Condition[], logic: 'and' | 'or'): string | nu
     const op = COND_OPS[c.operator ?? 'eq'];
     if (c.blockId || !v || !op) return null;
     const value = c.value ?? c.equals;
-    const num = v.type === 'number' ? Number(value) || 0 : v.type === 'boolean' ? (value ? 1 : 0) : 0;
-    out += `<trigCond ${gv()} lightBox="false" op="${op}" strVal1="${v.type === 'string' ? xa(String(value ?? '')) : ''}" strVal2="" floatVal1="${n(num)}" floatVal2="0" boolVal="" varG="${ctx.varG.get(v.id)}" varG2="${ZERO}" dataType="value" andOr="${logic}"><shapeState shapeG="${ZERO}" op="eq" name="Normal" /></trigCond>`;
+    const num = v.type === 'number' ? Number(value) || 0 : 0;
+    const boolVal = v.type === 'boolean' && value ? 'True' : '';
+    out += `<trigCond ${gv()} lightBox="false" op="${op}" strVal1="${v.type === 'string' ? xa(String(value ?? '')) : ''}" strVal2="" floatVal1="${n(num)}" floatVal2="0" boolVal="${boolVal}" varG="${ctx.varG.get(v.id)}" varG2="${ZERO}" dataType="value" andOr="${logic}"><shapeState shapeG="${ZERO}" op="eq" name="Normal" /></trigCond>`;
   }
   return out;
 }
@@ -368,6 +385,14 @@ function sortTriggers(ctx: Ctx, slide: Slide): { slideTrigs: string; layerTrigs:
       const src = t.sourceBlockId && ctx.blockG.get(t.sourceBlockId);
       switch (t.event) {
         case 'onClick': if (src) push(blockTrigs, t.sourceBlockId!, trigXml(src, { ...base, event: 'OnClick' })); break;
+        case 'onHover': if (src) push(blockTrigs, t.sourceBlockId!, trigXml(src, { ...base, event: 'OnMouseHover' })); break;
+        case 'onKeyPress': {
+          const k = t.key ?? '';
+          const keys = ({ ArrowRight: 'Right', ArrowLeft: 'Left', ArrowUp: 'Up', ArrowDown: 'Down' } as Record<string, string>)[k] ?? (/^[a-z0-9]$/i.test(k) ? k.toUpperCase() : '');
+          if (keys) slideTrigs += trigXml(slideG, { ...base, event: 'OnKeyPress', keys });
+          else warn(ctx, `a key-press trigger on "${k}" was left out: only arrow keys, letters and digits have a confirmed form`);
+          break;
+        }
         case 'onAnimationComplete': if (src) push(blockTrigs, t.sourceBlockId!, trigXml(src, { ...base, event: 'OnAnimationComplete' })); break;
         case 'onBlockEnters': if (src) push(blockTrigs, t.sourceBlockId!, trigXml(src, { ...base, event: 'OnStart' })); break;
         case 'onSlideLoad': case 'onTimelineStart': slideTrigs += trigXml(slideG, { ...base, event: 'OnStart' }); break;
@@ -419,14 +444,14 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
     const lMs = Math.max(5000, Math.round((layer.timeline?.duration ?? 5) * 1000));
     const shapes = await shapeList(ctx, layer, lMs, blockTrigs);
     const lt = layerTrigs.get(layer.id);
-    layers += `<sldLayer g="${lg}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${i + 1}" state="0" showMasterSp="false" name="${xa(layer.name)}" role="" resetMode="y" layoutG="${layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" resetModeInheritable="y" modal="${layer.modal ? 'true' : 'false'}" pause="${layer.pauseBase ? 'true' : 'false'}" stop="true" hideEnd="false" top="true" seek="y" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}" seekInheritable="y"><tmProps ${gv()} cur="0" min="${lMs}" visible="true" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG.replace('3.4028235E+38', BIG)}${SHDW_NONE}</bg>${shapes}${lt ? `<trigLst>${lt}</trigLst>` : '<trigLst />'}<trans /><thumbProv g="${guid()}" sz="30" /></sldLayer>`;
+    layers += `<sldLayer g="${lg}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${i + 1}" state="0" showMasterSp="false" name="${xa(layer.name)}" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="${layer.modal ? 'true' : 'false'}" pause="${layer.pauseBase ? 'true' : 'false'}" stop="true" hideEnd="false" top="true" seek="auto" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}"><tmProps ${gv()} cur="0" min="${lMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg>${shapes}${lt ? `<trigLst>${lt}</trigLst>` : '<trigLst />'}<localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></sldLayer>`;
   }
   const bg = slide.background?.type === 'color' && slide.background.color && hex6(slide.background.color, 'FFFFFF') !== 'FFFFFF'
     ? `<solidFill><clr><srgbClr val="${hex6(slide.background.color, 'FFFFFF')}" /></clr></solidFill>${SLIDE_BG}`
     : SLIDE_BG;
   if (slide.background && slide.background.type !== 'color') warn(ctx, 'gradient and picture slide backgrounds were left out');
   const nav = `${customNext ? '' : defaultNext(g)}${defaultPrev(g)}`;
-  return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="Content" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false" /><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}</trigLst><localizedName /><trans />${noteXml(slide.notes)}${layers ? `<sldLayerLst>${layers}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
+  return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="Content" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}</trigLst><localizedName /><trans />${noteXml(slide.notes)}<navData prev="${slide.nav?.back === 'hide' ? 'false' : 'true'}" prevGesture="true" next="${slide.nav?.next === 'hide' ? 'false' : 'true'}" nextGesture="true" submit="false" default="true" menu="true" res="true" glos="false" notes="false" seek="false" replay="false" play="true" search="false" ltBxClse="true" />${layers ? `<sldLayerLst nextIdx="0">${layers}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
 }
 
 const BOM = '\uFEFF';
@@ -462,7 +487,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   zip.remove('story/slides/slide.xml');
   zip.remove('story/slides/_rels/slide.xml.rels');
 
-  const shellSlideRel = /<Relationship Type="slide" Target="[^"]+" Id="([^"]+)"/.exec(await read('story/_rels/story.xml.rels'))?.[1] ?? shortId(11, 'R');
+  const shellSlideRel = /<Relationship Type="slide" Target="[^"]+" Id="([^"]+)"/.exec(await read('story/_rels/story.xml.rels'))?.[1] ?? partId();
   const slideRels: { type: string; target: string; id: string }[] = [];
   const slideIds: string[] = [];
   let overrides = '';
@@ -475,7 +500,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     }
     // The first slide keeps the shell's relationship id: the summary's start
     // path names it.
-    const id = i === 0 ? shellSlideRel : shortId(11, 'R');
+    const id = i === 0 ? shellSlideRel : partId();
     slideIds.push(id);
     slideRels.push({ type: 'slide', target: `/story/slides/${name}`, id });
     overrides += `<Override PartName="/story/slides/${name}" ContentType="application/slide+xml" />`;
@@ -490,9 +515,9 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     return `<var g="${ctx.varG.get(v.id)}" verG="${guid()}" name="${xa(v.name.replace(/[^A-Za-z0-9_]/g, '_'))}" dataType="${dt}" val="${xa(val)}" type="user" propPath="" isRandom="false" randomMin="0" randomMax="0" defaultEmptyIfZero="false" />`;
   }).join('');
   story = story.replace('</varLst>', `${vars}</varLst>`);
-  const now = new Date().toISOString().replace('Z', '0000-00:00');
+  const now = new Date().toISOString().replace('Z', '0000+00:00');
   const mediaXml = [...ctx.media.values()].map((m) =>
-    `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="${xa(m.name)}" source="${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');
+    `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="C:\\eLearnForge\\${xa(m.name)}" source="C:\\eLearnForge\\${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><langAltText /><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');
   story = story.replace('<mediaLst><mediaLst /></mediaLst>', mediaXml ? `<mediaLst><mediaLst>${mediaXml}</mediaLst></mediaLst>` : '<mediaLst><mediaLst /></mediaLst>');
   // Storyline lists every asset twice: in story.xml and in the theme.
   if (mediaXml) {

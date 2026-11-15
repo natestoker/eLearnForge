@@ -633,7 +633,7 @@ function convertTrigger(
       const ids = ownerBlocks.length ? ownerBlocks : clicked;
       return ids.length ? perSource('onClick', ids) : [];
     }
-    case 'OnMouseOver': case 'OnHover': return perSource('onHover', ownerBlocks);
+    case 'OnMouseOver': case 'OnHover': case 'OnMouseHover': return perSource('onHover', ownerBlocks);
     case 'OnDoubleClick': return perSource('onDoubleClick', ownerBlocks);
     case 'OnAnimationComplete': return perSource('onAnimationComplete', ownerBlocks.slice(0, 1));
     case 'OnStart':
@@ -657,7 +657,8 @@ function convertTrigger(
     }
     case 'OnKeyPress': {
       const key = kid(data, 'keyPress')?.getAttribute('keys') ?? '';
-      return key && key !== 'None' ? [one({ event: 'onKeyPress', key: key.length === 1 ? key.toLowerCase() : key })] : [];
+      const named = ({ Right: 'ArrowRight', Left: 'ArrowLeft', Up: 'ArrowUp', Down: 'ArrowDown', Space: ' ' } as Record<string, string>)[key];
+      return key && key !== 'None' ? [one({ event: 'onKeyPress', key: named ?? (key.length === 1 ? key.toLowerCase() : key) })] : [];
     }
     case 'OnNextButtonClick': case 'OnPrevButtonClick':
       // The player's own Next and Back already do this.
