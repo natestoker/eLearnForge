@@ -43,6 +43,9 @@ const assets = [...new Set([...allSlides.matchAll(/<pic [^>]*assetG="([^"]+)"/g)
 check('every picture has a media entry and a file', assets.every((g) => story.includes(`<media g="${g}"`)) && [...story.matchAll(/<media g=/g)].length === Object.keys(zip.files).filter((f) => /^story\/media\/R.*\.png$/.test(f)).length);
 const themeXml = await text('story/theme/theme.xml');
 check('pictures are listed in the theme as well', assets.every((g) => themeXml.includes(`<media g="${g}"`)));
+const b62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const partId = (g) => { const p = g.split('-'); let v = BigInt('0x' + p[0]) | (BigInt('0x' + p[1]) << 32n) | (BigInt('0x' + p[2]) << 48n); let o = ''; while (v > 0n) { o = b62[Number(v % 62n)] + o; v /= 62n; } return 'R' + o; };
+check('each picture file is named after its asset id, as Storyline requires', assets.every((g) => zip.file(`story/media/${partId(g)}.png`)));
 check('every GUID a trigger points at exists', [...allSlides.matchAll(/(?:jumpG|showG|setStateG|lightBoxG)="([^"]+)"/g)].every((m) => allSlides.includes(`g="${m[1]}"`)));
 
 // Round trip: open what was just saved.

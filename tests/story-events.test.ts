@@ -1,5 +1,6 @@
 import { Runtime } from '../src/engine/runtime';
 import { md5 } from '../src/publish/md5';
+import { partId } from '../src/publish/storyExport';
 
 let fails = 0;
 const eq = (name: string, got: unknown, want: unknown) => {
@@ -14,6 +15,10 @@ eq('md5 of nothing', md5(bytes('')), 'd41d8cd98f00b204e9800998ecf8427e');
 eq('md5 of "abc"', md5(bytes('abc')), '900150983cd24fb0d6963f7d28e17f72');
 eq('md5 across a block boundary', md5(bytes('12345678901234567890123456789012345678901234567890123456789012345678901234567890')), '57edf4a22be3c955ac49da2e2107b67a');
 eq('md5 of 1000 bytes', md5(new Uint8Array(1000).fill(97)), 'cabe45dcc9ae5b66ba86600cca6b8ba8');
+
+// Storyline names a part after its object's GUID. Both pairs are from real files.
+eq('slide part id from its GUID', partId('bb5e5c75-693a-43de-8898-b8e2268ef0de'), 'R5pGMn2y5GAn');
+eq('picture file name from its asset GUID', partId('f5555113-ee7b-4aba-8a2b-8ef27e8de89f'), 'R6Pmne65aeQt');
 
 const trig = (event: string, actions: unknown[], extra: object = {}) => ({ id: 't' + Math.random(), event, conditions: [], actions, ...extra });
 const vars = [{ id: 'v', name: 'n', type: 'number', defaultValue: 0 }, { id: 'ok', name: 'ok', type: 'boolean', defaultValue: false }];

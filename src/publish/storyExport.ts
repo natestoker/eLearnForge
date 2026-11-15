@@ -39,19 +39,17 @@ function shortId(len: number, prefix = ''): string {
   crypto.getRandomValues(b);
   return prefix + Array.from(b, (v) => ALNUM[v % ALNUM.length]).join('');
 }
-// Storyline's part ids ("R5pGMn2y5GAn") are a 62-bit number with the top bit
-// set, written in base 62; they always start with 5 or 6. Names outside that
-// range may not decode, so ours are made the same way.
+// A part's id is not free-form: Storyline derives it from the object's GUID
+// (the first eight bytes as a little-endian number, written in base 62 after
+// an "R"). A picture has no other link to its file, so its file name must be
+// exactly this or Storyline reports the asset as unreadable.
 const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-function partId(): string {
-  const b = new Uint8Array(8);
-  crypto.getRandomValues(b);
-  let v = 0n;
-  for (const x of b) v = (v << 8n) | BigInt(x);
-  v = (v & ((1n << 60n) - 1n)) | (1n << 62n);
+export function partId(g: string): string {
+  const p = g.split('-');
+  let v = BigInt(`0x${p[0]}`) | (BigInt(`0x${p[1]}`) << 32n) | (BigInt(`0x${p[2]}`) << 48n);
   let out = '';
   while (v > 0n) { out = B62[Number(v % 62n)] + out; v /= 62n; }
-  return `R${out.padStart(11, '0')}`;
+  return `R${out}`;
 }
 const gv = () => `g="${guid()}" verG="${guid()}"`;
 const xa = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -204,7 +202,8 @@ async function mediaFor(ctx: Ctx, src: string, name: string): Promise<string | n
   const hash = md5(bytes);
   let m = ctx.media.get(hash);
   if (!m) {
-    m = { g: guid(), file: `${partId()}.png`, bytes, hash, name: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'Picture'}.png` };
+    const g = guid();
+    m = { g, file: `${partId(g)}.png`, bytes, hash, name: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'Picture'}.png` };
     ctx.media.set(hash, m);
   }
   ctx.slideMedia.add(m.file);
@@ -487,7 +486,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   zip.remove('story/slides/slide.xml');
   zip.remove('story/slides/_rels/slide.xml.rels');
 
-  const shellSlideRel = /<Relationship Type="slide" Target="[^"]+" Id="([^"]+)"/.exec(await read('story/_rels/story.xml.rels'))?.[1] ?? partId();
+  const shellSlideRel = /<Relationship Type="slide" Target="[^"]+" Id="([^"]+)"/.exec(await read('story/_rels/story.xml.rels'))?.[1] ?? '';
   const slideRels: { type: string; target: string; id: string }[] = [];
   const slideIds: string[] = [];
   let overrides = '';
@@ -498,9 +497,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     if (ctx.slideMedia.size) {
       put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
     }
-    // The first slide keeps the shell's relationship id: the summary's start
-    // path names it.
-    const id = i === 0 ? shellSlideRel : partId();
+    const id = partId(ctx.slideG.get(slide.id)!);
     slideIds.push(id);
     slideRels.push({ type: 'slide', target: `/story/slides/${name}`, id });
     overrides += `<Override PartName="/story/slides/${name}" ContentType="application/slide+xml" />`;
@@ -547,6 +544,8 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const thumb = /thumbnail="([^"]*)"/.exec(summary)?.[1] ?? '';
   const sumSlides = project.slides.map((s) => `<slide name="${xa(s.name)}" g="${ctx.slideG.get(s.id)}" verG="${guid()}" note="" thumbnail="${thumb}" />`).join('');
   summary = summary.replace(/<slides>.*?<\/slides>/, `<slides>${sumSlides}</slides>`).replace(/slidecount="\d+"/, `slidecount="${project.slides.length}"`);
+  // The start path names the first slide by its part id.
+  if (project.slides[0] && shellSlideRel) summary = summary.replace(`.${shellSlideRel.slice(1)}"`, `.${partId(ctx.slideG.get(project.slides[0].id)!).slice(1)}"`);
   void oldG;
   put('docProps/summary.xml', BOM + summary);
 
