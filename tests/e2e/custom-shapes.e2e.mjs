@@ -31,7 +31,7 @@ const blocksOnSlide = () => page.locator('.stage-block').count();
 // ---- Double-click into the group: a visible, draggable selection on the child
 {
   const g = await page.locator('.stage-block.selected').boundingBox();
-  await page.mouse.dblclick(g.x + g.width * 0.7, g.y + g.height * 0.25);
+  await page.mouse.dblclick(g.x + g.width * 0.62, g.y + g.height * 0.45); // in a gap between shapes: still picks the nearest
   await page.waitForTimeout(300);
   eq('double-click selects a shape inside the group, with a visible selection', await page.locator('.nested-sel').count(), 1);
   eq('with resize handles', (await page.locator('.nested-sel .handle').count()) > 4, true);
@@ -80,6 +80,15 @@ await page.waitForSelector('.pen-dialog');
   eq('Ctrl+Shift+Z redoes the star', (await page.locator('.pen-count').innerText()).trim(), '12 points');
 }
 {
+  // The dialog must not change size when a point is selected or deselected.
+  {
+    const w0 = (await page.locator('.pen-dialog').boundingBox()).width;
+    const first = page.locator('.pen-node').first();
+    await first.click({ force: true });
+    await page.waitForTimeout(150);
+    const w1 = (await page.locator('.pen-dialog').boundingBox()).width;
+    eq('the pen dialog keeps its width when a point is selected', Math.round(w1), Math.round(w0));
+  }
   await page.locator('.pen-dialog button', { hasText: 'Clear' }).click();
   await page.locator('.pen-dialog button', { hasText: 'Freehand' }).click();
   const box = await page.locator('.pen-canvas').boundingBox();
@@ -191,6 +200,30 @@ await page.waitForSelector('.pen-dialog');
   };
   const props = await inset('Properties'), anim = await inset('Animate');
   check('Animate content is inset like Properties', Math.abs(props - anim) <= 2 && anim >= 10, `${props} vs ${anim}`);
+}
+
+// ---- Dragging a block past the edge must not move or rescale the canvas
+{
+  for (const vp of [{ width: 1366, height: 768 }, { width: 1280, height: 720 }, { width: 1920, height: 1040 }]) {
+    const pg = await editorPage(browser, vp);
+    const stageRect = () => pg.locator('.stage').evaluate((el) => { const r = el.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width)]; });
+    const blk = pg.locator('.stage-block').nth(1);
+    await blk.click({ force: true });
+    const b = await blk.boundingBox();
+    const before = await stageRect();
+    await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await pg.mouse.down();
+    const seen = new Set();
+    // Drag well past the right and bottom edges of the visible canvas, and back.
+    for (const [dx, dy] of [[300, 100], [700, 300], [1200, 600], [700, 300], [300, 100], [-200, -100]]) {
+      await pg.mouse.move(b.x + b.width / 2 + dx, b.y + b.height / 2 + dy, { steps: 6 });
+      await pg.waitForTimeout(120);
+      seen.add((await stageRect()).join(','));
+    }
+    await pg.mouse.up();
+    check(`the canvas stays put while dragging past its edge (${vp.width}x${vp.height})`, seen.size === 1 && [...seen][0] === before.join(','), `before ${before.join(',')} saw ${[...seen].join(' | ')}`);
+    await pg.context().close();
+  }
 }
 
 await browser.close();

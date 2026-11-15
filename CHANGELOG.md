@@ -1516,4 +1516,13 @@ Large-media "Compress" is not built; the check only warns.
   browser's own drag-and-drop of its content.
 - **Double-click into a group** selects the shape under the cursor with a real
   selection on the canvas: outline, resize handles, drag to move.
+- **The canvas no longer shakes while you drag.** Dragging a block past the
+  edge could toggle a scrollbar, which changed the fit scale, which toggled the
+  scrollbar again. The fit now ignores scrollbars and anything past the
+  pasteboard is clipped. A test drags past the edge at three window sizes and
+  checks the slide doesn't move.
+- **Double-click in a group** picks the nearest shape when you land in a gap
+  between shapes, instead of doing nothing.
+- **The pen dialog keeps its width** when you select a point; the point tools
+  are always there, disabled until a point is selected.
 

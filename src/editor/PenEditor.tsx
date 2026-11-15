@@ -471,14 +471,14 @@ export function PenEditor() {
           </button>
           <span className="pen-count">{nodes.length} points</span>
           <div className="pen-spacer" />
-          {selNode && (
-            <span className="pen-node-tools">
-              <button className="btn btn-ghost" title="Smooth point (mirrored handles)" onClick={() => convertSel('smooth')}>Smooth</button>
-              <button className="btn btn-ghost" title="Corner point (independent handles)" onClick={() => convertSel('corner')} disabled={!selNode.h1 && !selNode.h2}>Corner</button>
-              <button className="btn btn-ghost" title="Remove this point's handles" onClick={() => convertSel('straight')} disabled={!selNode.h1 && !selNode.h2}>Straight</button>
-              <button className="btn btn-ghost btn-danger" title="Delete this point" onClick={(e) => removeNode(sel!, e)}>Delete</button>
-            </span>
-          )}
+          {/* Always present, disabled until a point is selected: showing and
+              hiding them resized the whole dialog every time you clicked a point. */}
+          <span className="pen-node-tools">
+            <button className="btn btn-ghost" title="Smooth point (mirrored handles)" disabled={!selNode} onClick={() => convertSel('smooth')}>Smooth</button>
+            <button className="btn btn-ghost" title="Corner point (independent handles)" onClick={() => convertSel('corner')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Corner</button>
+            <button className="btn btn-ghost" title="Remove this point's handles" onClick={() => convertSel('straight')} disabled={!selNode || (!selNode.h1 && !selNode.h2)}>Straight</button>
+            <button className="btn btn-ghost btn-danger" title="Delete this point" disabled={!selNode} onClick={(e) => removeNode(sel!, e)}>Delete</button>
+          </span>
           <button className="btn" onClick={close}>Cancel</button>
           <button className="btn btn-accent" onClick={apply} disabled={nodes.length > 0 && nodes.length < 3}>
             {nodes.length === 0 ? (penEditor.mode === 'imageClip' ? 'Remove custom clip' : 'Remove custom shape') : 'Apply'}

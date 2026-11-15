@@ -119,14 +119,24 @@ export function BlockNode({
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               const lx = ((e.clientX - rect.left) / rect.width) * block.w;
               const ly = ((e.clientY - rect.top) / rect.height) * block.h;
-              const children = (block.props as { blocks: Block[] }).blocks;
+              const children = (block.props as { blocks: Block[] }).blocks.filter((c) => !c.editorHidden);
+              // The top-most child under the cursor; in a gap between shapes,
+              // the nearest one, so a double-click never silently does nothing.
+              let pick: Block | null = null;
               for (let i = children.length - 1; i >= 0; i--) {
                 const c = children[i];
-                if (lx >= c.x && lx <= c.x + c.w && ly >= c.y && ly <= c.y + c.h) {
-                  useProjectStore.getState().select({ blockId: c.id, blockIds: [] });
-                  return;
+                if (lx >= c.x && lx <= c.x + c.w && ly >= c.y && ly <= c.y + c.h) { pick = c; break; }
+              }
+              if (!pick) {
+                let best = Infinity;
+                for (const c of children) {
+                  const dx = Math.max(c.x - lx, 0, lx - (c.x + c.w));
+                  const dy = Math.max(c.y - ly, 0, ly - (c.y + c.h));
+                  const d = Math.hypot(dx, dy);
+                  if (d < best) { best = d; pick = c; }
                 }
               }
+              if (pick) useProjectStore.getState().select({ blockId: pick.id, blockIds: [] });
             }
           : undefined
       }
@@ -275,9 +285,13 @@ export function EditorCanvas() {
     if (!el) return;
     const measure = () => {
       const pad = 56;
+      // offsetWidth/Height include the scrollbars, so the fit never depends on
+      // whether a scrollbar is showing right now. With clientWidth/Height a
+      // block dragged past the edge toggled a scrollbar, which changed the fit
+      // scale, which toggled the scrollbar again: the whole canvas shook.
       const s = Math.min(
-        (el.clientWidth - pad) / slide.width,
-        (el.clientHeight - pad) / slide.height
+        (el.offsetWidth - pad) / slide.width,
+        (el.offsetHeight - pad) / slide.height
       );
       setScale(Math.max(0.1, Math.min(s, 1.5)));
     };
@@ -850,6 +864,9 @@ export function EditorCanvas() {
           height: (slide.height + PASTEBOARD * 2) * activeScale,
           flexShrink: 0,
           position: 'relative',
+          // Blocks dragged past the pasteboard are clipped, not scrollable:
+          // growing the scroll area mid-drag moved the whole canvas under you.
+          overflow: 'hidden',
           margin: 'auto'
         }}
         onPointerDown={startMarquee}
