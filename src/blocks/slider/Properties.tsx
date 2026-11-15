@@ -1,6 +1,7 @@
 import type { PropertiesRendererProps } from '../blockApi';
 import type { SliderProps } from '../../schema/types';
 import { CheckboxInput, Field, NumberInput, TextInput } from '../../editor/fields';
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 
 export function SliderProperties({ block, onUpdateProps }: PropertiesRendererProps) {
   const props = block.props as SliderProps;
@@ -21,6 +22,7 @@ export function SliderProperties({ block, onUpdateProps }: PropertiesRendererPro
       <Field label="Start value">
         <NumberInput value={props.defaultValue} onChange={(v) => onUpdateProps((p: SliderProps) => { p.defaultValue = v; })} />
       </Field>
+      <LabelStyleFields value={props.labelStyle} onChange={(v) => onUpdateProps((p: SliderProps) => { p.labelStyle = v; })} />
       <CheckboxInput label="Show current value" checked={props.showValue} onChange={(v) => onUpdateProps((p: SliderProps) => { p.showValue = v; })} />
       <p className="hint">Writes the number variable <code>slider_{block.id}_value</code> on every change - pair with gt / lt / between trigger conditions.</p>
     </>

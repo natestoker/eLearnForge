@@ -1,3 +1,4 @@
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 import type { PropertiesRendererProps } from '../blockApi';
 import type { TabsProps } from '../../schema/types';
 import { ColorInput, Field, NumberInput, SelectInput, TextArea, TextInput } from '../../editor/fields';
@@ -21,6 +22,7 @@ export function TabsProperties({ block, onUpdateProps }: PropertiesRendererProps
         <ColorInput value={props.accent ?? '#3ddc97'} onChange={(v) => onUpdateProps((p: TabsProps) => { p.accent = v; })} />
       </Field>
 
+      <LabelStyleFields label="Tab" sizePlaceholder={14} value={props.labelStyle} onChange={(v) => onUpdateProps((p: TabsProps) => { p.labelStyle = v; })} />
       <h4 className="panel-subtitle">Panels</h4>
       {props.panels.map((panel, i) => (
         <div key={panel.id} className="tabs-panel-edit">

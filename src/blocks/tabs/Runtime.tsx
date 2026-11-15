@@ -1,3 +1,4 @@
+import { labelStyleCss } from '../../shared/labelStyle';
 import { useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { TabsProps } from '../../schema/types';
@@ -14,7 +15,7 @@ export function TabsView({ props, accent }: { props: TabsProps; accent: string }
       <div className="tabs-block accordion" style={{ fontSize: props.fontSize }} onClick={(e) => e.stopPropagation()}>
         {props.panels.map((p, i) => (
           <div key={p.id} className={`acc-section ${open[i] ? 'open' : ''}`}>
-            <button className="acc-head" style={open[i] ? { color } : undefined} onClick={() => setOpen((o) => ({ ...o, [i]: !o[i] }))}>
+            <button className="acc-head" style={{ ...labelStyleCss(props.labelStyle), ...(open[i] && !props.labelStyle?.color ? { color } : {}) }} onClick={() => setOpen((o) => ({ ...o, [i]: !o[i] }))}>
               <span className="acc-caret">{open[i] ? '▾' : '▸'}</span> {p.label}
             </button>
             {open[i] && <div className="acc-body" dangerouslySetInnerHTML={{ __html: p.html }} />}
@@ -32,7 +33,7 @@ export function TabsView({ props, accent }: { props: TabsProps; accent: string }
           <button
             key={p.id}
             className={`tab-btn ${i === active ? 'active' : ''}`}
-            style={i === active ? { color, borderBottomColor: color } : undefined}
+            style={{ ...labelStyleCss(props.labelStyle), ...(i === active ? { color: props.labelStyle?.color ?? color, borderBottomColor: color } : {}) }}
             onClick={() => setActive(i)}
           >
             {p.label}

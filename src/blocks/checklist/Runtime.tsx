@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { ChecklistProps } from '../../schema/types';
+import { labelStyleCss } from '../../shared/labelStyle';
 import { checklistDoneVariableName } from '../../schema/factory';
 
 // All items checked sets cl_{blockId}_done true; unchecking clears it, so
@@ -20,7 +21,7 @@ export function ChecklistRuntime({ block, runtime }: RuntimeRendererProps) {
 
   return (
     <div className="cl-block live" onClick={(e) => e.stopPropagation()}>
-      {props.title && <p className="cl-title">{props.title}</p>}
+      {props.title && <p className="cl-title" style={labelStyleCss(props.labelStyle)}>{props.title}</p>}
       {props.items.map((it) => (
         <label key={it.id} className={`cl-row live ${checked[it.id] ? 'done' : ''}`}>
           <input

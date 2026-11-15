@@ -1,3 +1,4 @@
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 import type { PropertiesRendererProps } from '../blockApi';
 import type { ResultsProps } from '../../schema/types';
 import { CheckboxInput, Field, NumberInput, SelectInput, TextArea, TextInput } from '../../editor/fields';
@@ -10,6 +11,7 @@ export function ResultsProperties({ block, onUpdateProps }: PropertiesRendererPr
       <Field label="Heading">
         <TextInput value={props.heading} onChange={(v) => set((p) => { p.heading = v; })} />
       </Field>
+      <LabelStyleFields label="Heading" sizePlaceholder={16} value={props.labelStyle} onChange={(v) => set((p) => { p.labelStyle = v; })} />
       <Field label="Message when passed">
         <TextArea rows={2} value={props.passMessage} onChange={(v) => set((p) => { p.passMessage = v; })} />
       </Field>

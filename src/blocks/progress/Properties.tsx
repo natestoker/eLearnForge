@@ -1,3 +1,4 @@
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 import type { PropertiesRendererProps } from '../blockApi';
 import type { ProgressProps } from '../../schema/types';
 import { CheckboxInput, ColorInput, Field, SelectInput } from '../../editor/fields';
@@ -34,6 +35,7 @@ export function ProgressProperties({ block, onUpdateProps }: PropertiesRendererP
       <Field label="Color">
         <ColorInput value={props.color ?? '#3ddc97'} onChange={(v) => onUpdateProps((p: ProgressProps) => { p.color = v; })} />
       </Field>
+      <LabelStyleFields label="Percentage" sizePlaceholder={13} value={props.labelStyle} onChange={(v) => onUpdateProps((p: ProgressProps) => { p.labelStyle = v; })} />
       <CheckboxInput label="Show percentage label" checked={props.showLabel} onChange={(v) => onUpdateProps((p: ProgressProps) => { p.showLabel = v; })} />
     </>
   );

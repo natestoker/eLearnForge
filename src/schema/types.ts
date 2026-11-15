@@ -206,6 +206,7 @@ export interface FillBlankProps {
 // Progress widget: a bar or ring driven by course progress (viewed slides)
 // or a 0..100 number variable.
 export interface ProgressProps {
+  labelStyle?: LabelStyle;
   source: 'course' | 'variable';
   variableId?: string;
   color?: string;      // absent = player accent
@@ -239,6 +240,7 @@ export interface DragDropProps {
 // tab strip with one panel visible; 'accordion' stacks expandable sections.
 export interface TabPanel { id: string; label: string; html: string }
 export interface TabsProps {
+  labelStyle?: LabelStyle;
   layout: 'tabs' | 'accordion';
   panels: TabPanel[];
   accent?: string;
@@ -267,7 +269,17 @@ export interface SequenceProps {
 
 // Slider: a labeled range input. Every change writes the number variable
 // slider_{blockId}_value, so triggers can react with gt/lt/between.
+// Text style for a widget's label; every field optional (absent = default).
+export interface LabelStyle {
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  italic?: boolean;
+  color?: string;
+}
+
 export interface SliderProps {
+  labelStyle?: LabelStyle;
   label: string;
   min: number;
   max: number;
@@ -280,6 +292,7 @@ export interface SliderProps {
 // unchecking clears it), the classic "confirm the steps" gate.
 export interface ChecklistItem { id: string; text: string }
 export interface ChecklistProps {
+  labelStyle?: LabelStyle;
   title: string;
   items: ChecklistItem[];
 }
@@ -317,6 +330,7 @@ export interface ScenarioProps {
 // variable by name or a built-in (Score, ProgressPercent, SlideNumber...).
 // The player re-renders on every runtime change, so it tracks live.
 export interface VarDisplayProps {
+  labelStyle?: LabelStyle;
   reference: string;   // variable name or built-in reference name
   label: string;       // caption under the value; empty = value only
   prefix?: string;     // e.g. "$"
@@ -331,6 +345,7 @@ export interface VarDisplayProps {
 // message. Reads the course score (from Calculate from answers or a Set score
 // trigger) and the pass mark from Publish settings, so there is nothing to wire.
 export interface ResultsProps {
+  labelStyle?: LabelStyle;
   heading: string;
   passMessage: string;
   failMessage: string;

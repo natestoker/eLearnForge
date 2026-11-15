@@ -1,5 +1,6 @@
 import type { RuntimeRendererProps } from '../blockApi';
 import type { VarDisplayProps } from '../../schema/types';
+import { labelStyleCss } from '../../shared/labelStyle';
 
 // Live stat tile. The Player re-renders every block on runtime changes, so a
 // plain resolveReference read here stays current as variables move.
@@ -11,7 +12,7 @@ export function VarDisplayRuntime({ block, runtime }: RuntimeRendererProps) {
       <span className="vd-value" style={{ fontSize: props.fontSize, color: props.color || undefined }}>
         {props.prefix}{value}{props.suffix}
       </span>
-      {props.label && <span className="vd-label">{props.label}</span>}
+      {props.label && <span className="vd-label" style={labelStyleCss(props.labelStyle)}>{props.label}</span>}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { labelStyleCss } from '../../shared/labelStyle';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { ProgressProps } from '../../schema/types';
 
@@ -29,14 +30,14 @@ export function ProgressView({ props, frac, accent }: { props: ProgressProps; fr
           <circle cx="40" cy="40" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
             strokeDasharray={c} strokeDashoffset={c * (1 - frac)} transform="rotate(-90 40 40)" />
         </svg>
-        {props.showLabel && <span className="pw-ring-label">{pct}%</span>}
+        {props.showLabel && <span className="pw-ring-label" style={labelStyleCss(props.labelStyle)}>{pct}%</span>}
       </div>
     );
   }
   return (
     <div className="pw-bar-wrap">
       <div className="pw-bar-track"><div className="pw-bar-fill" style={{ width: `${pct}%`, background: color }} /></div>
-      {props.showLabel && <span className="pw-bar-label">{pct}%</span>}
+      {props.showLabel && <span className="pw-bar-label" style={labelStyleCss(props.labelStyle)}>{pct}%</span>}
     </div>
   );
 }

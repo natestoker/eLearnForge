@@ -1,3 +1,4 @@
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 import type { PropertiesRendererProps } from '../blockApi';
 import type { VarDisplayProps } from '../../schema/types';
 import { CheckboxInput, ColorInput, Field, NumberInput, SelectInput, TextInput } from '../../editor/fields';
@@ -54,6 +55,7 @@ export function VarDisplayProperties({ block, onUpdateProps }: PropertiesRendere
       <Field label="Value color">
         <ColorInput value={props.color ?? '#1fa871'} onChange={(v) => onUpdateProps((p: VarDisplayProps) => { p.color = v; })} />
       </Field>
+      <LabelStyleFields label="Caption" sizePlaceholder={13} value={props.labelStyle} onChange={(v) => onUpdateProps((p: VarDisplayProps) => { p.labelStyle = v; })} />
       <CheckboxInput label="Card style (border + background)" checked={props.tile} onChange={(v) => onUpdateProps((p: VarDisplayProps) => { p.tile = v; })} />
       <p className="hint">Updates live as the value changes. Text blocks can also embed references inline with <code>%Name%</code>.</p>
     </>

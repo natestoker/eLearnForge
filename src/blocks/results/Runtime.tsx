@@ -1,5 +1,6 @@
 import type { RuntimeRendererProps } from '../blockApi';
 import type { ResultsProps } from '../../schema/types';
+import { labelStyleCss } from '../../shared/labelStyle';
 import { passingScoreOf } from '../../engine/scoring';
 
 // Live results card. The player re-renders blocks on every runtime change, so
@@ -11,7 +12,7 @@ export function ResultsRuntime({ block, runtime }: RuntimeRendererProps) {
   const passed = score !== null && score >= pass;
   return (
     <div className="rs-block live" style={{ textAlign: props.align }} role="status" aria-live="polite">
-      <div className="rs-heading">{props.heading}</div>
+      <div className="rs-heading" style={labelStyleCss(props.labelStyle)}>{props.heading}</div>
       {score === null ? (
         <p className="rs-message">{props.noScoreMessage}</p>
       ) : (

@@ -1525,4 +1525,8 @@ Large-media "Compress" is not built; the check only warns.
   between shapes, instead of doing nothing.
 - **The pen dialog keeps its width** when you select a point; the point tools
   are always there, disabled until a point is selected.
+- **Label text styles.** Slider labels (and the slider's value and scale), plus
+  the title of a Checklist, the heading of Results, the caption of Score, the
+  percentage on Progress and the buttons of Tabs, now take a font, size, weight,
+  italic and color. Courses that don't set one look exactly as before.
 

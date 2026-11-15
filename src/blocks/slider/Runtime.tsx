@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { RuntimeRendererProps } from '../blockApi';
 import type { SliderProps } from '../../schema/types';
+import { labelStyleCss } from '../../shared/labelStyle';
 import { sliderVariableName } from '../../schema/factory';
 
 // Every change writes slider_{blockId}_value, so triggers can react with
@@ -20,9 +21,9 @@ export function SliderRuntime({ block, runtime }: RuntimeRendererProps) {
   };
 
   return (
-    <div className="slider-block live" onClick={(e) => e.stopPropagation()}>
+    <div className="slider-block live" onClick={(e) => e.stopPropagation()} style={{ color: props.labelStyle?.color, fontFamily: labelStyleCss(props.labelStyle).fontFamily }}>
       <div className="slider-head">
-        <span className="slider-label">{props.label}</span>
+        <span className="slider-label" style={labelStyleCss(props.labelStyle)}>{props.label}</span>
         {props.showValue && <span className="slider-value">{value}</span>}
       </div>
       <input

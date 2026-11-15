@@ -2,6 +2,7 @@ import type { PropertiesRendererProps } from '../blockApi';
 import type { ChecklistProps } from '../../schema/types';
 import { Field, TextInput } from '../../editor/fields';
 import { uid } from '../../schema/factory';
+import { LabelStyleFields } from '../../editor/LabelStyleFields';
 
 export function ChecklistProperties({ block, onUpdateProps }: PropertiesRendererProps) {
   const props = block.props as ChecklistProps;
@@ -10,6 +11,8 @@ export function ChecklistProperties({ block, onUpdateProps }: PropertiesRenderer
       <Field label="Title">
         <TextInput value={props.title} onChange={(v) => onUpdateProps((p: ChecklistProps) => { p.title = v; })} />
       </Field>
+
+      <LabelStyleFields label="Title" sizePlaceholder={15} value={props.labelStyle} onChange={(v) => onUpdateProps((p: ChecklistProps) => { p.labelStyle = v; })} />
 
       <h4 className="panel-subtitle">Items</h4>
       {props.items.map((it, i) => (

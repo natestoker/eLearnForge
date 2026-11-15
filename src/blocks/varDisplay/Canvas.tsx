@@ -1,5 +1,6 @@
 import type { CanvasRendererProps } from '../blockApi';
 import type { VarDisplayProps } from '../../schema/types';
+import { labelStyleCss } from '../../shared/labelStyle';
 import { useProjectStore } from '../../state/projectStore';
 
 // Authoring preview: resolve the reference against variable defaults so the
@@ -21,7 +22,7 @@ export function VarDisplayCanvas({ block }: CanvasRendererProps) {
       <span className="vd-value" style={{ fontSize: props.fontSize, color: props.color || undefined }}>
         {props.prefix}{value}{props.suffix}
       </span>
-      {props.label && <span className="vd-label">{props.label}</span>}
+      {props.label && <span className="vd-label" style={labelStyleCss(props.labelStyle)}>{props.label}</span>}
     </div>
   );
 }
