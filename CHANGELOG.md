@@ -1769,3 +1769,18 @@ Large-media "Compress" is not built; the check only warns.
   stored as a slide click with a "Previous" intent).
 - New test: `tests/e2e/story-export.e2e.mjs` (package structure and a round
   trip back through the importer).
+
+# v6.34
+
+## Storyline: quizzes on import, and a working Save as Storyline
+- **Imported Pick One, Pick Many and True/False questions work.** Choices
+  select like radio buttons or checkboxes, feedback layers come in named for
+  what they do, and Submit shows the right one. Scoring, attempt limits and the
+  other question types are not converted yet.
+- **Save as Storyline opens in Storyline 360.** Confirmed by opening test files
+  in Storyline 3.130: slides, text, shapes, pictures, layers, notes, variables,
+  hotspots, entrance animations, and click, hover, key-press, variable-change,
+  Jump to URL and Execute JavaScript triggers. Actions with no Storyline form
+  are saved as Execute JavaScript triggers.
+- Import also reads audio objects, Storyline hotspots, hover and
+  variable-change triggers, and named keys.

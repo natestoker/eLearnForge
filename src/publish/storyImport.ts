@@ -236,7 +236,16 @@ function animOf(group: Element | undefined): AnimSpec | undefined {
 }
 
 // ---------- import context ----------
+// A freeform pick-one / pick-many question: which shapes are the choices,
+// which are right, and which layers give the feedback.
+interface PickQuestion {
+  many: boolean;
+  choices: { g: string; mainG: string; correct: boolean }[];
+  correctLayerG: string; incorrectLayerG: string; tryLayerG: string; thanksLayerG: string;
+}
+
 interface Ctx {
+  picks: Map<string, PickQuestion>;    // interaction g -> question
   zip: JSZip;
   warnings: string[];
   fonts: Set<string>;
@@ -336,7 +345,9 @@ async function importShapes(
   let endMs = 0;
 
   for (const shape of kids(list)) {
-    const tag = shape.localName;
+    const rawTag = shape.localName;
+    // Feedback layers use their own tag names for an ordinary text box and button.
+    const tag = ({ feedbackTextBox: 'textBox', feedBackBtn: 'btn', rsltBtn: 'btn' } as Record<string, string>)[rawTag] ?? rawTag;
     const g = shape.getAttribute('g') ?? '';
     const name = shape.getAttribute('name') || undefined;
     for (const t of kids(kid(shape, 'trigLst'), 'trig')) shapeTriggers.push({ owner: g, el: t });
@@ -364,6 +375,22 @@ async function importShapes(
     const made: Block[] = [];
 
     if (tag === 'ph') continue; // an empty placeholder on a layout or master
+    if (rawTag === 'freePickOneIntr' || rawTag === 'freePickManyIntr') {
+      // The question itself is invisible: it only says which shapes are the
+      // choices and which are right. The Submit trigger is built from it.
+      const props = kid(shape, 'intrProps');
+      ctx.picks.set(g, {
+        many: rawTag === 'freePickManyIntr',
+        choices: kids(kid(shape, 'choices'), 'intrFreeChoice').map((c) => ({
+          g: c.getAttribute('shpG') ?? '', mainG: c.getAttribute('shpMainGrpG') ?? '',
+          correct: kid(c, 'scoringData')?.getAttribute('correct') === 'true'
+        })),
+        correctLayerG: props?.getAttribute('corFbG') ?? '', incorrectLayerG: props?.getAttribute('incFbG') ?? '',
+        tryLayerG: props?.getAttribute('tryFbG') ?? '', thanksLayerG: props?.getAttribute('thankFbG') ?? ''
+      });
+      ctx.blocksByG.set(g, []);
+      continue;
+    }
     if (tag === 'pic' || tag === 'svgimage') {
       const src = await mediaDataUrl(ctx, shape.getAttribute('assetG'));
       if (src) made.push({ id: uid('blk'), type: 'image', ...box, ...common, props: { src, fit: 'contain', alt: alt ?? '' } } as Block);
@@ -537,6 +564,7 @@ function convertTrigger(
 
   // ----- actions
   let actions: Action[] = [];
+  let submit: PickQuestion | null = null;
   const targets = (g: string | null | undefined) => (g && g !== ZERO_G ? ctx.blocksByG.get(g) ?? [] : []);
   switch (action) {
     case 'jumpToSlide': {
@@ -574,6 +602,14 @@ function convertTrigger(
     case 'LightboxSlide': {
       const id = ctx.slideByG.get(kid(data, 'slide')?.getAttribute('lightBoxG') ?? '');
       actions = id ? [{ type: 'openLightbox', slideId: id }] : unsupported('the lightbox slide was not found');
+      break;
+    }
+    case 'submitInteraction': {
+      const q = ctx.picks.get(kid(data, 'interaction')?.getAttribute('submitG') ?? '');
+      if (!q) { actions = unsupported('it submits a question type that is not converted yet'); break; }
+      // Marked below: the one trigger becomes a "right answer" and a "wrong answer" trigger.
+      actions = [{ type: 'executeJs', code: '// submit' }];
+      submit = q;
       break;
     }
     case 'CloseLightbox': actions = [{ type: 'closeLightbox' }]; break;
@@ -625,7 +661,7 @@ function convertTrigger(
   const perSource = (ev: Trigger['event'], ids: string[]): Trigger[] => ids.map((id) => one({ event: ev, sourceBlockId: id }));
 
   // ----- events
-  switch (event) {
+  const built = ((): Trigger[] => { switch (event) {
     case 'OnClick': {
       // Storyline stores the Previous button as a slide-level click with a
       // "Previous" intent.
@@ -672,7 +708,58 @@ function convertTrigger(
       ctx.note(slideName, `a trigger on "${event}" was switched off: that event has no equivalent`);
       void slideEl;
       return [one({ event: 'onSlideLoad', enabled: false })];
+  } })();
+  if (!submit) return built;
+
+  // Submit on a pick question. Right means every correct choice is selected
+  // and no wrong one is; anything else is wrong. A question with no correct
+  // choice is a survey and only says thank you.
+  const q: PickQuestion = submit;
+  const main = (c: PickQuestion['choices'][number]) => (ctx.blocksByG.get(c.mainG) ?? ctx.blocksByG.get(c.g) ?? [])[0];
+  const layer = (g: string) => (g && g !== ZERO_G ? ctx.layerByG.get(g) : undefined);
+  const show = (g: string): Action[] => { const id = layer(g); return id ? [{ type: 'showLayer', layerId: id }] : []; };
+  const picked = q.choices.map((c) => ({ id: main(c), correct: c.correct })).filter((c) => c.id);
+  const out: Trigger[] = [];
+  for (const t of built) {
+    if (!picked.some((c) => c.correct)) {
+      out.push({ ...t, id: uid('trg'), conditions: [], actions: show(q.thanksLayerG).length ? show(q.thanksLayerG) : [{ type: 'nextSlide' }] });
+      continue;
+    }
+    const right: Condition[] = picked.map((c) => ({ variableId: '', blockId: c.id, blockState: 'selected', operator: c.correct ? 'eq' : 'ne' }));
+    const wrong: Condition[] = picked.map((c) => ({ variableId: '', blockId: c.id, blockState: 'selected', operator: c.correct ? 'ne' : 'eq' }));
+    const no = show(q.incorrectLayerG).length ? show(q.incorrectLayerG) : show(q.tryLayerG);
+    if (show(q.correctLayerG).length) out.push({ ...t, id: uid('trg'), conditions: right, conditionLogic: 'and', actions: show(q.correctLayerG) });
+    if (no.length) out.push({ ...t, id: uid('trg'), conditions: wrong, conditionLogic: 'or', actions: no });
   }
+  if (!out.length) ctx.note(slideName, 'a question has no feedback layers, so Submit does nothing');
+  return out;
+}
+
+// Choices in a pick question select like radio buttons or checkboxes. A
+// choice is often a group (button, letter badge, text), so a click on any
+// part marks every part.
+function pickSelectionTriggers(ctx: Ctx): Trigger[] {
+  const out: Trigger[] = [];
+  for (const q of ctx.picks.values()) {
+    const parts = q.choices.map((c) => ctx.blocksByG.get(c.g) ?? []);
+    parts.forEach((mine, i) => {
+      const others = parts.flatMap((p, j) => (j === i ? [] : p));
+      for (const b of mine) {
+        if (q.many) {
+          const siblings = mine.filter((x) => x !== b);
+          if (!siblings.length) continue;
+          out.push({ id: uid('trg'), event: 'onClick', sourceBlockId: b, conditions: [{ variableId: '', blockId: b, blockState: 'selected', operator: 'eq' }], actions: siblings.map((x) => ({ type: 'setState', blockId: x, state: 'selected' } as Action)) });
+          out.push({ id: uid('trg'), event: 'onClick', sourceBlockId: b, conditions: [{ variableId: '', blockId: b, blockState: 'selected', operator: 'ne' }], actions: siblings.map((x) => ({ type: 'setState', blockId: x, state: 'normal' } as Action)) });
+        } else {
+          out.push({ id: uid('trg'), event: 'onClick', sourceBlockId: b, conditions: [], actions: [
+            ...mine.map((x) => ({ type: 'setState', blockId: x, state: 'selected' } as Action)),
+            ...others.map((x) => ({ type: 'setState', blockId: x, state: 'normal' } as Action))
+          ] });
+        }
+      }
+    });
+  }
+  return out;
 }
 
 function backgroundOf(bg: Element | undefined, theme: Theme): SlideBackground | undefined {
@@ -706,7 +793,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
   const perSlide = new Map<string, Map<string, number>>();
   const ctx: Ctx = {
     zip, warnings, fonts: new Set(), mediaByAsset: new Map(), dataUrls: new Map(),
-    slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(),
+    picks: new Map(), slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(),
     note: (slide, msg) => {
       const m = perSlide.get(slide) ?? new Map<string, number>();
       m.set(msg, (m.get(msg) ?? 0) + 1);
@@ -801,6 +888,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     parsed.push({ el, slide, scene });
   }
 
+  const seenPicks = new Set<string>();
   // Pass 2: shapes and layers.
   const pending: { slide: Slide; name: string; el: Element; triggers: { owner: { kind: 'slide' | 'layer' | 'shape'; g: string }; el: Element }[] }[] = [];
   for (const { el, slide } of parsed) {
@@ -829,8 +917,14 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     slide.triggers.push(...main.popupTriggers);
 
     let endMs = main.endMs;
-    for (const lay of kids(kid(el, 'sldLayerLst'), 'sldLayer')) {
-      const layer: Layer = createLayer(lay.getAttribute('name') || 'Layer', false);
+    const feedbackNames = new Map<string, string>();
+    for (const intr of Array.from(el.getElementsByTagName('intrProps'))) {
+      for (const [attr, label] of [['corFbG', 'Correct'], ['incFbG', 'Incorrect'], ['tryFbG', 'Try again'], ['thankFbG', 'Thank you']] as const) {
+        feedbackNames.set(intr.getAttribute(attr) ?? '', label);
+      }
+    }
+    for (const lay of kids(kid(el, 'sldLayerLst')).filter((l) => l.localName === 'sldLayer' || l.localName === 'feedBackLayer')) {
+      const layer: Layer = createLayer(lay.getAttribute('name') || feedbackNames.get(lay.getAttribute('g') ?? '') || 'Layer', false);
       if (lay.getAttribute('modal') === 'true') layer.modal = true;
       const res = await importShapes(kid(lay, 'shapeLst'), ctx, slideTheme, slide.name);
       layer.blocks = res.blocks;
@@ -869,6 +963,12 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
         ...(nav.getAttribute('prev') === 'false' ? { back: 'hide' as const } : {})
       };
     }
+    // Every block that is part of a choice needs a Selected state to toggle.
+    const choiceIds = new Set([...ctx.picks.entries()].filter(([g]) => !seenPicks.has(g)).flatMap(([, q]) => q.choices.flatMap((c) => ctx.blocksByG.get(c.g) ?? [])));
+    for (const layer of slide.layers) for (const b of layer.blocks) if (choiceIds.has(b.id)) b.stateStyles = { ...(b.stateStyles ?? {}), selected: b.stateStyles?.selected ?? {} };
+    const fresh = new Map([...ctx.picks].filter(([g]) => !seenPicks.has(g)));
+    slide.triggers.push(...pickSelectionTriggers({ ...ctx, picks: fresh }));
+    fresh.forEach((_, g) => seenPicks.add(g));
     pending.push({ slide, name: slide.name, el, triggers });
   }
 

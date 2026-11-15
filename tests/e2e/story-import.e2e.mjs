@@ -72,8 +72,15 @@ const menu = `<?xml version="1.0" encoding="utf-8"?><sld g="sld-menu" name="Menu
 <navData prev="true" next="true" />
 </sld>`;
 
+const choice = (g, name, x) => `<oval g="${g}" name="${name}" rot="-1">${ctx()}<trigLst /><stateLst><state name="Selected"><shapeLst><oval g="${g}-sel"><bG><solidFill><clr><srgbClr val="FFCC00" /></clr></solidFill></bG><loc l="0" t="0" r="10" b="10" /></oval></shapeLst></state></stateLst><bG><solidFill><clr><srgbClr val="DDDDDD" /></clr></solidFill><noLine /></bG><loc l="${x}" t="200" r="${x + 80}" b="280" /><animEffect /></oval>`;
+const fbLayer = (g, text) => `<feedBackLayer g="${g}" name="" modal="false"><tmProps min="5000" /><bg /><shapeLst><feedbackTextBox g="${g}-t" name="Feedback Text" rot="-1">${ctx()}<trigLst /><stateLst /><bG><noFill /></bG><loc l="300" t="400" r="700" b="460" /><animEffect /><text>${doc(text)}</text></feedbackTextBox></shapeLst><trigLst /></feedBackLayer>`;
 const detail = `<?xml version="1.0" encoding="utf-8"?><sld g="sld-detail" name="Details" layoutG="lay-1"><tmProps min="5000" /><bg><solidFill><clr><srgbClr val="EEF2FF" /></clr></solidFill></bg>
-<shapeLst><textBox g="shp-d" name="Body" rot="-1">${ctx()}<trigLst /><stateLst /><bG><noFill /></bG><loc l="40" t="40" r="600" b="100" /><animEffect /><text>${doc('Detail slide')}</text></textBox></shapeLst>
+<shapeLst><textBox g="shp-d" name="Body" rot="-1">${ctx()}<trigLst /><stateLst /><bG><noFill /></bG><loc l="40" t="40" r="600" b="100" /><animEffect /><text>${doc('Detail slide')}</text></textBox>
+${choice('ch-a', 'Choice A', 60)}${choice('ch-b', 'Choice B', 200)}
+<rect g="shp-submit" name="Submit" rot="-1">${ctx()}<trigLst>${trig({ event: 'OnClick', action: 'submitInteraction', inner: '<interaction submitG="q-1" />' }).replace('<other ', '<interaction submitG="q-1" /><other ')}</trigLst><stateLst /><bG><solidFill><clr><srgbClr val="222222" /></clr></solidFill><noLine /></bG><loc l="60" t="320" r="200" b="370" /><animEffect /></rect>
+<freePickOneIntr g="q-1" name="" rot="-1">${ctx()}<loc l="0" t="0" r="960" b="540" /><intrProps corFbG="fb-right" incFbG="fb-wrong" tryFbG="00000000-0000-0000-0000-000000000000" thankFbG="00000000-0000-0000-0000-000000000000" /><choices><intrFreeChoice g="c1" shpG="ch-a" shpMainGrpG="ch-a"><scoringData correct="false" /></intrFreeChoice><intrFreeChoice g="c2" shpG="ch-b" shpMainGrpG="ch-b"><scoringData correct="true" /></intrFreeChoice></choices></freePickOneIntr>
+</shapeLst>
+<sldLayerLst>${fbLayer('fb-right', 'That is right')}${fbLayer('fb-wrong', 'Not this time')}</sldLayerLst>
 <trigLst /><navData prev="true" next="false" /></sld>`;
 
 const popup = `<?xml version="1.0" encoding="utf-8"?><sld g="sld-pop" name="Popup" layoutG="lay-1"><tmProps min="5000" /><bg />
@@ -159,6 +166,19 @@ if (project) {
   eq('a custom Back action takes over the Back button', find((x) => x.event === 'onBack')?.actions[0].slideId, s2.id);
 }
 
+// ---- a pick-one question: choices select like radio buttons, Submit shows the right feedback
+if (project) {
+  const s2 = project.slides[1];
+  const b = (name) => s2.layers[0].blocks.find((x) => x.name === name);
+  eq('feedback layers come in, named by what they are for', s2.layers.slice(1).map((l) => l.name), ['Correct', 'Incorrect']);
+  check('the question object itself leaves no placeholder', !s2.layers[0].blocks.some((x) => /not converted/.test(x.name ?? '')));
+  check('choices can be selected', Boolean(b('Choice A').stateStyles.selected) && b('Choice B').stateStyles.selected.fill === '#FFCC00');
+  const pickA = s2.triggers.find((t) => t.event === 'onClick' && t.sourceBlockId === b('Choice A').id);
+  eq('choosing one clears the other', pickA.actions.map((a) => [a.blockId === b('Choice A').id ? 'A' : 'B', a.state]), [['A', 'selected'], ['B', 'normal']]);
+  const submits = s2.triggers.filter((t) => t.sourceBlockId === b('Submit').id && t.actions[0].type === 'showLayer');
+  eq('Submit has a right and a wrong trigger', submits.map((t) => [s2.layers.find((l) => l.id === t.actions[0].layerId).name, t.conditionLogic, t.conditions.map((c) => c.operator).join(',')]), [['Correct', 'and', 'ne,eq'], ['Incorrect', 'or', 'eq,ne']]);
+}
+
 // ---- it plays: layer shown -> variable set; custom Back; hidden layers on the canvas
 eq('extra layers start hidden on the canvas', await ed.locator('.layer-item .eye.off').count(), 1);
 await ed.getByRole('button', { name: /Preview/ }).first().click();
@@ -176,6 +196,10 @@ eq('showing the layer ran its trigger', await value('seenIntro'), 'true');
 await P.locator('button', { hasText: /^Back$/ }).click();
 await ed.waitForTimeout(700);
 check('Back followed its custom trigger to Details', (await P.locator('.player-stage').innerText()).includes('Detail slide'));
+const tap = async (name) => { const id = await ed.evaluate((n) => window.__forgeStore.getState().project.slides[1].layers[0].blocks.find((x) => x.name === n).id, name); await P.locator(`[data-block-id="${id}"]`).click({ force: true }); await ed.waitForTimeout(350); };
+await tap('Choice A'); await tap('Submit');
+check('a wrong answer shows the Incorrect feedback', (await P.locator('.player-stage').innerText()).includes('Not this time'));
+
 
 await browser.close();
 finish();

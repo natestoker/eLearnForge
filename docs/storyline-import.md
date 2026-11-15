@@ -58,11 +58,23 @@ Anything else is kept as a **Run JavaScript** trigger whose code is a comment
 saying what the original did, so the logic is not silently lost and you can
 see where to rebuild it.
 
+### Quiz questions
+
+Freeform **Pick One**, **Pick Many** and **True/False** questions work after
+import. The choices select like radio buttons or checkboxes, the question's
+feedback layers come in named Correct, Incorrect and Try again, and Submit
+shows the right one. A question with no correct answer (a survey or rating)
+shows its Thank you layer.
+
+Not carried yet: points and the quiz score, attempt limits (a wrong answer
+always shows Incorrect), and shuffling.
+
 ## Not converted yet
 
 - Audio and video narration timing has only been checked on files without
   media; audio and video objects import, but treat them as unverified.
-- Quiz and survey slides, result slides, question banks.
+- Fill-in-the-blank, matching, ordering, sorting and hotspot questions, result
+  slides, question banks, and quiz scoring.
 - Sliders, dials, scrolling panels, web objects, input fields: a labelled
   outline marks where each one was.
 - Custom states (anything other than the built-in six) and motion paths.
