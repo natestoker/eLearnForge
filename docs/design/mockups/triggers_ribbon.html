@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lumina Forge - Triggers</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;800&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .logic-line {
+            stroke-dasharray: 4;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+        .panel-blur {
+            backdrop-filter: blur(8px);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #131313;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c4a41;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #61f9b1;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-fixed": "#002112",
+                      "tertiary": "#ffd8b6",
+                      "on-tertiary-container": "#784300",
+                      "inverse-surface": "#e5e2e1",
+                      "on-background": "#e5e2e1",
+                      "on-surface-variant": "#bbcabe",
+                      "on-primary-container": "#005c3a",
+                      "surface-variant": "#353534",
+                      "secondary": "#61de8a",
+                      "on-tertiary-fixed-variant": "#6a3b00",
+                      "surface-dim": "#131313",
+                      "on-primary-fixed-variant": "#005233",
+                      "surface-container-low": "#1c1b1b",
+                      "inverse-primary": "#006c45",
+                      "error-container": "#93000a",
+                      "surface-bright": "#393939",
+                      "on-secondary-fixed": "#00210c",
+                      "tertiary-container": "#ffb368",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#61de8a",
+                      "primary-fixed-dim": "#42e09a",
+                      "inverse-on-surface": "#313030",
+                      "on-tertiary": "#4a2800",
+                      "error": "#ffb4ab",
+                      "tertiary-fixed": "#ffdcbf",
+                      "on-secondary-container": "#003115",
+                      "surface-container-high": "#2a2a2a",
+                      "primary": "#61f9b1",
+                      "on-secondary": "#00391a",
+                      "on-error-container": "#ffdad6",
+                      "primary-fixed": "#65fdb5",
+                      "surface": "#131313",
+                      "outline-variant": "#3c4a41",
+                      "tertiary-fixed-dim": "#ffb873",
+                      "secondary-fixed": "#7efba4",
+                      "surface-container-highest": "#353534",
+                      "on-secondary-fixed-variant": "#005228",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-surface": "#e5e2e1",
+                      "surface-container": "#201f1f",
+                      "secondary-container": "#18a659",
+                      "on-tertiary-fixed": "#2d1600",
+                      "on-primary": "#003822",
+                      "outline": "#859489",
+                      "primary-container": "#3ddc97",
+                      "background": "#131313",
+                      "surface-tint": "#42e09a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "1px",
+                      "stack-gap": "8px",
+                      "ribbon-height": "120px",
+                      "unit": "4px",
+                      "sidebar-width": "260px",
+                      "panel-padding": "12px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Hanken Grotesk"],
+                      "label-code": ["JetBrains Mono"],
+                      "body-sm": ["Inter"],
+                      "ribbon-tab": ["Hanken Grotesk"],
+                      "body-md": ["Inter"],
+                      "headline-sm": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                      "label-code": ["11px", { "lineHeight": "16px", "fontWeight": "500" }],
+                      "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
+                      "ribbon-tab": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                      "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }],
+                      "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar (The Ribbon) -->
+<header class="bg-surface-container-low border-b border-outline-variant flex flex-col w-full h-[120px] px-gutter z-50">
+<div class="flex items-center justify-between px-6 py-2 border-b border-outline-variant/30">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight">Lumina Forge</h1>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">account_circle</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">help</span>
+</div>
+</div>
+<div class="flex flex-1 items-center px-6 gap-8 overflow-x-auto no-scrollbar">
+<!-- Tabs -->
+<nav class="flex h-full items-center gap-6">
+<a class="font-ribbon-tab text-ribbon-tab text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Home</a>
+<a class="font-ribbon-tab text-ribbon-tab text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Insert</a>
+<a class="font-ribbon-tab text-ribbon-tab text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Slide</a>
+<a class="font-ribbon-tab text-ribbon-tab text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Animations</a>
+<a class="font-ribbon-tab text-ribbon-tab text-on-surface border-b-2 border-primary pb-1 cursor-pointer" href="#">Triggers</a>
+</nav>
+<div class="h-8 w-px bg-outline-variant"></div>
+<!-- Ribbon Groups -->
+<div class="flex items-center gap-8">
+<!-- Group: Project Logic -->
+<div class="flex flex-col items-center">
+<div class="flex gap-2">
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-primary">database</span>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">Variables</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-primary">code</span>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">JS Editor</span>
+</button>
+</div>
+<span class="font-body-sm text-on-surface-variant opacity-50 mt-1 uppercase text-[9px] tracking-widest">Project Logic</span>
+</div>
+<div class="h-10 w-px bg-outline-variant/30"></div>
+<!-- Group: Slide Events -->
+<div class="flex flex-col items-center">
+<div class="flex gap-2">
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group overflow-hidden">
+<div class="w-6 h-6 relative">
+<img alt="On Click" class="absolute" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAYOJ2egjjytJl0IMnT0AGtmfiPlmxdP7K2LS7m37INgEDZ7Tr3p5yaE_97eVHVMlY0Rm1h3paAFmELrWQ4hIzk1RN5mnpi-LCnLIIJgpbjAhGkMJ41yYGo1uno1_QRhRwWnfo0Ab8hnZ7wEdKBzwqZTZS46JAg9MUXkWsGYaRdJmWdCy9vqYxk7k7Lo-oIaiIxcIyEx3sfLpLKYJpAYyGp6J4hHILlZfLb1w4Juk31jB58FAsRFM3MA" style="width: 400%; height: 300%; top: 0; left: 0; object-fit: cover;"/>
+</div>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">On Click</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group overflow-hidden">
+<div class="w-6 h-6 relative">
+<img alt="On Hover" class="absolute" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAYOJ2egjjytJl0IMnT0AGtmfiPlmxdP7K2LS7m37INgEDZ7Tr3p5yaE_97eVHVMlY0Rm1h3paAFmELrWQ4hIzk1RN5mnpi-LCnLIIJgpbjAhGkMJ41yYGo1uno1_QRhRwWnfo0Ab8hnZ7wEdKBzwqZTZS46JAg9MUXkWsGYaRdJmWdCy9vqYxk7k7Lo-oIaiIxcIyEx3sfLpLKYJpAYyGp6J4hHILlZfLb1w4Juk31jB58FAsRFM3MA" style="width: 400%; height: 300%; top: 0; left: -100%; object-fit: cover;"/>
+</div>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">On Hover</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group overflow-hidden">
+<div class="w-6 h-6 relative">
+<img alt="On Start" class="absolute" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAYOJ2egjjytJl0IMnT0AGtmfiPlmxdP7K2LS7m37INgEDZ7Tr3p5yaE_97eVHVMlY0Rm1h3paAFmELrWQ4hIzk1RN5mnpi-LCnLIIJgpbjAhGkMJ41yYGo1uno1_QRhRwWnfo0Ab8hnZ7wEdKBzwqZTZS46JAg9MUXkWsGYaRdJmWdCy9vqYxk7k7Lo-oIaiIxcIyEx3sfLpLKYJpAYyGp6J4hHILlZfLb1w4Juk31jB58FAsRFM3MA" style="width: 400%; height: 300%; top: -100%; left: 0; object-fit: cover;"/>
+</div>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">On Start</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group overflow-hidden">
+<div class="w-6 h-6 relative">
+<img alt="Variable" class="absolute" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAYOJ2egjjytJl0IMnT0AGtmfiPlmxdP7K2LS7m37INgEDZ7Tr3p5yaE_97eVHVMlY0Rm1h3paAFmELrWQ4hIzk1RN5mnpi-LCnLIIJgpbjAhGkMJ41yYGo1uno1_QRhRwWnfo0Ab8hnZ7wEdKBzwqZTZS46JAg9MUXkWsGYaRdJmWdCy9vqYxk7k7Lo-oIaiIxcIyEx3sfLpLKYJpAYyGp6J4hHILlZfLb1w4Juk31jB58FAsRFM3MA" style="width: 400%; height: 300%; top: -100%; left: -100%; object-fit: cover;"/>
+</div>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">Variable</span>
+</button>
+</div>
+<span class="font-body-sm text-on-surface-variant opacity-50 mt-1 uppercase text-[9px] tracking-widest">Trigger Types</span>
+</div>
+<div class="h-10 w-px bg-outline-variant/30"></div>
+<!-- Group: Actions -->
+<div class="flex flex-col items-center">
+<div class="flex gap-2">
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-primary">shortcut</span>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">Jump To</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-primary">layers</span>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">Show Layer</span>
+</button>
+<button class="flex flex-col items-center justify-center w-16 h-14 bg-surface-container-high rounded border border-outline-variant hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-primary">play_circle</span>
+<span class="font-label-code text-label-code mt-1 text-on-surface-variant">Play Media</span>
+</button>
+</div>
+<span class="font-body-sm text-on-surface-variant opacity-50 mt-1 uppercase text-[9px] tracking-widest">Actions</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex flex-1 overflow-hidden">
+<!-- SideNavBar (Left) -->
+<aside class="bg-surface-container border-r border-outline-variant w-sidebar-width flex flex-col">
+<div class="p-panel-padding border-b border-outline-variant bg-surface-container-high/50">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Slide Explorer</h2>
+<p class="font-body-sm text-on-surface-variant">Project Overview</p>
+</div>
+<nav class="flex-1 overflow-y-auto">
+<div class="flex items-center px-4 py-2 gap-3 hover:bg-surface-container-high transition-all cursor-pointer text-on-surface-variant">
+<span class="material-symbols-outlined">layers</span>
+<span class="font-body-sm">Slides</span>
+</div>
+<div class="flex items-center px-4 py-2 gap-3 hover:bg-surface-container-high transition-all cursor-pointer text-on-surface-variant">
+<span class="material-symbols-outlined">perm_media</span>
+<span class="font-body-sm">Assets</span>
+</div>
+<div class="flex items-center px-4 py-2 gap-3 hover:bg-surface-container-high transition-all cursor-pointer text-on-surface-variant">
+<span class="material-symbols-outlined">stacks</span>
+<span class="font-body-sm">Layers</span>
+</div>
+<div class="flex items-center px-4 py-2 gap-3 hover:bg-surface-container-high transition-all cursor-pointer text-on-surface-variant">
+<span class="material-symbols-outlined">palette</span>
+<span class="font-body-sm">Themes</span>
+</div>
+</nav>
+</aside>
+<!-- Central Stage -->
+<section class="flex-1 relative bg-surface-container-lowest overflow-hidden flex items-center justify-center">
+<!-- Background Canvas Grid -->
+<div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#61f9b1 0.5px, transparent 0.5px); background-size: 20px 20px;"></div>
+<!-- Configuration Workspace -->
+<div class="relative z-10 w-full h-full p-8 flex items-center justify-center">
+<svg class="absolute inset-0 pointer-events-none w-full h-full">
+<path class="logic-line" d="M 400 300 C 500 300, 600 500, 700 500" fill="none" stroke="#61f9b1" stroke-width="2"></path>
+<circle cx="400" cy="300" fill="#61f9b1" r="4"></circle>
+<circle cx="700" cy="500" fill="#61f9b1" r="4"></circle>
+</svg>
+<!-- Trigger Node: Source -->
+<div class="absolute top-[250px] left-[200px] w-64 bg-surface-container-high border border-primary rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-left duration-500">
+<div class="bg-primary text-on-primary px-3 py-1 flex items-center justify-between">
+<span class="font-label-code text-[10px] uppercase">Event Trigger</span>
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+</div>
+<div class="p-3">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary">ads_click</span>
+<span class="font-body-sm font-bold">When User Clicks</span>
+</div>
+<div class="space-y-2">
+<div class="bg-surface-container p-2 rounded border border-outline-variant/30">
+<label class="font-label-code text-[9px] text-on-surface-variant block uppercase">Target Object</label>
+<span class="font-body-sm">CTA_Button_Main</span>
+</div>
+<div class="bg-surface-container p-2 rounded border border-outline-variant/30">
+<label class="font-label-code text-[9px] text-on-surface-variant block uppercase">Condition</label>
+<span class="font-body-sm italic">Always active</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Trigger Node: Action -->
+<div class="absolute bottom-[250px] right-[200px] w-64 bg-surface-container-high border border-outline-variant rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-right duration-500">
+<div class="bg-surface-variant text-on-surface px-3 py-1 flex items-center justify-between border-b border-outline-variant">
+<span class="font-label-code text-[10px] uppercase">System Action</span>
+<span class="material-symbols-outlined text-[14px]">settings_input_component</span>
+</div>
+<div class="p-3">
+<div class="flex items-center gap-2 mb-2 text-primary">
+<span class="material-symbols-outlined">shortcut</span>
+<span class="font-body-sm font-bold">Jump to Slide</span>
+</div>
+<div class="space-y-2">
+<div class="bg-surface-container p-2 rounded border border-outline-variant/30">
+<label class="font-label-code text-[9px] text-on-surface-variant block uppercase">Destination</label>
+<span class="font-body-sm">04_Checkout_Success</span>
+</div>
+<div class="bg-surface-container p-2 rounded border border-outline-variant/30">
+<label class="font-label-code text-[9px] text-on-surface-variant block uppercase">Transition</label>
+<span class="font-body-sm">Fade (0.5s)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel (Trigger Wizard / Active Triggers) -->
+<aside class="w-[320px] bg-surface-container border-l border-outline-variant flex flex-col">
+<div class="p-panel-padding bg-surface-container-highest/20 flex items-center justify-between border-b border-outline-variant">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Trigger Wizard</h3>
+<button class="bg-primary text-on-primary w-6 h-6 flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- Search/Filter -->
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded px-3 py-2 text-body-sm focus:outline-none focus:border-primary" placeholder="Search triggers..." type="text"/>
+<span class="material-symbols-outlined absolute right-2 top-2 text-on-surface-variant">search</span>
+</div>
+<!-- Active Trigger List -->
+<div class="space-y-2">
+<label class="font-label-code text-on-surface-variant text-[10px] uppercase tracking-widest">Active on this Slide (3)</label>
+<!-- Trigger Item 1 -->
+<div class="group bg-surface-container-high border-l-2 border-primary p-3 rounded-r cursor-pointer hover:bg-surface-container-highest transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="font-body-sm font-bold text-primary">On Timeline End</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">Jump to Slide: Intro_Final</p>
+</div>
+<!-- Trigger Item 2 (Active/Selected) -->
+<div class="group bg-secondary-container/10 border-l-2 border-primary p-3 rounded-r cursor-pointer border border-outline-variant">
+<div class="flex items-center justify-between mb-1">
+<span class="font-body-sm font-bold text-primary">On User Click</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">visibility</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">Target: CTA_Button_Main</p>
+<p class="font-body-sm text-on-surface-variant">Action: Jump to Slide: Checkout</p>
+</div>
+<!-- Trigger Item 3 -->
+<div class="group bg-surface-container-high border-l-2 border-on-surface-variant p-3 rounded-r cursor-pointer hover:bg-surface-container-highest transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="font-body-sm font-bold text-on-surface">On Key Press (Esc)</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant opacity-0 group-hover:opacity-100">more_vert</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">Close Layer: Settings_Overlay</p>
+</div>
+</div>
+<!-- Wizard Configuration Form -->
+<div class="mt-8 border-t border-outline-variant pt-6 space-y-4">
+<label class="font-label-code text-on-surface-variant text-[10px] uppercase tracking-widest">Configure Action</label>
+<div class="space-y-3">
+<div class="space-y-1">
+<label class="font-label-code text-on-surface-variant">Action</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-body-sm focus:outline-none focus:border-primary">
+<option>Jump to slide</option>
+<option>Show Layer</option>
+<option>Change State</option>
+<option>Execute JavaScript</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="font-label-code text-on-surface-variant">Destination</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-body-sm focus:outline-none focus:border-primary">
+<option>Next Slide</option>
+<option>Previous Slide</option>
+<option>04_Checkout_Success</option>
+<option>Custom URL...</option>
+</select>
+</div>
+<div class="pt-4">
+<button class="w-full bg-primary text-on-primary py-2 font-bold hover:brightness-110 transition-all rounded">Save Trigger</button>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-low border-t border-outline-variant fixed bottom-0 w-full h-10 flex items-center justify-between px-panel-padding z-50">
+<div class="flex items-center gap-6">
+<span class="font-label-code text-label-code text-on-surface-variant">Lumina Forge Engine v2.4</span>
+<div class="flex items-center gap-4">
+<a class="font-label-code text-label-code text-on-surface-variant hover:text-on-surface" href="#">Timeline</a>
+<a class="font-label-code text-label-code text-primary font-bold" href="#">Triggers</a>
+<a class="font-label-code text-label-code text-on-surface-variant hover:text-on-surface" href="#">Variables</a>
+</div>
+</div>
+<div class="flex items-center gap-4 font-label-code text-label-code text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> Ready</span>
+<span class="opacity-50">X: 744 Y: 312</span>
+<span class="opacity-50">UTF-8</span>
+</div>
+</footer>
+<script>
+        // Simple interactivity for the wizard
+        document.querySelectorAll('button, .cursor-pointer').forEach(el => {
+            el.addEventListener('mousedown', () => el.style.opacity = '0.7');
+            el.addEventListener('mouseup', () => el.style.opacity = '1');
+            el.addEventListener('mouseleave', () => el.style.opacity = '1');
+        });
+    </script>
+</body></html>
