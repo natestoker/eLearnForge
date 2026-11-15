@@ -471,7 +471,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     ctx.slideMedia = new Set();
     put(`story/slides/${name}`, BOM + await slideXml(ctx, slide, layoutG));
     if (ctx.slideMedia.size) {
-      put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${shortId(16).toLowerCase()}` }))));
+      put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
     }
     // The first slide keeps the shell's relationship id: the summary's start
     // path names it.
@@ -490,10 +490,15 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     return `<var g="${ctx.varG.get(v.id)}" verG="${guid()}" name="${xa(v.name.replace(/[^A-Za-z0-9_]/g, '_'))}" dataType="${dt}" val="${xa(val)}" type="user" propPath="" isRandom="false" randomMin="0" randomMax="0" defaultEmptyIfZero="false" />`;
   }).join('');
   story = story.replace('</varLst>', `${vars}</varLst>`);
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().replace('Z', '0000-00:00');
   const mediaXml = [...ctx.media.values()].map((m) =>
     `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="${xa(m.name)}" source="${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');
   story = story.replace('<mediaLst><mediaLst /></mediaLst>', mediaXml ? `<mediaLst><mediaLst>${mediaXml}</mediaLst></mediaLst>` : '<mediaLst><mediaLst /></mediaLst>');
+  // Storyline lists every asset twice: in story.xml and in the theme.
+  if (mediaXml) {
+    const theme = await read('story/theme/theme.xml');
+    put('story/theme/theme.xml', BOM + theme.replace('<assetLst><mediaLst /></assetLst>', `<assetLst><mediaLst>${mediaXml}</mediaLst></assetLst>`));
+  }
   story = story.replace(/<sldIdLst>.*?<\/sldIdLst>/, `<sldIdLst>${slideIds.map((id) => `<sldId>${id}</sldId>`).join('')}</sldIdLst>`);
   const tocEntries = project.slides.map((s) => `<tocSlideEntry g="${guid()}" verG="${guid()}" refG="${ctx.slideG.get(s.id)}" corG="${guid()}" expanded="true"><entryLst /><localizedName /></tocSlideEntry>`).join('');
   story = story.replace(/(<tocSceneEntry [^>]*>)<entryLst>.*?<\/entryLst>(<localizedName \/><\/tocSceneEntry>)/, `$1<entryLst>${tocEntries}</entryLst>$2`);

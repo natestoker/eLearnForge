@@ -41,6 +41,8 @@ check('slide 1 has its name and text', s1.includes(`name="${before.slides[0]}"`)
 const allSlides = (await Promise.all(slideRels.map((m) => text(m[1])))).join('');
 const assets = [...new Set([...allSlides.matchAll(/<pic [^>]*assetG="([^"]+)"/g)].map((m) => m[1]))];
 check('every picture has a media entry and a file', assets.every((g) => story.includes(`<media g="${g}"`)) && [...story.matchAll(/<media g=/g)].length === Object.keys(zip.files).filter((f) => /^story\/media\/R.*\.png$/.test(f)).length);
+const themeXml = await text('story/theme/theme.xml');
+check('pictures are listed in the theme as well', assets.every((g) => themeXml.includes(`<media g="${g}"`)));
 check('every GUID a trigger points at exists', [...allSlides.matchAll(/(?:jumpG|showG|setStateG|lightBoxG)="([^"]+)"/g)].every((m) => allSlides.includes(`g="${m[1]}"`)));
 
 // Round trip: open what was just saved.
