@@ -59,6 +59,8 @@ interface UiStore {
   setPreviewPhone: (v: boolean) => void;
   previewStartSlideId: string | null;
   toggleLayerHidden: (layerId: string) => void;
+  soloLayer: (layerId: string, allLayerIds: string[]) => void;
+  showAllLayers: () => void;
   setRibbonTab: (tab: RibbonTab) => void;
   setPreviewOpen: (open: boolean, startSlideId?: string | null) => void;
   // Editor timeline playhead (seconds). null = no scrub preview; the canvas
@@ -94,6 +96,13 @@ export const useUiStore = create<UiStore>((set) => ({
     set((s) => ({
       hiddenLayerIds: { ...s.hiddenLayerIds, [layerId]: !s.hiddenLayerIds[layerId] }
     })),
+  // Isolate: hide every layer on the canvas except this one, so overlapping
+  // layers stop occluding each other while you work.
+  soloLayer: (layerId, allLayerIds) =>
+    set(() => ({
+      hiddenLayerIds: Object.fromEntries(allLayerIds.map((id) => [id, id !== layerId]))
+    })),
+  showAllLayers: () => set(() => ({ hiddenLayerIds: {} })),
   setRibbonTab: (tab) => set({ ribbonTab: tab }),
   setSnapEnabled: (on) => set({ snapEnabled: on }),
   setTimelineSnap: (on) => set({ timelineSnap: on }),

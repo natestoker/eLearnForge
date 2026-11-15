@@ -109,9 +109,19 @@ export function LayersPanel() {
               )}
               <button
                 className={`btn btn-ghost btn-icon eye ${editorHidden ? 'off' : ''}`}
-                title={editorHidden ? 'Show on canvas' : 'Hide on canvas (editor only)'}
+                title={`${editorHidden ? 'Show on canvas' : 'Hide on canvas (editor only)'}${slide.layers.length > 1 ? '. Alt+click to show only this layer' : ''}`}
                 aria-label={editorHidden ? 'Show layer on canvas' : 'Hide layer on canvas'}
-                onClick={(e) => { e.stopPropagation(); toggleLayerHidden(layer.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (e.altKey && slide.layers.length > 1) {
+                    // Alt+click isolates this layer; Alt+click again brings the rest back.
+                    const alone = !editorHidden && slide.layers.every((l) => l.id === layer.id || hiddenLayerIds[l.id]);
+                    if (alone) useUiStore.getState().showAllLayers();
+                    else useUiStore.getState().soloLayer(layer.id, slide.layers.map((l) => l.id));
+                    return;
+                  }
+                  toggleLayerHidden(layer.id);
+                }}
               >
                 <Lucide name={editorHidden ? 'eye-off' : 'eye'} size={15} />
               </button>

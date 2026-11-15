@@ -221,8 +221,8 @@ function PreviewModal({ onClose, startSlideId }: { onClose: () => void; startSli
         </span>
       </div>
       {phone
-        ? <div className="preview-phone"><div className="preview-phone-frame"><Player project={snapshot} startSlideId={startSlideId ?? undefined} /></div></div>
-        : <Player project={snapshot} startSlideId={startSlideId ?? undefined} />}
+        ? <div className="preview-phone"><div className="preview-phone-frame"><Player project={snapshot} startSlideId={startSlideId ?? undefined} debug /></div></div>
+        : <Player project={snapshot} startSlideId={startSlideId ?? undefined} debug />}
     </div>
   );
 }
