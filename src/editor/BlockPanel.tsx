@@ -7,6 +7,7 @@ import { AnimatePanel } from './AnimatePanel';
 import { BlockAudioSection } from './BlockAudioSection';
 
 import { Lucide } from './lucide';
+import { Section } from './Section';
 // The block editing home: a tabbed right-side panel restoring the original
 // Properties / Effects / Animate split. The ribbon keeps quick actions; the
 // deep editing (block options, shadow/reflection/states, entrance/exit
@@ -75,21 +76,32 @@ function PropertiesTab() {
         />
       </Field>
 
-      <Row>
-        <Field label="X"><NumberInput value={Math.round(block.x)} onChange={(v) => updateBlock(block.id, (b) => { b.x = v; })} /></Field>
-        <Field label="Y"><NumberInput value={Math.round(block.y)} onChange={(v) => updateBlock(block.id, (b) => { b.y = v; })} /></Field>
-      </Row>
-      <Row>
-        <Field label="W"><NumberInput value={Math.round(block.w)} min={20} onChange={(v) => updateBlock(block.id, (b) => { b.w = Math.max(20, v); })} /></Field>
-        <Field label="H"><NumberInput value={Math.round(block.h)} min={20} onChange={(v) => updateBlock(block.id, (b) => { b.h = Math.max(20, v); })} /></Field>
-      </Row>
-      <Row>
+      {/* The block's own options come first and open; the rest fold away. */}
+      <Section id={`options.${block.type}`} title={`${def.label} options`} defaultOpen>
+        <def.Properties
+          block={block}
+          onUpdateProps={(fn, history = true) => updateBlock(block.id, (b) => fn(b.props), history)}
+        />
+      </Section>
+
+      <Section id="layout" title="Layout" summary={`${Math.round(block.x)}, ${Math.round(block.y)} · ${Math.round(block.w)} × ${Math.round(block.h)}${block.rotation ? ` · ${block.rotation}°` : ''}`}>
+        <Row>
+          <Field label="X"><NumberInput value={Math.round(block.x)} onChange={(v) => updateBlock(block.id, (b) => { b.x = v; })} /></Field>
+          <Field label="Y"><NumberInput value={Math.round(block.y)} onChange={(v) => updateBlock(block.id, (b) => { b.y = v; })} /></Field>
+        </Row>
+        <Row>
+          <Field label="W"><NumberInput value={Math.round(block.w)} min={20} onChange={(v) => updateBlock(block.id, (b) => { b.w = Math.max(20, v); })} /></Field>
+          <Field label="H"><NumberInput value={Math.round(block.h)} min={20} onChange={(v) => updateBlock(block.id, (b) => { b.h = Math.max(20, v); })} /></Field>
+        </Row>
         <Field label="Rotation">
           <NumberInput
             value={block.rotation ?? 0} step={15}
             onChange={(v) => updateBlock(block.id, (b) => { b.rotation = v ? ((v % 360) + 360) % 360 : undefined; })}
           />
         </Field>
+      </Section>
+
+      <Section id="accessibility" title="Accessibility" summary={`Screen reader: ${block.aria === 'include' ? 'included' : block.aria === 'exclude' ? 'excluded' : 'auto'}`}>
         <Field label="Screen reader">
           <SelectInput
             value={block.aria ?? 'auto'}
@@ -97,18 +109,11 @@ function PropertiesTab() {
             onChange={(v) => updateBlock(block.id, (b) => { b.aria = v === 'auto' ? undefined : (v as 'include' | 'exclude'); })}
           />
         </Field>
-      </Row>
+      </Section>
 
-      <div className="divider" />
-      <h4 className="panel-subtitle">{def.label} options</h4>
-      <def.Properties
-        block={block}
-        onUpdateProps={(fn, history = true) => updateBlock(block.id, (b) => fn(b.props), history)}
-      />
-
-      <div className="divider" />
-      <h4 className="panel-subtitle">Audio</h4>
-      <BlockAudioSection block={block} />
+      <Section id="audio" title="Audio" summary={block.audio?.src ? 'Attached' : 'None'}>
+        <BlockAudioSection block={block} />
+      </Section>
     </div>
   );
 }

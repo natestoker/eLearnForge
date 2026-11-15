@@ -1660,3 +1660,16 @@ Large-media "Compress" is not built; the check only warns.
   moving Pen tool / Welcome / Story view onto the shared dialog shell, a More
   menu for the ribbon under 1280px, and the phone player's single top bar.
 
+# v6.28
+
+## Review fixes, third batch
+- **Inspector sections fold.** A block's own options come first and open;
+  Layout, Accessibility and Audio fold away and show a one-line summary when
+  closed ("80, 150 · 720 × 130"). What you leave open is remembered.
+- **Right-click a block** for Cut, Copy, Paste, Duplicate, Bring to front, Send
+  to back, Lock, Edit shape and Delete, with their shortcuts. The Arrange tab
+  no longer carries clipboard and delete buttons.
+- **The States help text** is behind a "How states work" disclosure.
+- **A test keeps the chrome on the tokens**: a literal font size or radius in
+  an editor rule now fails `npm test` (`tests/css-tokens.test.ts`).
+

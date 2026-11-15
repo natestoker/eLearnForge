@@ -3945,7 +3945,7 @@ label.cs-line { cursor: default; }
 .player-stage.reflow { padding-top: 60px; } /* clear the floating menu, Resources and Glossary buttons */
 .preview-actions { display: flex; gap: 6px; }
 .preview-phone { flex: 1; min-height: 0; display: grid; place-items: center; padding: 16px; overflow: auto; }
-.preview-phone-frame { width: 390px; height: min(780px, 100%); border: 1px solid var(--border-strong); border-radius: 28px; overflow: hidden; display: flex; box-shadow: var(--shadow-3); }
+.preview-phone-frame { width: 390px; height: min(780px, 100%); border: 1px solid var(--border-strong); border-radius: calc(var(--r-lg) * 2); overflow: hidden; display: flex; box-shadow: var(--shadow-3); }
 .preview-phone-frame .player { flex: 1; min-width: 0; height: 100%; }
 
 /* ===== Redesign phase 5: smaller fixes ===== */
@@ -3997,3 +3997,19 @@ label.cs-line { cursor: default; }
 .chrome-light .player-chrome-btn:disabled { color: #5c665f; border-color: #8a948d; }
 @container player (max-width: 640px) { .player-nav-reason { display: none; } }
 .shape-glyph svg, .rbn-shape-tile svg { overflow: visible; }
+/* Collapsible inspector sections */
+.insp-fold { border-top: 1px solid var(--border-soft); margin-top: var(--sp-2); }
+.insp-fold-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
+.insp-fold-head:hover { color: var(--text); }
+.insp-fold-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.insp-fold-title { font: 600 var(--fs-micro)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.insp-fold-summary { margin-left: auto; font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.insp-fold-body { padding: var(--sp-1) 0 var(--sp-3); }
+.hint-details summary { cursor: pointer; font-size: var(--fs-sm); color: var(--muted); }
+.hint-details summary:hover { color: var(--text); }
+/* Block context menu */
+.ctx-menu { min-width: 200px; }
+.ctx-menu button { justify-content: space-between; width: 100%; border: 0; background: none; cursor: pointer; text-align: left; }
+.ctx-menu button.danger { color: var(--error); }
+.ctx-menu kbd { font: var(--fs-micro)/1 var(--mono); color: var(--muted); }
+.ctx-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--sp-1) 0; }

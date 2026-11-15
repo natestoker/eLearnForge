@@ -53,17 +53,14 @@ export function RibbonFormat() {
 
       <div className="ribbon-group">
         <div className="ribbon-items" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-          <ClipboardControls />
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              className="btn"
-              style={block.locked ? { color: 'var(--error)' } : undefined}
-              onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
-            >
-              <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Lock'}
-            </button>
-            <button className="btn btn-ghost btn-danger" title="Delete this block (Del)" onClick={() => deleteBlock(block.id)}><Lucide name="trash-2" size={14} /> Delete</button>
-          </div>
+          <button
+            className="btn"
+            style={block.locked ? { color: 'var(--error)' } : undefined}
+            onClick={() => updateBlock(block.id, (b) => { b.locked = b.locked ? undefined : true; })}
+          >
+            <Lucide name={block.locked ? 'lock' : 'lock-open'} size={14} /> {block.locked ? 'Locked' : 'Lock'}
+          </button>
+          <span className="rbn-note">Right-click a block for cut, copy, paste and delete</span>
         </div>
         <span className="ribbon-group-title">Block</span>
       </div>

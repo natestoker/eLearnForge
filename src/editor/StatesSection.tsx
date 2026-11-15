@@ -135,11 +135,14 @@ export function StatesSection({ block, onUpdate }: {
           </div>
         );
       })}
-      <p className="hint">
-        Enabling a state seeds a colour from this block's fill — tweak it, or add
-        an emphasis (e.g. a button that pulses on hover). Interactive states also
-        make the block keyboard-accessible: Tab focuses it, Enter/Space clicks it.
-      </p>
+      <details className="hint-details">
+        <summary>How states work</summary>
+        <p className="hint">
+          Enabling a state seeds a colour from this block's fill — tweak it, or add
+          an emphasis (e.g. a button that pulses on hover). Interactive states also
+          make the block keyboard-accessible: Tab focuses it, Enter/Space clicks it.
+        </p>
+      </details>
     </div>
   );
 }

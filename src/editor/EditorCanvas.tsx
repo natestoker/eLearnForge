@@ -80,6 +80,7 @@ export function BlockNode({
   startTail,
   startMotion,
   startMarquee,
+  onBlockMenu,
   previewStyle
 }: {
   block: Block;
@@ -91,6 +92,7 @@ export function BlockNode({
   // Locked blocks hand their pointerdown to the canvas marquee, so a
   // full-bleed locked background image never blocks rubber-band selection.
   startMarquee?: (e: React.PointerEvent) => void;
+  onBlockMenu?: (x: number, y: number, block: Block) => void;
   startTail?: (e: React.PointerEvent, block: Block) => void;
   startMotion?: (e: React.PointerEvent, block: Block) => void;
   previewStyle?: React.CSSProperties;
@@ -140,17 +142,16 @@ export function BlockNode({
             }
           : undefined
       }
-      onContextMenu={
-        block.type === 'shape' || block.type === 'image'
-          ? (e) => {
-              // Right-click a shape (or image) to edit its geometry with the
-              // pen tool; preset shapes seed the editor with their points.
-              e.preventDefault();
-              e.stopPropagation();
-              openPen(block.id, block.type === 'shape' ? 'shape' : 'imageClip');
-            }
-          : undefined
-      }
+      onContextMenu={(e) => {
+        // One menu for every block: clipboard, order, delete (and the pen
+        // tool for shapes and images).
+        e.preventDefault();
+        e.stopPropagation();
+        const sel = useProjectStore.getState().selection;
+        const already = sel.blockId === block.id || (sel.blockIds ?? []).includes(block.id);
+        if (!already) useProjectStore.getState().select({ blockId: block.id, layerId: layer?.id ?? sel.layerId, blockIds: [] });
+        onBlockMenu?.(e.clientX, e.clientY, block);
+      }}
     >
       {/* Shadow wrapper: outer shadows are a drop-shadow filter here so they
           follow the real silhouette (SVG geometry, callout tails, clipped
@@ -261,6 +262,15 @@ export function EditorCanvas() {
   const removeGuide = useProjectStore((s) => s.removeGuide);
   const moveGuide = useProjectStore((s) => s.moveGuide);
   const [canvasMenu, setCanvasMenu] = useState<{ x: number; y: number; slideX: number; slideY: number } | null>(null);
+  const [blockMenu, setBlockMenu] = useState<{ x: number; y: number; block: Block } | null>(null);
+  useEffect(() => {
+    if (!blockMenu) return;
+    const close = () => setBlockMenu(null);
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', key); };
+  }, [blockMenu]);
 
   useEffect(() => {
     if (!canvasMenu) return;
@@ -932,6 +942,7 @@ export function EditorCanvas() {
                   startTail={startTail}
                   startMotion={startMotion}
                   startMarquee={startMarquee}
+                  onBlockMenu={(x, y, b) => setBlockMenu({ x, y, block: b })}
                   previewStyle={previewFor(block)}
                 />
               ))}
@@ -982,6 +993,29 @@ export function EditorCanvas() {
           <div className="canvas-drop-inner">Drop image, video, or audio to add it — or onto a media block to replace it</div>
         </div>
       )}
+      {blockMenu && (() => {
+        const st = useProjectStore.getState();
+        const b = blockMenu.block;
+        const run = (fn: () => void) => () => { fn(); setBlockMenu(null); };
+        const item = (label: string, keys: string, fn: () => void, danger = false) => (
+          <button role="menuitem" className={danger ? 'danger' : undefined} onClick={run(fn)}><span>{label}</span><kbd>{keys}</kbd></button>
+        );
+        return (
+          <div className="ctx-menu" role="menu" aria-label="Block actions" style={{ left: Math.min(blockMenu.x, window.innerWidth - 230), top: Math.min(blockMenu.y, window.innerHeight - 300) }} onPointerDown={(e) => e.stopPropagation()}>
+            {item('Cut', 'Ctrl+X', () => st.cutBlocks())}
+            {item('Copy', 'Ctrl+C', () => st.copyBlocks())}
+            {item('Paste', 'Ctrl+V', () => st.pasteBlocks())}
+            {item('Duplicate', 'Ctrl+D', () => st.duplicateBlocks())}
+            <hr />
+            {item('Bring to front', '', () => st.moveBlockZ(b.id, 'front'))}
+            {item('Send to back', '', () => st.moveBlockZ(b.id, 'back'))}
+            {item(b.locked ? 'Unlock' : 'Lock', '', () => st.updateBlock(b.id, (x) => { x.locked = x.locked ? undefined : true; }))}
+            {(b.type === 'shape' || b.type === 'image') && item(b.type === 'shape' ? 'Edit shape…' : 'Edit clip shape…', '', () => useUiStore.getState().openPenEditor(b.id, b.type === 'shape' ? 'shape' : 'imageClip'))}
+            <hr />
+            {item('Delete', 'Del', () => selectedIds(useProjectStore.getState().selection).forEach((id) => st.deleteBlock(id)), true)}
+          </div>
+        );
+      })()}
       {canvasMenu && (
         <div className="ctx-menu" style={{ left: canvasMenu.x, top: canvasMenu.y }} onPointerDown={(e) => e.stopPropagation()}>
           <button onClick={() => { addGuide('v', canvasMenu.slideX); setCanvasMenu(null); }}>Add vertical guide here</button>

@@ -199,6 +199,38 @@ await page.waitForSelector('.pen-dialog');
   const [b0, bt] = (before ?? '0/0').split('/').map(Number), [a0, at] = (afterStatus ?? '0/0').split('/').map(Number);
   check('after deleting slide 4 you are on slide 4 again, not slide 1', b0 === 4 && a0 === 4 && at === bt - 1, `${before} -> ${afterStatus}`);
 }
+// ---- Right-click a block: cut, copy, paste, duplicate, order, delete
+{
+  const before = await blocksOnSlide();
+  const blk = page.locator('.stage-block').nth(1);
+  await blk.click({ button: 'right', force: true });
+  await page.waitForTimeout(200);
+  const menu = page.locator('.ctx-menu[role=menu]');
+  check('right-click opens the block menu', (await menu.count()) === 1 && /Duplicate/.test(await menu.innerText()));
+  await menu.locator('button', { hasText: 'Duplicate' }).click();
+  await page.waitForTimeout(250);
+  eq('Duplicate adds a block', await blocksOnSlide(), before + 1);
+  await page.locator('.stage-block.selected').click({ button: 'right', force: true });
+  await page.locator('.ctx-menu[role=menu] button', { hasText: 'Delete' }).click();
+  await page.waitForTimeout(250);
+  eq('Delete removes it', await blocksOnSlide(), before);
+  await page.locator('.stage-block').nth(1).click({ button: 'right', force: true });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  eq('Escape closes the menu', await page.locator('.ctx-menu[role=menu]').count(), 0);
+}
+// ---- Inspector sections fold, and say what is inside when closed
+{
+  await page.locator('.stage-block').first().click({ force: true });
+  await page.locator('.rtab', { hasText: 'Inspect' }).click();
+  await page.locator('.tab', { hasText: 'Properties' }).first().click();
+  const layout = page.locator('.insp-fold', { has: page.locator('.insp-fold-title', { hasText: 'Layout' }) });
+  check('Layout starts closed with a summary', (await layout.locator('.insp-fold-body').count()) === 0 && /\d+, \d+ · \d+ × \d+/.test(await layout.locator('.insp-fold-summary').innerText()));
+  await layout.locator('.insp-fold-head').click();
+  await page.waitForTimeout(150);
+  check('opening it shows X, Y, W, H', (await layout.locator('.field-label').allInnerTexts()).join(' ').toUpperCase().includes('X'));
+  await layout.locator('.insp-fold-head').click();
+}
 // ---- Deleting a slide shows an Undo toast, and Undo brings it back
 {
   const count = () => page.locator('.slide-item').count();
