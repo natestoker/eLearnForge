@@ -1498,3 +1498,22 @@ Large-media "Compress" is not built; the check only warns.
   a browser suite for the shape tool, thumbnails, accent contrast and layout
   (`tests/e2e/custom-shapes.e2e.mjs`).
 
+# v6.21
+
+## Layout and drag fixes
+- **Insert > Shapes.** Adding the SVG button pushed "All shapes" and the bottom
+  of the group off the shelf. The five actions now sit in two columns.
+- **Layers panel no longer dances.** Hovering a row used to grow it by a line,
+  which slid the rows below under the cursor so they grew in turn (worst right
+  after deleting a layer). Hover now floats the actions over the row without
+  changing its height.
+- **Deleting a slide** lands on the slide that took its place instead of
+  jumping back to slide 1, and the slide list no longer re-anchors its scroll.
+- **Dragging a block could get "captive".** If the browser cancelled the
+  pointer (a native image drag, alt-tab mid-drag, a release outside the window)
+  the drag never ended and the block followed the cursor. Cancel, blur and a
+  move with no button held now all end the gesture, and the canvas blocks the
+  browser's own drag-and-drop of its content.
+- **Double-click into a group** selects the shape under the cursor with a real
+  selection on the canvas: outline, resize handles, drag to move.
+

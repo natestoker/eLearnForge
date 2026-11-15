@@ -28,6 +28,32 @@ const blocksOnSlide = () => page.locator('.stage-block').count();
   check('fills came across', /#ff0000/i.test(html) && /#0000ff/i.test(html), html.slice(0, 400));
   check('the circle kept its stroke color', /#00ff00/i.test(html));
 }
+// ---- Double-click into the group: a visible, draggable selection on the child
+{
+  const g = await page.locator('.stage-block.selected').boundingBox();
+  await page.mouse.dblclick(g.x + g.width * 0.7, g.y + g.height * 0.25);
+  await page.waitForTimeout(300);
+  eq('double-click selects a shape inside the group, with a visible selection', await page.locator('.nested-sel').count(), 1);
+  eq('with resize handles', (await page.locator('.nested-sel .handle').count()) > 4, true);
+  const a = await page.locator('.nested-sel').boundingBox();
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(a.x + a.width / 2 + 40, a.y + a.height / 2 + 20, { steps: 5 });
+  await page.mouse.up();
+  const b = await page.locator('.nested-sel').boundingBox();
+  check('the inner shape drags on its own', Math.abs(b.x - a.x - 40) < 3 && Math.abs(b.y - a.y - 20) < 3, JSON.stringify([a.x, a.y, b.x, b.y]));
+  // A cancelled pointer (native drag, lost release) must not leave the block
+  // glued to the cursor.
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 10, b.y + b.height / 2, { steps: 2 });
+  await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel')));
+  await page.mouse.move(b.x + b.width / 2 + 150, b.y + b.height / 2 + 90, { steps: 4 });
+  const c = await page.locator('.nested-sel').boundingBox();
+  check('a cancelled drag lets go of the block', Math.abs(c.x - (b.x + 10)) < 4 && Math.abs(c.y - b.y) < 4, JSON.stringify([b.x, b.y, c.x, c.y]));
+  await page.mouse.up();
+}
+
 // a broken file is reported, not inserted
 {
   const before = await blocksOnSlide();
@@ -120,6 +146,37 @@ await page.waitForSelector('.pen-dialog');
     return [...document.querySelectorAll('.ribbon-body .field-label')].filter((el) => el.getBoundingClientRect().left < body.left - 0.5).map((el) => el.textContent);
   });
   eq('no Slide-tab label is cut off on the left', clipped, []);
+}
+// ---- Hovering a layer row must not change its height (rows used to dance)
+{
+  await page.locator('.panel-header:has-text("LAYERS") .btn').first().click();
+  await page.waitForTimeout(300);
+  const rows = page.locator('.layer-item');
+  check('there are two layers', (await rows.count()) >= 2);
+  await rows.first().click();
+  await page.waitForTimeout(200);
+  const before = await rows.last().evaluate((el) => el.getBoundingClientRect().height);
+  await rows.last().hover();
+  await page.waitForTimeout(200);
+  const after = await rows.last().evaluate((el) => el.getBoundingClientRect().height);
+  eq('hover does not resize a layer row', Math.round(after), Math.round(before));
+}
+// ---- Deleting a slide lands on its neighbor, not slide 1
+{
+  for (let i = 0; i < 3; i++) await page.locator('.panel-header:has-text("SLIDES") .btn').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.slide-item').nth(3).click();
+  await page.waitForTimeout(200);
+  const status = async () => (await page.locator('.statusbar').innerText()).match(/Slide (\d+) of (\d+)/)?.slice(1).join('/');
+  const before = await status();
+  await page.locator('.slide-item.active button', { hasText: 'x' }).click();
+  await page.waitForTimeout(200);
+  const confirm = page.locator('button', { hasText: /^(Delete|OK|Yes)/ });
+  if (await confirm.count()) await confirm.first().click();
+  await page.waitForTimeout(300);
+  const afterStatus = await status();
+  const [b0, bt] = (before ?? '0/0').split('/').map(Number), [a0, at] = (afterStatus ?? '0/0').split('/').map(Number);
+  check('after deleting slide 4 you are on slide 4 again, not slide 1', b0 === 4 && a0 === 4 && at === bt - 1, `${before} -> ${afterStatus}`);
 }
 // ---- Animate panel has the same inset as Properties
 {

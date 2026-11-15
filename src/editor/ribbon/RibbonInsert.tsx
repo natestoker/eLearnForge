@@ -130,7 +130,7 @@ export function RibbonInsert() {
               </button>
             ))}
           </div>
-          <div className="rbn-col">
+          <div className="rbn-grid2 rbn-shape-actions">
             <MBtn icon="line" label="Line" onClick={() => insertLine(addBlock, false)} />
             <MBtn icon="arrow" label="Arrow" onClick={() => insertLine(addBlock, true)} />
             <MBtn icon="svg" label="SVG" onClick={() => svgInput.current?.click()} />
@@ -162,7 +162,7 @@ export function RibbonInsert() {
                 if (id) useUiStore.getState().openPenEditor(id, 'shape');
               }}
             />
-            <div className="menu-anchor" ref={popRef}>
+            <div className="menu-anchor rbn-span2" ref={popRef}>
               <button
                 className="rbn-mbtn"
                 aria-haspopup="menu"

@@ -326,10 +326,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   deleteSlide: (slideId) => {
     const { project, selection } = get();
     if (project.slides.length <= 1) return;
+    const at = project.slides.findIndex((s) => s.id === slideId);
     get().mutate((p) => { p.slides = p.slides.filter((s) => s.id !== slideId); });
     if (selection.slideId === slideId) {
-      const first = get().project.slides[0];
-      get().select({ slideId: first.id, layerId: first.layers[0].id, blockId: null });
+      // Land on the neighbor that took its place, not back on slide 1: jumping
+      // to the top made the canvas and the slide list lurch after every delete.
+      const slides = get().project.slides;
+      const next = slides[Math.min(Math.max(at, 0), slides.length - 1)];
+      get().select({ slideId: next.id, layerId: next.layers[0].id, blockId: null });
     }
   },
 

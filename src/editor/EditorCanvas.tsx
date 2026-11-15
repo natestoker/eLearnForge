@@ -17,6 +17,20 @@ const MIN_SIZE = 40;
 // them). Scrollable like Illustrator's artboard surround.
 const PASTEBOARD = 320;
 
+// A block selected from inside a group (double-click drills in): its position
+// is relative to the group, so return the group chain's offset to draw it.
+function findNested(blocks: Block[], id: string, ox = 0, oy = 0): { block: Block; ox: number; oy: number } | null {
+  for (const b of blocks) {
+    if (b.type !== 'group') continue;
+    const kids = (b.props as { blocks: Block[] }).blocks;
+    const direct = kids.find((k) => k.id === id);
+    if (direct) return { block: direct, ox: ox + b.x, oy: oy + b.y };
+    const deeper = findNested(kids, id, ox + b.x, oy + b.y);
+    if (deeper) return deeper;
+  }
+  return null;
+}
+
 // Authoring lock: a block is locked by its own padlock or its layer's.
 // Locked blocks stay selectable (so the lock is discoverable) but refuse
 // moves, resizes, nudges, deletes, and timeline drags.
@@ -273,6 +287,16 @@ export function EditorCanvas() {
     return () => ro.disconnect();
   }, [slide.width, slide.height]);
 
+  // Dragging a block must never start the browser's own drag-and-drop (images,
+  // links, selected text): it cancels the pointer mid-gesture.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const stop = (e: DragEvent) => e.preventDefault();
+    el.addEventListener('dragstart', stop);
+    return () => el.removeEventListener('dragstart', stop);
+  }, []);
+
   // Keep the slide centered in view when the pasteboard overflows: scroll
   // to the middle on slide/zoom changes (margin:auto handles the
   // small-enough case).
@@ -386,6 +410,10 @@ export function EditorCanvas() {
   // so the whole gesture is one undo step.
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      // The button was released somewhere we never heard about (outside the
+      // window, over a native drag, after alt-tab): end the gesture instead of
+      // letting the block follow a cursor that isn't holding it any more.
+      if ((gestureRef.current || marqueeRef.current) && e.buttons === 0) { onUp(); return; }
       // Marquee selection: update the rectangle and live-select intersecting
       // blocks on the current layer.
       const m = marqueeRef.current;
@@ -524,11 +552,17 @@ export function EditorCanvas() {
       }
     };
     const onUp = () => { gestureRef.current = null; marqueeRef.current = null; setMarquee(null); };
+    // A native drag (an image block, selected text) or a lost pointer fires
+    // pointercancel and no pointerup; blur covers alt-tab mid-drag.
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('blur', onUp);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('blur', onUp);
     };
   }, [scale, updateBlock, slide, selection, select]);
 
@@ -885,6 +919,30 @@ export function EditorCanvas() {
             </div>
           );
         })}
+        {(() => {
+          // Double-clicking into a group selects a child; give it a real
+          // selection: an outline, handles, and drag to move.
+          if (!selection.blockId || (selection.blockIds ?? []).length) return null;
+          for (const layer of slide.layers) {
+            const hit = findNested(layer.blocks, selection.blockId, 0, 0);
+            if (!hit) continue;
+            const c = hit.block;
+            return (
+              <div
+                key={c.id}
+                className="stage-block selected nested-sel"
+                style={{ left: hit.ox + c.x, top: hit.oy + c.y, width: c.w, height: c.h }}
+                onPointerDown={(e) => startMove(e, c, layer)}
+              >
+                {!isBlockLocked(c, layer) && HANDLES.map((h) => (
+                  <div key={h.id} className={`handle handle-${h.id}`} onPointerDown={(e) => startResize(e, c, h)} />
+                ))}
+                <div className="block-badge">{(BLOCKS[c.type]?.label ?? c.type)} (in group)</div>
+              </div>
+            );
+          }
+          return null;
+        })()}
         {selBox && (
           <div
             className="multi-bbox"
