@@ -1718,3 +1718,22 @@ Large-media "Compress" is not built; the check only warns.
 - Slide thumbnails are `inert`, so nothing inside one can take focus.
 - New tests: `tests/story-and-colours.test.ts`, `tests/e2e/story-view.e2e.mjs`,
   and a scroll-entrance case in `phone-layout.e2e.mjs`.
+
+# v6.31
+
+## Older branches merged
+- **Live values in Preview.** A "Live values" button in Preview opens a panel
+  that shows every variable and the current slide's block states as the course
+  runs. It is not in published courses.
+- **Isolate a layer.** Alt+click a layer's eye to show only that layer on the
+  canvas; Alt+click again brings the rest back.
+- **Layer narration script.** A layer with its own timeline keeps its own
+  narration script, separate from the slide's speaker notes, and the timeline
+  shows the narration waveform as a band behind the rows.
+- **Narration and playback fixes.** "Set as narration" replaces the previous
+  narration track instead of stacking a second one; dragging a timeline row
+  stops playback; the page-flip transition cleans up if you leave mid-flip.
+- A login screen mockup (`docs/design/login.html`) and two older mockups
+  (`docs/design/mockups/`) are in the repo for reference.
+- Not brought back: the Layer ribbon tab from the July branch. The ribbon holds
+  commands only now, and its layer settings already live in the Layers panel.
