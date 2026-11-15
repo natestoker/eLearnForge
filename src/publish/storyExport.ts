@@ -303,11 +303,11 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
 }
 
 // ---------- triggers ----------
-interface TrigParts { g?: string; keys?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
+interface TrigParts { g?: string; keys?: string; js?: string; event: string; action: string; sub?: string; intent?: string; navState?: string; slide?: string; shape?: string; layer?: string; other?: string; cond?: string; name?: string; group?: string; frameAction?: string; enabled?: boolean; edit?: string; cue?: string }
 function trigXml(owner: string, t: TrigParts): string {
   const shape = t.shape ?? 'setStateName="" setstateop="ass" stateInclude="all" statesNot="are" stateName=""';
   const other = t.other ?? 'op="ass" varVal1="" useVar="false" dblVal="0" boolVal="True"';
-  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="${t.keys ?? 'None'}" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
+  return `<trig g="${t.g ?? guid()}" verG="${guid()}" name="${t.name ?? ''}" type="user" edit="${t.edit ?? 'all'}" group="${t.group ?? 'none'}" copiedG="${owner}"><data enabled="${t.enabled === false ? 'false' : 'true'}" event="${t.event}" action="${t.action}" actSubType="${t.sub ?? 'next'}" NavigationIntent="${t.intent ?? 'Unspecified'}" NavigationState="${t.navState ?? 'None'}"><keyPress keys="${t.keys ?? 'None'}" case="false" /><slide ${t.slide ?? ''}showNav="false" /><scene /><shape ${shape}><stateLst /><dropLst /><intersectLst /><stopIntersectLst /><hoverLst /></shape><clickLst /><sldLayer ${t.layer ?? ''}/><video /><audio /><other open="" email="" js="${t.js ? xa(t.js).replace(/\r?\n/g, '&#xA;') : ''}" ${other} positiveCompletion="true" time="PT0S" cuePoint="${t.cue ?? '-2147483648'}" useRandom="false" randomMin="0" randomMax="0" /><interaction /><SeekTimeline target="${ZERO}" timeSeconds="0" cuePoint="-1" variableReference="false" useRelativeTime="false" relativeTime="NaN" modifyPlaybackState="false" playbackState="Play" /><frame ${t.frameAction ? `actionG="${t.frameAction}" ` : ''}restore="true" /></data>${t.cond ? `<condLst>${t.cond}</condLst>` : '<condLst />'}</trig>`;
 }
 const NAV_EDIT = 'variablename, subslides, keypresskeys, actions, operators, variablevalue, variableoperators';
 const defaultNext = (owner: string) => trigXml(owner, { name: 'Navigation', edit: NAV_EDIT, group: 'next', event: 'OnNextButtonClick', action: 'jumpToSlide', sub: 'next', intent: 'Next', navState: 'Button, Gesture', cue: '0', frameAction: '0ec0db78-2e1d-4919-bde6-6824587f77c4' });
@@ -345,7 +345,21 @@ function actionParts(ctx: Ctx, a: Action, sourceBlockId: string | undefined): Pa
       const state = a.type === 'setState' ? STATE_OUT[a.state] : a.type === 'showBlock' ? 'Normal' : 'Hidden';
       return ctx.blockG.has(id) && state ? { action: 'changeShapeState', shape: `setStateG="${ctx.blockG.get(id)}" setStateName="${state}" setstateop="ass" stateInclude="all" statesNot="are" stateName=""` } : 'a state change on a deleted block';
     }
-    default: return `action "${a.type}"`;
+    // Everything below has no Storyline action, so it travels as an Execute
+    // JavaScript trigger: working script where one exists, otherwise a comment
+    // that says what the trigger did, so the logic is not lost.
+    case 'executeJs':
+      return { action: 'executeJavaScript', js: `// From eLearnForge. forge.get / forge.set calls need rewriting for Storyline: GetPlayer().GetVar / SetVar.\n${a.code}` };
+    case 'openUrl':
+      return { action: 'executeJavaScript', js: `window.open(${JSON.stringify(a.url)}, "_blank");` };
+    case 'resetVariable': {
+      const v = variable(a.variableId);
+      return v ? { action: 'executeJavaScript', js: `GetPlayer().SetVar(${JSON.stringify(v.name.replace(/[^A-Za-z0-9_]/g, '_'))}, ${JSON.stringify(v.defaultValue)});` } : 'reset a deleted variable';
+    }
+    default: {
+      warn(ctx, `"${a.type}" has no Storyline action; it was saved as an Execute JavaScript trigger holding a note`);
+      return { action: 'executeJavaScript', js: `// eLearnForge action with no Storyline equivalent: ${JSON.stringify(a)}` };
+    }
   }
 }
 

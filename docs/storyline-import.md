@@ -76,9 +76,11 @@ It starts from a blank project saved by Storyline (masters, theme and player
 settings come from there) and replaces its slide with yours. A report after
 saving lists what was left out.
 
-**Status: unconfirmed.** The file matches real Storyline files element for
-element and opens again in eLearnForge, but it has not yet been opened in
-Storyline itself. Treat it as experimental until that is checked.
+**Status.** Checked by opening test files in Storyline 360 (3.130): slides,
+text, shapes, notes, variables, layers, and click, hover, key-press and
+variable-condition triggers open correctly. Pictures and Execute JavaScript
+are written in the confirmed form but were still being checked when this was
+written.
 
 Written:
 
@@ -90,8 +92,8 @@ Written:
 - Start time and duration; fade, fly, float, wipe and grow entrances.
 - Your variables.
 - Triggers: click, slide loads, timeline ends, animation finishes, block
-  enters, layer shown, custom Next; with jump to slide, next/previous slide,
-  show layer, lightbox, set/adjust variable, set state, show/hide block,
+  enters, layer shown, hover, key press (arrows, letters, digits), custom Next; with jump to slide, next/previous slide,
+  show and hide layer, lightbox, set/adjust variable, set state, show/hide block,
   complete course. Conditions on variables using =, < or >.
 
 Left out, and listed in the report:
@@ -99,8 +101,10 @@ Left out, and listed in the report:
 - Quiz, drag and drop, sliders and the other interactive blocks: an outlined
   box marks where each one was.
 - Audio and video. Add narration in Storyline (Insert > Audio).
-- Triggers and actions with no confirmed Storyline form, including Run
-  JavaScript, hide layer, open URL, hover and key press. These are next, once
-  there is a sample file from Storyline showing how each is stored.
+- Actions with no Storyline equivalent are saved as Execute JavaScript
+  triggers: Run JavaScript carries its code, Open URL becomes `window.open`,
+  and anything else becomes a comment describing the action.
+- Triggers on events with no confirmed Storyline form (double-click, cue
+  point, mouse leave, Submit).
 - State styles, shadows, gradients, custom (pen) shapes, groups (saved
   ungrouped).

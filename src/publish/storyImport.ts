@@ -586,7 +586,7 @@ function convertTrigger(
       actions = /^https?:/i.test(url) ? [{ type: 'openUrl', url }] : unsupported('it opens a local file, which is not in the package');
       break;
     }
-    case 'executeJavascript': case 'ExecuteJavascript': {
+    case 'executeJavaScript': case 'executeJavascript': case 'ExecuteJavascript': {
       const js = other?.getAttribute('js') ?? '';
       actions = [{ type: 'executeJs', code: `// Imported from Storyline. GetPlayer() calls need rewriting to forge.get / forge.set.\n${js}` }];
       break;
