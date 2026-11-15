@@ -14,11 +14,13 @@ export function StoryImportReport() {
     bySlide.set(slide, [...(bySlide.get(slide) ?? []), i > 0 ? w.slice(i + 2) : w]);
   }
   return (
-    <Modal title={`Opened ${report.fileName}`} onClose={close} width="min(680px, 92vw)">
+    <Modal title={`${report.saved ? 'Saved' : 'Opened'} ${report.fileName}`} onClose={close} width="min(680px, 92vw)">
       <div className="story-report">
         <p className="story-report-lead">
-          {report.slides} {report.slides === 1 ? 'slide' : 'slides'} imported.{' '}
-          {report.warnings.length === 0
+          {report.slides} {report.slides === 1 ? 'slide' : 'slides'} {report.saved ? 'saved' : 'imported'}.{' '}
+          {report.saved
+            ? (report.warnings.length === 0 ? 'Everything in the project had a Storyline form.' : 'Storyline has no room for the things below, so they were left out. Open the file in Storyline to check it.')
+            : report.warnings.length === 0
             ? 'Everything in the file had an equivalent.'
             : `${report.warnings.length} ${report.warnings.length === 1 ? 'thing needs' : 'things need'} a look. Triggers that could not be converted are kept as JavaScript triggers that say what the original did.`}
         </p>

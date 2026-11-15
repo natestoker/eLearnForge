@@ -105,6 +105,21 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
     }
   };
 
+  const saveStory = async () => {
+    try {
+      const { exportStory } = await import('../publish/storyExport');
+      const { blob, warnings } = await exportStory(project);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(project.title || 'course').replace(/[\\/:*?"<>|]/g, '_')}.story`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      useUiStore.getState().setStoryImportReport({ fileName: a.download, slides: project.slides.length, warnings, saved: true });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not save a Storyline file.');
+    }
+  };
+
   const loadFromPicker = async () => {
     try {
       const loaded = await importProjectJsonWithPicker();
@@ -211,6 +226,9 @@ export function Toolbar({ saveState }: { saveState: 'saved' | 'saving' }) {
               </button>
               <button className="menu-item" onClick={() => { close(); storyRef.current?.click(); }}>
                 <Lucide name="upload" size={15} /> Open Storyline (.story)
+              </button>
+              <button className="menu-item" onClick={() => { close(); void saveStory(); }}>
+                <Lucide name="package" size={15} /> Save as Storyline (.story)
               </button>
             </>
           )}

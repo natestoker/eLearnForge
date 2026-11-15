@@ -1,0 +1,59 @@
+// File > Save as Storyline (.story): the saved package has the parts Storyline
+// expects, and opening it again brings the slides back.
+import { createRequire } from 'node:module';
+import { readFileSync, copyFileSync } from 'node:fs';
+import { check, eq, finish, launch, editorPage } from './harness.mjs';
+
+const JSZip = createRequire(import.meta.url)('jszip');
+const browser = await launch();
+const ed = await editorPage(browser);
+const before = await ed.evaluate(() => {
+  const p = window.__forgeStore.getState().project;
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length) };
+});
+
+await ed.getByRole('button', { name: /^File/ }).click();
+const [download] = await Promise.all([
+  ed.waitForEvent('download'),
+  ed.locator('.menu-item', { hasText: 'Save as Storyline' }).click()
+]);
+const path = await download.path();
+if (process.env.STORY_OUT) copyFileSync(path, process.env.STORY_OUT);
+check('the file is named after the course', download.suggestedFilename().endsWith('.story'), download.suggestedFilename());
+await ed.waitForSelector('.story-report');
+check('the report says what was left out', (await ed.locator('.story-report').innerText()).includes('no Storyline equivalent'));
+await ed.locator('.story-report .btn-accent').click();
+
+const zip = await JSZip.loadAsync(readFileSync(path));
+const text = async (p) => (await zip.file(p).async('string')).replace(/^﻿/, '');
+const story = await text('story/story.xml');
+const rels = await text('story/_rels/story.xml.rels');
+const types = await text('[Content_Types].xml');
+const slideRels = [...rels.matchAll(/Type="slide" Target="\/([^"]+)" Id="([^"]+)"/g)];
+eq('one slide part per slide', slideRels.length, before.slides.length);
+check('every slide part exists and is declared', slideRels.every((m) => zip.file(m[1]) && types.includes(`PartName="/${m[1]}"`)));
+eq('the scene lists the slides in order', [...story.match(/<sldIdLst>(.*?)<\/sldIdLst>/)[1].matchAll(/<sldId>([^<]+)/g)].map((m) => m[1]), slideRels.map((m) => m[2]));
+check('the masters, theme and player settings from the blank project are kept', ['story/playerProps.xml', 'story/theme/theme.xml', 'story/slideMasters/slideMaster.xml'].every((p) => zip.file(p)));
+check('variables are written as user variables', before.vars.every((v) => new RegExp(`name="${v.replace(/[^A-Za-z0-9_]/g, '_')}"[^>]*type="user"`).test(story)));
+const s1 = await text(slideRels[0][1]);
+check('slide 1 has its name and text', s1.includes(`name="${before.slides[0]}"`) && s1.includes('<textBox ') && s1.includes('&lt;Span Text='));
+const allSlides = (await Promise.all(slideRels.map((m) => text(m[1])))).join('');
+const assets = [...new Set([...allSlides.matchAll(/<pic [^>]*assetG="([^"]+)"/g)].map((m) => m[1]))];
+check('every picture has a media entry and a file', assets.every((g) => story.includes(`<media g="${g}"`)) && [...story.matchAll(/<media g=/g)].length === Object.keys(zip.files).filter((f) => /^story\/media\/R.*\.png$/.test(f)).length);
+check('every GUID a trigger points at exists', [...allSlides.matchAll(/(?:jumpG|showG|setStateG|lightBoxG)="([^"]+)"/g)].every((m) => allSlides.includes(`g="${m[1]}"`)));
+
+// Round trip: open what was just saved.
+await ed.locator('input[aria-label="Storyline file"]').setInputFiles({ name: 'Round trip.story', mimeType: 'application/octet-stream', buffer: readFileSync(path) });
+await ed.waitForSelector('.story-report');
+await ed.locator('.story-report .btn-accent').click();
+const after = await ed.evaluate(() => {
+  const p = window.__forgeStore.getState().project;
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), text: p.slides[0].layers[0].blocks.filter((b) => b.type === 'text').length, jumps: p.slides.flatMap((s) => s.triggers).filter((t) => ['goToSlide', 'nextSlide'].includes(t.actions[0].type)).length };
+});
+eq('slides survive the round trip', after.slides, before.slides);
+eq('layers survive the round trip', after.layers, before.layers);
+eq('variables survive the round trip', after.vars, before.vars.map((v) => v.replace(/[^A-Za-z0-9_]/g, '_')));
+check('text comes back as text', after.text > 0);
+
+await browser.close();
+finish();

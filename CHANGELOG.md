@@ -1756,3 +1756,16 @@ Large-media "Compress" is not built; the check only warns.
 - The Live values panel in Preview no longer covers Back and Next.
 - New tests: `tests/story-events.test.ts`, `tests/e2e/story-import.e2e.mjs`
   (builds a small Storyline-shaped package, so no real course is in the repo).
+
+# v6.33
+
+## Save as Storyline (experimental)
+- **File > Save as Storyline (.story).** Writes slides, layers, text, pictures,
+  basic shapes, lines, timing, simple entrances, notes, variables and the
+  triggers that have a confirmed Storyline form, on top of a blank project
+  saved from Storyline. A report lists what was left out. Not yet confirmed by
+  opening the result in Storyline; see `docs/storyline-import.md`.
+- Storyline import: a custom Previous-button trigger is now recognised (it is
+  stored as a slide click with a "Previous" intent).
+- New test: `tests/e2e/story-export.e2e.mjs` (package structure and a round
+  trip back through the importer).

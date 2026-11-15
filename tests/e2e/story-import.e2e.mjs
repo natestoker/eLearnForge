@@ -66,7 +66,7 @@ const menu = `<?xml version="1.0" encoding="utf-8"?><sld g="sld-menu" name="Menu
 </sldLayerLst>
 <trigLst>
   ${trig({ event: 'OnNextButtonClick', action: 'jumpToSlide', sub: 'next' })}
-  ${trig({ event: 'OnPrevButtonClick', action: 'jumpToSlide', inner: '<slide jumpG="sld-detail" />' })}
+  ${trig({ event: 'OnClick', action: 'jumpToSlide', inner: '<slide jumpG="sld-detail" />' }).replace('<data ', '<data NavigationIntent="Previous" ')}
 </trigLst>
 <note>${esc('<Document><Content><Block><Span Text="Say hello." /></Block></Content></Document>')}</note>
 <navData prev="true" next="true" />

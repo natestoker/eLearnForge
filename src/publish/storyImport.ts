@@ -624,6 +624,11 @@ function convertTrigger(
   // ----- events
   switch (event) {
     case 'OnClick': {
+      // Storyline stores the Previous button as a slide-level click with a
+      // "Previous" intent.
+      if (owner.kind === 'slide' && data.getAttribute('NavigationIntent') === 'Previous') {
+        return action === 'jumpToSlide' && sub === 'prev' ? [] : [one({ event: 'onBack' })];
+      }
       const clicked = kids(kid(data, 'clickLst'), 'g').flatMap((c) => targets(c.textContent));
       const ids = ownerBlocks.length ? ownerBlocks : clicked;
       return ids.length ? perSource('onClick', ids) : [];

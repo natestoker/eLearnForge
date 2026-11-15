@@ -71,7 +71,36 @@ see where to rebuild it.
 
 ## Saving back to .story
 
-Not available yet. Writing a file Storyline will open needs a blank project
-saved from Storyline itself to use as the shell (masters, theme and player
-settings), and each change has to be checked by opening the result in
-Storyline.
+File > Save as Storyline (.story) writes the project as a Storyline 360 file.
+It starts from a blank project saved by Storyline (masters, theme and player
+settings come from there) and replaces its slide with yours. A report after
+saving lists what was left out.
+
+**Status: unconfirmed.** The file matches real Storyline files element for
+element and opens again in eLearnForge, but it has not yet been opened in
+Storyline itself. Treat it as experimental until that is checked.
+
+Written:
+
+- Slides, slide size, notes, layers.
+- Text (bold, italic, underline, size, colour, font, alignment, bullets).
+- Pictures (all saved as PNG), with alt text and rotation.
+- Rectangles, rounded rectangles, ovals, triangles, lines. Buttons become
+  rounded rectangles with a label.
+- Start time and duration; fade, fly, float, wipe and grow entrances.
+- Your variables.
+- Triggers: click, slide loads, timeline ends, animation finishes, block
+  enters, layer shown, custom Next; with jump to slide, next/previous slide,
+  show layer, lightbox, set/adjust variable, set state, show/hide block,
+  complete course. Conditions on variables using =, < or >.
+
+Left out, and listed in the report:
+
+- Quiz, drag and drop, sliders and the other interactive blocks: an outlined
+  box marks where each one was.
+- Audio and video. Add narration in Storyline (Insert > Audio).
+- Triggers and actions with no confirmed Storyline form, including Run
+  JavaScript, hide layer, open URL, hover and key press. These are next, once
+  there is a sample file from Storyline showing how each is stored.
+- State styles, shadows, gradients, custom (pen) shapes, groups (saved
+  ungrouped).
