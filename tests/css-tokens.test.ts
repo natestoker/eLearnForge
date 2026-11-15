@@ -15,7 +15,11 @@ while ((m = re.exec(css))) {
   for (const d of m[2].split(';')) {
     const hit = /^\s*(font-size|border-radius)\s*:\s*([0-9.]+px)\s*$/.exec(d);
     if (hit && hit[2] !== '0px') bad.push(`${sel} { ${hit[1]}: ${hit[2]} }`);
+    // Overlays (menus, dialogs, toasts) sit on the named layers. Small local
+    // numbers that order things inside one component are fine.
+    const z = /^\s*z-index\s*:\s*(\d+)\s*$/.exec(d);
+    if (z && Number(z[1]) >= 60) bad.push(`${sel} { z-index: ${z[1]} }`);
   }
 }
-console.log(bad.length ? `FAIL ${bad.length} chrome rules use a literal size instead of a token:\n  ` + bad.slice(0, 20).join('\n  ') : 'ok   chrome font sizes and radii all come from tokens');
+console.log(bad.length ? `FAIL ${bad.length} chrome rules use a literal size instead of a token:\n  ` + bad.slice(0, 20).join('\n  ') : 'ok   chrome font sizes, radii and overlay layers all come from tokens');
 process.exit(bad.length ? 1 : 0);

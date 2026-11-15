@@ -1694,3 +1694,27 @@ Large-media "Compress" is not built; the check only warns.
 - Not done: Story view as a wrapping grid, z-index values on the named layers,
   entrances that play as blocks scroll into view on phones.
 
+
+# v6.30
+
+## Review fixes, fifth batch
+- **Story view is a grid.** Slides sit in order on a grid that wraps to the
+  width of the dialog, so a long course scrolls down and never sideways. Cards
+  show the real slide, not a wireframe. Dashed arrows follow the slide order
+  (stepping down between rows); solid arrows are trigger branches, drawn from
+  the top or bottom of a card so they stay clear of the order arrows.
+- **Entrances play on scroll on phones.** In the one-column view a block with
+  an entrance fades up when it scrolls into view, once the timeline has reached
+  it. Blocks that appear together are staggered top to bottom. Reduced-motion
+  settings turn the movement off.
+- **Course colours have their own tokens.** `--c-correct`, `--c-incorrect`
+  (each with `-surface` and `-border`) and `--c-accent-text` are used by quiz
+  feedback and graded items. Feedback in fill-in, sequence, drag and drop and
+  matching now sits on its own light surface, so it reads on dark slides too.
+  `--c-accent-text` is the course accent darkened to 4.5:1 on white.
+- **Overlay layers use the named tokens.** Menus, dialogs, the preview, Story
+  view and Welcome take their z-index from `--z-dropdown`, `--z-dialog` and
+  `--z-drag`. The token test now fails on a new literal overlay z-index.
+- Slide thumbnails are `inert`, so nothing inside one can take focus.
+- New tests: `tests/story-and-colours.test.ts`, `tests/e2e/story-view.e2e.mjs`,
+  and a scroll-entrance case in `phone-layout.e2e.mjs`.

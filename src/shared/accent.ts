@@ -37,6 +37,7 @@ export interface AccentVars {
   '--accent-dim': string;
   '--accent-ink': string;
   '--accent-rgb': string;
+  '--c-accent-text': string;
 }
 
 export function deriveAccent(hex: string | undefined, surface: string = SURFACE): AccentVars {
@@ -48,12 +49,17 @@ export function deriveAccent(hex: string | undefined, surface: string = SURFACE)
   const bright = mix(c, [255, 255, 255], 0.22);
   const dark: [number, number, number] = [5, 16, 11];
   const ink = contrast(c, dark) >= contrast(c, [255, 255, 255]) ? dark : ([255, 255, 255] as [number, number, number]);
+  // Inside slides the accent is text on light surfaces: darken the author's
+  // color until it clears 4.5:1 on white.
+  let onLight = base;
+  for (let i = 0; i < 30 && contrast(onLight, [255, 255, 255]) < 4.5; i++) onLight = mix(onLight, [0, 0, 0], 0.08);
   const rgb = c.map((v) => Math.round(v)).join(', ');
   return {
     '--accent': toHex(...c),
     '--accent-bright': toHex(...bright),
     '--accent-dim': `rgba(${rgb}, 0.14)`,
     '--accent-ink': toHex(...ink),
-    '--accent-rgb': rgb
+    '--accent-rgb': rgb,
+    '--c-accent-text': toHex(...onLight)
   };
 }

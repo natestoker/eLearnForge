@@ -436,6 +436,43 @@ export function Player({ project, adapter, startSlideId }: {
 
   const phone = narrow ? phoneLayoutFor(slide) : null;
   const reflow = phone?.mode === 'reflow' && !runtime.getLightbox();
+  // In the phone column an entrance plays when its block scrolls into view
+  // (and the timeline has reached it), not while it sits below the fold.
+  // Blocks that come into view together are staggered top to bottom.
+  const [seen, setSeen] = useState<Map<string, number>>(() => new Map());
+  const revealObserver = useRef<IntersectionObserver | null>(null);
+  useEffect(() => {
+    setSeen(new Map());
+    const root = stageAreaRef.current;
+    if (!reflow || !root) return;
+    const mark = (els: Element[]) => {
+      const ids = els
+        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        .map((el) => (el as HTMLElement).dataset.blockId)
+        .filter((id): id is string => Boolean(id));
+      if (!ids.length) return;
+      setSeen((prev) => {
+        const fresh = ids.filter((id) => !prev.has(id));
+        if (!fresh.length) return prev;
+        const next = new Map(prev);
+        fresh.forEach((id, n) => next.set(id, n * 90));
+        return next;
+      });
+    };
+    const blocks = () => [...root.querySelectorAll('.player-block.rf-enter')];
+    if (typeof IntersectionObserver === 'undefined') { mark(blocks()); return; }
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.filter((e) => e.isIntersecting);
+        hit.forEach((e) => io.unobserve(e.target));
+        mark(hit.map((e) => e.target));
+      },
+      { root, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealObserver.current = io;
+    blocks().forEach((el) => io.observe(el));
+    return () => { io.disconnect(); revealObserver.current = null; };
+  }, [reflow, slide.id]);
   const settings = project.player ?? defaultPlayerSettings();
   const playerAccent = settings.accent ?? project.theme?.accent ?? '#3ddc97';
   // Whether the Next/Submit emphasis animation is actually allowed to run
@@ -599,15 +636,19 @@ export function Player({ project, adapter, startSlideId }: {
                   pState !== 'normal' ? block.stateStyles?.[pState as 'selected' | 'visited' | 'disabled'] : undefined;
                 if (clickable && downId === block.id && block.stateStyles?.down) stateStyle = block.stateStyles.down;
                 else if (clickable && hoverId === block.id && block.stateStyles?.hover && pState === 'normal') stateStyle = block.stateStyles.hover;
+                const entrance = reflow && Boolean(block.timing?.animIn || block.timing?.animInStack?.length);
+                const revealed = seen.has(block.id) && (!tState || tState.present);
                 return (
                   <div
                     key={block.id}
                     data-block-id={block.id}
-                    className={`player-block ${clickable ? 'clickable' : ''}`}
+                    className={`player-block ${clickable ? 'clickable' : ''}${entrance ? ` rf-enter${revealed ? ' in' : ''}` : ''}`}
+                    ref={entrance && !seen.has(block.id) ? (el) => { if (el) revealObserver.current?.observe(el); } : undefined}
                     style={reflow ? {
                       // One column: natural height, full width. Timed blocks fade
                       // in on schedule without shifting the layout.
-                      ...(tState ? { opacity: tState.present ? tState.opacity : 0, pointerEvents: tState.present ? undefined : 'none' as const, visibility: tState.present ? undefined : 'hidden' as const } : {}),
+                      ...(tState ? { ...(entrance ? {} : { opacity: tState.present ? tState.opacity : 0 }), pointerEvents: tState.present ? undefined : 'none' as const, visibility: tState.present ? undefined : 'hidden' as const } : {}),
+                      ...(entrance && revealed ? { transitionDelay: `${seen.get(block.id) ?? 0}ms` } : {}),
                       ...(block.type === 'image' || block.type === 'video' ? { aspectRatio: `${block.w} / ${block.h}` } : {}),
                       ...(block.type === 'text' ? { zoom: reflowFontScale((block.props as { fontSize?: number }).fontSize ?? 16) } : {}),
                       ...(block.type === 'button' ? { minHeight: 48 } : {}),

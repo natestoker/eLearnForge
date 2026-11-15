@@ -93,6 +93,30 @@ check('the Glossary panel fits the screen', panel && panel.x >= 0 && panel.x + p
   check('Resources and Glossary sit in the top bar, not over the slide', tabs && tabs.y + tabs.height <= 52, JSON.stringify(tabs));
   await pg.context().close();
 }
+// ---- Entrances in the column play when the block scrolls into view
+{
+  const timed = await demoProject((p) => {
+    const base = p.slides[0].layers[0];
+    const text = base.blocks.find((b) => b.type === 'text');
+    for (let i = 0; i < 8; i++) {
+      base.blocks.push({ ...JSON.parse(JSON.stringify(text)), id: `late-${i}`, y: 2000 + i * 300, timing: { start: 0, animIn: { type: 'fade', duration: 0.4, ease: 'power2.out' } } });
+    }
+    p.slides[0].phoneLayout = 'reflow';
+  });
+  const pg = await playerPage(browser, timed, { viewport: { width: 390, height: 780 }, mobile: true });
+  await pg.waitForTimeout(900);
+  const state = () => pg.evaluate(() => [...document.querySelectorAll('.player-block.rf-enter')].map((el) => el.classList.contains('in')));
+  const before = await state();
+  check('the timed blocks wait for an entrance', before.length >= 8, String(before.length));
+  check('blocks on screen at the start have played', before[0] === true, JSON.stringify(before));
+  check('blocks below the fold have not played yet', before[before.length - 1] === false, JSON.stringify(before));
+  await pg.evaluate(() => { const a = document.querySelector('.player-stage-area'); a.scrollTop = a.scrollHeight; });
+  await pg.waitForTimeout(900);
+  const after = await state();
+  check('scrolling down plays the last entrance', after[after.length - 1] === true, JSON.stringify(after));
+  eq('a played block is fully visible', await pg.evaluate(() => getComputedStyle([...document.querySelectorAll('.player-block.rf-enter')].pop()).opacity), '1');
+  await pg.context().close();
+}
 // ---- Editor: Preview > Phone shows the reflowed column, and the slide can override it
 {
   const ed = await editorPage(browser);

@@ -86,7 +86,7 @@ export function SlidePreview({ slide }: { slide: Slide }) {
 
   const layers = shown.layers.filter((l, i) => i === 0 || l.visibleByDefault);
   return (
-    <div ref={host} className="slide-preview" aria-hidden="true">
+    <div ref={host} className="slide-preview" aria-hidden="true" {...({ inert: "" } as object)}>
       {near && (
         <div
           className="slide-preview-stage"
