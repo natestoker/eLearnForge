@@ -428,13 +428,16 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
   return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="Content" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false" /><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}</trigLst><localizedName /><trans />${noteXml(slide.notes)}${layers ? `<sldLayerLst>${layers}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
 }
 
-const BOM = '﻿';
+const BOM = '\uFEFF';
 const relsXml = (items: { type: string; target: string; id: string }[]) =>
   `${BOM}<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${items.map((r) => `<Relationship Type="${r.type}" Target="${r.target}" Id="${r.id}" />`).join('')}</Relationships>`;
 
 export async function exportStory(project: Project): Promise<StoryExportResult> {
   const zip = await JSZip.loadAsync(STORY_SHELL_BASE64, { base64: true });
-  const read = async (p: string) => (await zip.file(p)!.async('string')).replace(/^﻿/, '');
+  // No folder entries: a .story is an OPC package, and Storyline's reader
+  // rejects a zip that lists directories as entries.
+  const put = (path: string, data: string | Uint8Array) => zip.file(path, data, { createFolders: false });
+  const read = async (p: string) => (await zip.file(p)!.async('string')).replace(/^\uFEFF/, '');
   const first = project.slides[0];
   const ctx: Ctx = {
     project, w: first?.width ?? 1280, h: first?.height ?? 720, warnings: new Map(),
@@ -465,9 +468,9 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   for (const [i, slide] of project.slides.entries()) {
     const name = `slide${i === 0 ? '' : (i + 1).toString(16)}.xml`;
     ctx.slideMedia = new Set();
-    zip.file(`story/slides/${name}`, BOM + await slideXml(ctx, slide, layoutG));
+    put(`story/slides/${name}`, BOM + await slideXml(ctx, slide, layoutG));
     if (ctx.slideMedia.size) {
-      zip.file(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${shortId(16).toLowerCase()}` }))));
+      put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${shortId(16).toLowerCase()}` }))));
     }
     // The first slide keeps the shell's relationship id: the summary's start
     // path names it.
@@ -476,7 +479,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     slideRels.push({ type: 'slide', target: `/story/slides/${name}`, id });
     overrides += `<Override PartName="/story/slides/${name}" ContentType="application/slide+xml" />`;
   }
-  for (const m of ctx.media.values()) zip.file(`story/media/${m.file}`, m.bytes);
+  for (const m of ctx.media.values()) put(`story/media/${m.file}`, m.bytes);
 
   // story.xml: variables, media list, slide order, menu entries, slide size.
   let story = await read('story/story.xml');
@@ -494,19 +497,19 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const tocEntries = project.slides.map((s) => `<tocSlideEntry g="${guid()}" refG="${ctx.slideG.get(s.id)}" corG="${guid()}" expanded="true"><entryLst /><localizedName /></tocSlideEntry>`).join('');
   story = story.replace(/(<tocSceneEntry [^>]*>)<entryLst>.*?<\/entryLst>(<localizedName \/><\/tocSceneEntry>)/, `$1<entryLst>${tocEntries}</entryLst>$2`);
   story = story.replace(/<prop id="15"><sz w="\d+" h="\d+" \/><\/prop>/, `<prop id="15"><sz w="${ctx.w}" h="${ctx.h}" /></prop>`);
-  zip.file('story/story.xml', BOM + story);
+  put('story/story.xml', BOM + story);
 
   // Relationships and content types.
   const storyRels = await read('story/_rels/story.xml.rels');
   const kept = Array.from(storyRels.matchAll(/<Relationship Type="([^"]+)" Target="([^"]+)" Id="([^"]+)" \/>/g))
     .filter((m) => m[1] !== 'slide').map((m) => ({ type: m[1], target: m[2], id: m[3] }));
-  zip.file('story/_rels/story.xml.rels', relsXml([...slideRels, ...kept]));
+  put('story/_rels/story.xml.rels', relsXml([...slideRels, ...kept]));
   let types = await read('[Content_Types].xml');
   types = types.replace('<Override PartName="/story/slides/slide.xml" ContentType="application/slide+xml" />', overrides);
   if (ctx.media.size && !types.includes('Extension="png"')) {
     types = types.replace('<Default Extension="jpg" ContentType="image/jpeg" />', '<Default Extension="jpg" ContentType="image/jpeg" /><Default Extension="png" ContentType="image/png" />');
   }
-  zip.file('[Content_Types].xml', BOM + types);
+  put('[Content_Types].xml', BOM + types);
 
   // The summary lists scenes and slides for Storyline's Open dialog.
   let summary = await read('docProps/summary.xml');
@@ -514,7 +517,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const sumSlides = project.slides.map((s) => `<slide name="${xa(s.name)}" g="${ctx.slideG.get(s.id)}" verG="${guid()}" note="" thumbnail="${thumb}" />`).join('');
   summary = summary.replace(/<slides>.*?<\/slides>/, `<slides>${sumSlides}</slides>`).replace(/slidecount="\d+"/, `slidecount="${project.slides.length}"`);
   void oldG;
-  zip.file('docProps/summary.xml', BOM + summary);
+  put('docProps/summary.xml', BOM + summary);
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/octet-stream' });
   return { blob, warnings: [...ctx.warnings].map(([m, c]) => (c > 1 ? `${m} (${c} times)` : m)) };

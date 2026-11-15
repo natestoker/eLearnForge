@@ -25,7 +25,7 @@ check('the report says what was left out', (await ed.locator('.story-report').in
 await ed.locator('.story-report .btn-accent').click();
 
 const zip = await JSZip.loadAsync(readFileSync(path));
-const text = async (p) => (await zip.file(p).async('string')).replace(/^﻿/, '');
+const text = async (p) => (await zip.file(p).async('string')).replace(/^\uFEFF/, '');
 const story = await text('story/story.xml');
 const rels = await text('story/_rels/story.xml.rels');
 const types = await text('[Content_Types].xml');
@@ -35,6 +35,7 @@ check('every slide part exists and is declared', slideRels.every((m) => zip.file
 eq('the scene lists the slides in order', [...story.match(/<sldIdLst>(.*?)<\/sldIdLst>/)[1].matchAll(/<sldId>([^<]+)/g)].map((m) => m[1]), slideRels.map((m) => m[2]));
 check('the masters, theme and player settings from the blank project are kept', ['story/playerProps.xml', 'story/theme/theme.xml', 'story/slideMasters/slideMaster.xml'].every((p) => zip.file(p)));
 check('variables are written as user variables', before.vars.every((v) => new RegExp(`name="${v.replace(/[^A-Za-z0-9_]/g, '_')}"[^>]*type="user"`).test(story)));
+check('the zip lists no folders (Storyline rejects them)', Object.keys(zip.files).every((f) => !f.endsWith('/')), Object.keys(zip.files).filter((f) => f.endsWith('/')).join(' '));
 const s1 = await text(slideRels[0][1]);
 check('slide 1 has its name and text', s1.includes(`name="${before.slides[0]}"`) && s1.includes('<textBox ') && s1.includes('&lt;Span Text='));
 const allSlides = (await Promise.all(slideRels.map((m) => text(m[1])))).join('');

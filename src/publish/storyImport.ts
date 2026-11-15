@@ -42,7 +42,7 @@ const num = (el: Element | null | undefined, attr: string, fallback = 0): number
   return Number.isFinite(v) ? v : fallback;
 };
 function parseXml(text: string): Document {
-  return new DOMParser().parseFromString(text.replace(/^﻿/, ''), 'application/xml');
+  return new DOMParser().parseFromString(text.replace(/^\uFEFF/, ''), 'application/xml');
 }
 async function readText(zip: JSZip, path: string): Promise<string | null> {
   const f = zip.file(path.replace(/^\//, ''));
