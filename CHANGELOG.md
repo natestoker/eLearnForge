@@ -1815,8 +1815,9 @@ Large-media "Compress" is not built; the check only warns.
   with the slide (it is defined at 960 wide), which made exported text too big
   on 1280 and 1920 slides and clipped it. Opening a .story file applies the
   same rule in reverse.
-- Every shape that holds text is set to "Expand height", so text that runs
-  long grows the shape instead of showing scrollbars.
+- Autofit is chosen per shape: one whose text fits keeps a fixed size, so it
+  does not collapse or shift when selected in Storyline; one whose text would
+  not fit is set to "Expand height".
 - Paragraphs keep their line breaks (a heading and its body no longer run
   together on one line).
 - Slide backgrounds come across: a colour, gradient or picture background is
@@ -1824,7 +1825,5 @@ Large-media "Compress" is not built; the check only warns.
 - Value displays map to Storyline's built-in variables (slide number, total
   slides, slides viewed, progress). A score display uses a new `Score`
   variable that each question's Correct layer adds to.
-- Shapes keep their drawn height. "Expand height" sizes a shape to its text
-  plus its text margins, so a box taller than its text collapsed when clicked
-  in Storyline. The spare room is now written as text margin, which makes the
-  fitted height equal the drawn height.
+- Text margins are written as whole numbers. A decimal there makes Storyline
+  report the file as invalid or corrupt.

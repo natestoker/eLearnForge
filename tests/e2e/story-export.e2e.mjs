@@ -73,6 +73,7 @@ eq('variables survive the round trip (plus the added Score)', after.vars, [...be
 check('the score readout uses the Score variable, fed by the Correct layers', allSlides.includes('%Score%') && /<feedBackLayer(?:(?!<\/feedBackLayer>).)*action="adjustVar"/s.test(allSlides) && !allSlides.includes('@@SCORE_STEP@@'));
 // Storyline rejects the whole file if a text margin has a decimal.
 check('text margins are whole numbers', !/<textMargin [^>]*"-?\d+\.\d/.test(allSlides));
+check('shapes whose text fits keep a fixed size', /autoFit="none"[^>]*>(?:(?!<\/textBox>).)*<text>/s.test(allSlides));
 check('font sizes are scaled to the slide width', !/FontSize="(?:[4-9]\d|\d{3,})/.test(allSlides));
 check('text comes back as text', after.text > 0);
 

@@ -132,10 +132,12 @@ and outlines.
 **Font sizes.** Storyline defines a point size on a 960-wide slide and scales
 it with the slide, so 14pt on a 1920-wide slide is twice as large as on a
 960-wide one. Saving divides by that factor and opening multiplies by it, so
-text keeps its real size both ways. Every shape that holds text is set to
-"Expand height" so a font difference lengthens the box instead of clipping
-the text. Spare room in a shape is written as text margin, so the fitted
-height equals the drawn height and the shape does not collapse when selected.
+text keeps its real size both ways.
+
+**Autofit.** A shape whose text fits the box as drawn keeps a fixed size
+("Do not autofit"), so it does not change when selected in Storyline. Only a
+shape whose text would not fit is set to "Expand height". Text margins are
+always whole numbers: Storyline rejects a file with a decimal there.
 
 **Backgrounds.** A slide's colour, gradient or picture background is saved as
 a full-slide picture named Background at the back of the base layer.

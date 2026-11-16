@@ -288,46 +288,43 @@ const locXml = (ctx: Ctx, b: Block) => `<sldSz w="${ctx.w}" h="${ctx.h}" /><loc 
 const propBag = () => `<propBag><prop><key>morphKey</key><val><str>${shortId(11)}</str></val></prop></propBag>`;
 const hLink = `<hLink enabled="false" trigG="${ZERO}" />`;
 
-// "Expand height" makes Storyline size a shape to its text plus its text
-// margins, so a box that is taller than its text snaps shut the first time it
-// is touched. To hold the designed height, the spare room is written as
-// margin: measured text height + margins = the height the author drew.
+// "Expand height" makes Storyline size a shape to its text, so a box drawn
+// taller than its text snaps shut the first time it is touched. It is only
+// switched on where the text will not fit the box as drawn; everything else
+// keeps a fixed size, which is also what stops shapes shifting when selected.
 function textHeight(html: string, width: number, size: number, font: string, bold: boolean): number {
   try {
     const d = document.createElement('div');
-    d.style.cssText = `position:absolute;left:-99999px;top:0;visibility:hidden;box-sizing:content-box;width:${Math.max(1, width)}px;font:${bold ? 700 : 400} ${size}px/1.33 "${font}", "Segoe UI", sans-serif;white-space:normal;overflow-wrap:break-word;`;
+    // Storyline spaces lines by the font's own metrics (1.33 for Segoe UI).
+    d.style.cssText = `position:absolute;left:-99999px;top:0;visibility:hidden;box-sizing:content-box;width:${Math.max(1, width)}px;font:${bold ? 700 : 400} ${size}px/1.36 "${font}", "Segoe UI", sans-serif;white-space:normal;overflow-wrap:break-word;`;
     d.innerHTML = html;
-    d.querySelectorAll('p,ul,ol,li,h1,h2,h3').forEach((e) => { (e as HTMLElement).style.margin = '0'; });
+    d.querySelectorAll('p,ul,ol,li,h1,h2,h3').forEach((e) => {
+      (e as HTMLElement).style.margin = '0';
+      // An empty paragraph is still a line in Storyline.
+      if (!e.textContent && !e.children.length) e.innerHTML = '&nbsp;';
+    });
     document.body.appendChild(d);
     const h = d.getBoundingClientRect().height;
     d.remove();
     return h;
   } catch {
-    return size * 1.33;
+    return size * 1.36;
   }
 }
-function holdHeight(h: number, textH: number, valign: string, t: number, b: number): { t: number; b: number } {
-  // Leave the estimate a little short so a small font difference cannot
-  // push the shape taller than drawn.
-  const spare = h - textH * 1.04 - t - b;
-  if (spare <= 1) return { t, b };
-  // Storyline reads text margins as whole numbers; a decimal makes the file
-  // unreadable.
-  const whole = Math.floor(spare);
-  if (valign === 'center' || valign === 'm') return { t: t + Math.floor(whole / 2), b: b + Math.ceil(whole / 2) };
-  if (valign === 'bottom' || valign === 'b') return { t: t + whole, b };
-  return { t, b: b + whole };
-}
+// True when the text fits the drawn box with room to spare. The margin of
+// error covers a different font or wrap point in Storyline.
+const fitsBox = (h: number, textH: number, t: number, b: number, size: number) => h >= textH * 1.1 + t + b || (textH <= size * 1.5 && h >= textH + t + b);
 
 interface TextOpts { html: string; size: number; color: string; font: string; align: string; valign: string; bold: boolean; inset: { l: number; t: number; r: number; b: number } }
-function textTail(b: Block, t: TextOpts | null): { text: string; tail: string } {
+function textTail(b: Block, t: TextOpts | null): { text: string; tail: string; fits: boolean } {
   if (!t) {
-    return { text: '', tail: `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />` };
+    return { text: '', fits: true, tail: `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />` };
   }
   const paras = htmlToParas(t.html, { color: t.color, size: t.size, font: t.font, align: t.align, bold: t.bold });
-  const held = holdHeight(b.h, textHeight(t.html, b.w - t.inset.l - t.inset.r, t.size, t.font, t.bold), t.valign, t.inset.t, t.inset.b);
-  const i = { l: Math.round(t.inset.l), r: Math.round(t.inset.r), t: Math.round(held.t), b: Math.round(held.b) };
+  const i = { l: Math.round(t.inset.l), r: Math.round(t.inset.r), t: Math.round(t.inset.t), b: Math.round(t.inset.b) };
+  const fits = fitsBox(b.h, textHeight(t.html, b.w - i.l - i.r, t.size, t.font, t.bold), i.t, i.b, t.size);
   return {
+    fits,
     text: `<text>${xa(documentXml(paras))}</text>`,
     tail: `${DIAL}<textMargin l="${n(i.l)}" t="${n(i.t)}" r="${n(i.r)}" b="${n(i.b)}" /><bounds l="${n(i.l)}" t="${n(i.t)}" r="${n(Math.max(i.l + 1, b.w - i.r))}" b="${n(Math.max(i.t + 1, b.h - i.b))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(plainOf(paras))}</plain><hLinkLst />`
   };
@@ -349,7 +346,7 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
       // eLearnForge pads every text block by 8px; Storyline's margin carries it.
       inset: { l: (inset.left ?? 0) + 8, t: (inset.top ?? 0) + 8, r: (inset.right ?? 0) + 8, b: (inset.bottom ?? 0) + 8 }
     });
-    return `<textBox ${head(b, g, z, '110855', 'Text')} autoFit="resize" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${halignAttr(p.align as string)}" vertAlign="${valignAttr(p.valign as string)}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${BG_DEFAULT}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${t.tail}</textBox>`;
+    return `<textBox ${head(b, g, z, '110855', 'Text')} autoFit="${t.fits ? 'none' : 'resize'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${halignAttr(p.align as string)}" vertAlign="${valignAttr(p.valign as string)}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${BG_DEFAULT}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${t.tail}</textBox>`;
   }
 
   if (b.type === 'image') {
@@ -434,7 +431,7 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
     text = { html: `<p>${xa(`${b.name || b.type} (eLearnForge ${b.type} block, not converted)`)}</p>`, size: 14, color: 'C2410C', font: DEFAULT_FONT, align: 'center', valign: 'center', bold: false, inset: { l: 7, t: 3, r: 7, b: 3 } };
   }
   const t = textTail(b, text);
-  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="${text ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? halignAttr(text.align) : 'not'}" vertAlign="${text ? valignAttr(text.valign) : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
+  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="${text && !t.fits ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? halignAttr(text.align) : 'not'}" vertAlign="${text ? valignAttr(text.valign) : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
 }
 
 // ---------- triggers ----------
@@ -585,14 +582,14 @@ function boxShape(ctx: Ctx, o: BoxOpts): string {
   const timing = `<tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="2"><txtTmCtx ${gv()} start="0" dur="${o.totalMs}" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="true" assetStart="0" name="" /></tmCtxLst>`;
   const t = o.text;
   const text = t ? `<text>${xa(plainDoc(t.value, t.size, t.color, t.bold, t.align))}</text>` : '';
-  const held = t ? holdHeight(o.h, textHeight(xa(t.value), o.w - t.pad * 2, t.size, DEFAULT_FONT, t.bold), o.grow ? 't' : 'm', 6, 6) : { t: 6, b: 6 };
   if (t) t.pad = Math.round(t.pad);
+  const fits = !t || fitsBox(o.h, textHeight(xa(t.value), o.w - t.pad * 2, t.size, DEFAULT_FONT, t.bold), 6, 6, t.size);
   const tail = t
-    ? `${DIAL}<textMargin l="${t.pad}" t="${n(held.t)}" r="${t.pad}" b="${n(held.b)}" /><bounds l="${t.pad}" t="${n(held.t)}" r="${n(Math.max(t.pad + 1, o.w - t.pad))}" b="${n(Math.max(held.t + 1, o.h - held.b))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(t.value)}</plain><hLinkLst />`
+    ? `${DIAL}<textMargin l="${t.pad}" t="6" r="${t.pad}" b="6" /><bounds l="${t.pad}" t="6" r="${n(Math.max(t.pad + 1, o.w - t.pad))}" b="${n(Math.max(7, o.h - 6))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(t.value)}</plain><hLinkLst />`
     : `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />`;
   const geom = o.tag === 'roundRect' ? `<prstGeom><roundRect vertexSet="true" radius="${n(o.radius ?? 0.16667)}" /></prstGeom>` : '';
   const bg = o.tag === 'textBox' ? BG_DEFAULT : paintBg(o.fill, o.line, o.lineW);
-  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="${t ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? (o.grow ? 't' : 'm') : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
+  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="${fits ? 'none' : 'resize'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? (o.grow ? 't' : 'm') : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
 }
 
 function stateXml(ctx: Ctx, name: string, inner: BoxOpts): string {
