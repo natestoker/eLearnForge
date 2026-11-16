@@ -311,9 +311,12 @@ function holdHeight(h: number, textH: number, valign: string, t: number, b: numb
   // push the shape taller than drawn.
   const spare = h - textH * 1.04 - t - b;
   if (spare <= 1) return { t, b };
-  if (valign === 'center' || valign === 'm') return { t: t + spare / 2, b: b + spare / 2 };
-  if (valign === 'bottom' || valign === 'b') return { t: t + spare, b };
-  return { t, b: b + spare };
+  // Storyline reads text margins as whole numbers; a decimal makes the file
+  // unreadable.
+  const whole = Math.floor(spare);
+  if (valign === 'center' || valign === 'm') return { t: t + Math.floor(whole / 2), b: b + Math.ceil(whole / 2) };
+  if (valign === 'bottom' || valign === 'b') return { t: t + whole, b };
+  return { t, b: b + whole };
 }
 
 interface TextOpts { html: string; size: number; color: string; font: string; align: string; valign: string; bold: boolean; inset: { l: number; t: number; r: number; b: number } }
@@ -323,7 +326,7 @@ function textTail(b: Block, t: TextOpts | null): { text: string; tail: string } 
   }
   const paras = htmlToParas(t.html, { color: t.color, size: t.size, font: t.font, align: t.align, bold: t.bold });
   const held = holdHeight(b.h, textHeight(t.html, b.w - t.inset.l - t.inset.r, t.size, t.font, t.bold), t.valign, t.inset.t, t.inset.b);
-  const i = { ...t.inset, t: held.t, b: held.b };
+  const i = { l: Math.round(t.inset.l), r: Math.round(t.inset.r), t: Math.round(held.t), b: Math.round(held.b) };
   return {
     text: `<text>${xa(documentXml(paras))}</text>`,
     tail: `${DIAL}<textMargin l="${n(i.l)}" t="${n(i.t)}" r="${n(i.r)}" b="${n(i.b)}" /><bounds l="${n(i.l)}" t="${n(i.t)}" r="${n(Math.max(i.l + 1, b.w - i.r))}" b="${n(Math.max(i.t + 1, b.h - i.b))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(plainOf(paras))}</plain><hLinkLst />`
@@ -583,6 +586,7 @@ function boxShape(ctx: Ctx, o: BoxOpts): string {
   const t = o.text;
   const text = t ? `<text>${xa(plainDoc(t.value, t.size, t.color, t.bold, t.align))}</text>` : '';
   const held = t ? holdHeight(o.h, textHeight(xa(t.value), o.w - t.pad * 2, t.size, DEFAULT_FONT, t.bold), o.grow ? 't' : 'm', 6, 6) : { t: 6, b: 6 };
+  if (t) t.pad = Math.round(t.pad);
   const tail = t
     ? `${DIAL}<textMargin l="${t.pad}" t="${n(held.t)}" r="${t.pad}" b="${n(held.b)}" /><bounds l="${t.pad}" t="${n(held.t)}" r="${n(Math.max(t.pad + 1, o.w - t.pad))}" b="${n(Math.max(held.t + 1, o.h - held.b))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(t.value)}</plain><hLinkLst />`
     : `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />`;
@@ -870,7 +874,9 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   for (const [i, slide] of project.slides.entries()) {
     const name = `slide${i === 0 ? '' : (i + 1).toString(16)}.xml`;
     ctx.slideMedia = new Set();
-    slideXmls.push([name, await slideXml(ctx, slide, layoutG)]);
+    // Last line of defence: text margins must be whole numbers everywhere.
+    const xml = (await slideXml(ctx, slide, layoutG)).replace(/<textMargin [^>]*\/>/g, (m) => m.replace(/"(-?\d+\.\d+)"/g, (_, v) => `"${Math.round(Number(v))}"`));
+    slideXmls.push([name, xml]);
     if (ctx.slideMedia.size) {
       put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
     }
