@@ -1824,3 +1824,7 @@ Large-media "Compress" is not built; the check only warns.
 - Value displays map to Storyline's built-in variables (slide number, total
   slides, slides viewed, progress). A score display uses a new `Score`
   variable that each question's Correct layer adds to.
+- Shapes keep their drawn height. "Expand height" sizes a shape to its text
+  plus its text margins, so a box taller than its text collapsed when clicked
+  in Storyline. The spare room is now written as text margin, which makes the
+  fitted height equal the drawn height.
