@@ -1833,3 +1833,6 @@ Large-media "Compress" is not built; the check only warns.
   so text and the hotspots placed over it stay lined up.
 - Demo course: the third hotspot on "Spot the red flags" now sits over the
   link line it is meant to flag.
+- Quiz choice rows and drag items are sized to their own text, and the font
+  steps down when the stack would not fit, so none of them shows a scrollbar
+  in Storyline.

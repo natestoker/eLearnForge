@@ -639,6 +639,20 @@ const scaleOf = (ctx: Ctx) => Math.max(0.75, ctx.w / 1280);
 
 const QUESTION_TYPES = new Set(['multipleChoice', 'dragDrop', 'matching', 'sequence']);
 
+// Row heights for a stack of labelled boxes: each at least minH and tall
+// enough for its own text, since these boxes do not autofit and Storyline
+// shows a scrollbar on one whose text overflows. The font steps down when the
+// stack would not fit the space.
+function stackRows(texts: string[], width: number, size: number, padX: number, minH: number, space: number, gap: number): { size: number; heights: number[] } {
+  let out = { size, heights: texts.map(() => minH) };
+  for (let sz = size; sz >= Math.max(10, size * 0.7); sz -= Math.max(1, size * 0.06)) {
+    const heights = texts.map((t) => Math.max(minH, Math.ceil(textHeight(xa(t), width - padX * 2, sz, DEFAULT_FONT, true) * 1.12) + 16));
+    out = { size: Math.round(sz * 100) / 100, heights };
+    if (heights.reduce((a, h) => a + h, 0) + gap * (texts.length - 1) <= space) break;
+  }
+  return out;
+}
+
 function questionXml(ctx: Ctx, b: Block, zStart: number, totalMs: number, firstLayerId: number): { shapes: string; count: number; layers: string } {
   const p = b.props as unknown as Record<string, unknown>;
   const k = scaleOf(ctx);
@@ -670,11 +684,15 @@ function questionXml(ctx: Ctx, b: Block, zStart: number, totalMs: number, firstL
     template = p.allowMultiple ? PICK_MANY_INTR : PICK_ONE_INTR;
     const count = Math.max(1, choices.length);
     const rowH = Math.max(px(60), Math.min(px(84), Math.floor((bodyH - gap * (count - 1)) / count)));
+    const cPad = Math.round(px(24));
+    const rows = stackRows(choices.map((c, i) => `${String.fromCharCode(65 + (i % 26))}.   ${c.text}`), innerW, px(20), cPad, rowH, bodyH, gap);
+    let cy = top;
     choices.forEach((c, i) => {
       const cg = guid();
       const letter = String.fromCharCode(65 + (i % 26));
-      const base = { tag: 'roundRect' as const, g: cg, name: `Choice ${letter}`, z: 0, x: b.x + pad, y: top + i * (rowH + gap), w: innerW, h: rowH, totalMs, radius: 0.22, lineW: line };
-      const label = { value: `${letter}.   ${c.text}`, size: px(20), bold: false, align: 'left', pad: px(24) };
+      const base = { tag: 'roundRect' as const, g: cg, name: `Choice ${letter}`, z: 0, x: b.x + pad, y: cy, w: innerW, h: rows.heights[i], totalMs, radius: 0.22, lineW: line };
+      cy += rows.heights[i] + gap;
+      const label = { value: `${letter}.   ${c.text}`, size: rows.size, bold: false, align: 'left', pad: cPad };
       const states =
         stateXml(ctx, 'Normal', { ...base, fill: 'FFFFFF', line: 'C3CCC5', text: { ...label, color: '1C211D' } }) +
         stateXml(ctx, 'Hover', { ...base, fill: 'F1F8F4', line: accent, text: { ...label, color: '1C211D' } }) +
@@ -711,9 +729,13 @@ function questionXml(ctx: Ctx, b: Block, zStart: number, totalMs: number, firstL
     targets.forEach((label, i) => {
       shapes += boxShape(ctx, { tag: 'roundRect', g: targetG[i], name: `Drop target ${i + 1}`, z: z++, x: b.x + pad + colW + gap * 2, y: top + i * (targetH + gap), w: colW, h: targetH, totalMs, fill: 'F4F7F5', line: 'A9B5AC', lineW: line, radius: 0.12, text: { value: label, size: px(18), color: '3D4A42', bold: true, align: 'center', pad: px(12) } });
     });
+    const dPad = Math.round(px(14));
+    const dRows = stackRows(shown.map((d) => d.text), colW, px(18), dPad, dragH, bodyH, gap);
+    let dy = top;
     shown.forEach((d, row) => {
       const dg = guid();
-      shapes += boxShape(ctx, { tag: 'roundRect', g: dg, name: `Drag item ${row + 1}`, z: z++, x: b.x + pad, y: top + row * (dragH + gap), w: colW, h: dragH, totalMs, fill: 'FFFFFF', line: accent, lineW: line, radius: 0.25, text: { value: d.text, size: px(18), color: '1C211D', bold: false, align: 'center', pad: px(14) } });
+      shapes += boxShape(ctx, { tag: 'roundRect', g: dg, name: `Drag item ${row + 1}`, z: z++, x: b.x + pad, y: dy, w: colW, h: dRows.heights[row], totalMs, fill: 'FFFFFF', line: accent, lineW: line, radius: 0.25, text: { value: d.text, size: dRows.size, color: '1C211D', bold: false, align: 'center', pad: dPad } });
+      dy += dRows.heights[row] + gap;
       choiceXml.push(choice(dg, targetG[d.target] ?? ZERO, false));
       order.push(`<g>${dg}</g>`);
     });
