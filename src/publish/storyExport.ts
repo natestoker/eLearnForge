@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import type { Action, AnimSpec, Block, Condition, Layer, Project, Slide, Trigger, Variable } from '../schema/types';
 import { STORY_SHELL_BASE64 } from './storyShell';
 import { md5 } from './md5';
-import { PICK_MANY_INTR, PICK_ONE_INTR } from './storyQuizTemplates';
+import { DRAG_DROP_INTR, PICK_MANY_INTR, PICK_ONE_INTR } from './storyQuizTemplates';
 
 // Save a project as an Articulate Storyline 360 file.
 //
@@ -181,6 +181,9 @@ interface Ctx {
   media: Map<string, { g: string; file: string; bytes: Uint8Array; hash: string; name: string }>; // by hash
   slideMedia: Set<string>; // media files used by the slide being written
   question: { layers: string } | null; // the quiz question on the slide being written, if any
+  extraLayers: string;   // layers made for tabs on this slide
+  addedLayers: number;   // how many layers this slide has gained
+  showOnStart: string[]; // layers to show when the slide starts (a tab set's first panel)
 }
 const warn = (ctx: Ctx, msg: string) => ctx.warnings.set(msg, (ctx.warnings.get(msg) ?? 0) + 1);
 
@@ -319,6 +322,12 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
     const heading = String(p.heading ?? '');
     const body = String(p.body ?? '');
     text = { html: `${heading ? `<p><strong>${xa(heading)}</strong></p>` : ''}${body ? `<p>${xa(body)}</p>` : ''}` || '<p> </p>', size: 16, color: '1C211D', font: DEFAULT_FONT, align: 'left', valign: 'top', bold: false, inset: { l: 16, t: 12, r: 16, b: 12 } };
+  } else if (b.type === 'progress') {
+    // Storyline has no progress bar object, but it does keep the numbers:
+    // the course position as built-in variables, or the author's own variable.
+    const v = ctx.project.variables.find((x) => x.id === p.variableId);
+    const value = p.source === 'variable' && v ? `%${v.name.replace(/[^A-Za-z0-9_]/g, '_')}%` : 'Slide %Project.SlideNumber% of %Project.TotalSlides%';
+    text = { html: `<p>${value}</p>`, size: Math.max(14, Math.min(b.h * 0.5, 22 * scaleOf(ctx))), color: '3D4A42', font: DEFAULT_FONT, align: 'center', valign: 'center', bold: true, inset: { l: 7, t: 3, r: 7, b: 3 } };
   } else if (b.type === 'varDisplay') {
     // A variable readout: Storyline shows a variable's value wherever its
     // name sits between percent signs.
@@ -478,6 +487,7 @@ interface BoxOpts {
   tag: 'roundRect' | 'textBox' | 'rect'; g: string; name: string; z: number; x: number; y: number; w: number; h: number; totalMs: number;
   fill: string | null; line: string | null; lineW: number; text?: { value: string; size: number; color: string; bold: boolean; align: string; pad: number };
   trigs?: string; states?: string; initState?: string; radius?: number;
+  grow?: boolean; // the box grows to fit its text
 }
 function boxShape(ctx: Ctx, o: BoxOpts): string {
   const timing = `<tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="2"><txtTmCtx ${gv()} start="0" dur="${o.totalMs}" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="true" assetStart="0" name="" /></tmCtxLst>`;
@@ -488,7 +498,7 @@ function boxShape(ctx: Ctx, o: BoxOpts): string {
     : `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />`;
   const geom = o.tag === 'roundRect' ? `<prstGeom><roundRect vertexSet="true" radius="${n(o.radius ?? 0.16667)}" /></prstGeom>` : '';
   const bg = o.tag === 'textBox' ? BG_DEFAULT : paintBg(o.fill, o.line, o.lineW);
-  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="none" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? 'm' : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
+  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="${o.grow ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? (o.grow ? 't' : 'm') : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
 }
 
 function stateXml(ctx: Ctx, name: string, inner: BoxOpts): string {
@@ -498,14 +508,16 @@ function stateXml(ctx: Ctx, name: string, inner: BoxOpts): string {
 
 function feedbackLayer(ctx: Ctx, o: { g: string; id: number; label: 'Correct' | 'Incorrect'; message: string; totalMs: number }): string {
   const ok = o.label === 'Correct';
-  const w = Math.min(ctx.w - 80, 720), h = 300;
+  const k = scaleOf(ctx);
+  const px = (v: number) => Math.round(v * k);
+  const w = Math.min(ctx.w - px(80), px(640)), h = px(300);
   const x = (ctx.w - w) / 2, y = (ctx.h - h) / 2;
   const btnG = guid();
   const shapes =
-    boxShape(ctx, { tag: 'roundRect', g: guid(), name: 'Feedback panel', z: 0, x, y, w, h, totalMs: o.totalMs, fill: ok ? 'E6F6EE' : 'FDECEA', line: ok ? '0E9F66' : 'D6453D', lineW: 2, radius: 0.06 }) +
-    boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback title', z: 1, x: x + 32, y: y + 28, w: w - 64, h: 56, totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: ok ? 'Correct' : 'Not quite', size: 30, color: ok ? '0B6B45' : 'A3231F', bold: true, align: 'left', pad: 0 } }) +
-    boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback text', z: 2, x: x + 32, y: y + 92, w: w - 64, h: 110, totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: o.message, size: 20, color: '1C211D', bold: false, align: 'left', pad: 0 } }) +
-    boxShape(ctx, { tag: 'roundRect', g: btnG, name: 'Continue', z: 3, x: x + 32, y: y + h - 84, w: 190, h: 52, totalMs: o.totalMs, fill: ok ? '0B6B45' : 'A3231F', line: null, lineW: 0, radius: 0.5, text: { value: 'Continue', size: 18, color: 'FFFFFF', bold: true, align: 'center', pad: 8 }, trigs: trigXml(btnG, { event: 'OnClick', action: 'jumpToSlide', sub: 'next' }) });
+    boxShape(ctx, { tag: 'roundRect', g: guid(), name: 'Feedback panel', z: 0, x, y, w, h, totalMs: o.totalMs, fill: ok ? 'E6F6EE' : 'FDECEA', line: ok ? '0E9F66' : 'D6453D', lineW: Math.max(2, px(2)), radius: 0.06 }) +
+    boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback title', z: 1, x: x + px(36), y: y + px(30), w: w - px(72), h: px(60), totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: ok ? 'Correct' : 'Not quite', size: px(30), color: ok ? '0B6B45' : 'A3231F', bold: true, align: 'left', pad: 0 } }) +
+    boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback text', z: 2, x: x + px(36), y: y + px(98), w: w - px(72), h: px(104), totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: o.message, size: px(20), color: '1C211D', bold: false, align: 'left', pad: 0 } }) +
+    boxShape(ctx, { tag: 'roundRect', g: btnG, name: 'Continue', z: 3, x: x + px(36), y: y + h - px(88), w: px(190), h: px(56), totalMs: o.totalMs, fill: ok ? '0B6B45' : 'A3231F', line: null, lineW: 0, radius: 0.5, text: { value: 'Continue', size: px(19), color: 'FFFFFF', bold: true, align: 'center', pad: px(8) }, trigs: trigXml(btnG, { event: 'OnClick', action: 'jumpToSlide', sub: 'next' }) });
   return `<feedBackLayer g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${o.id}" state="0" showMasterSp="false" name="" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="false" pause="false" stop="true" hideEnd="false" top="true" seek="n" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}" seekInheritable="n" choiceG="${ZERO}" defaultName="${o.label}"><tmProps ${gv()} cur="0" min="${o.totalMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg><shapeLst>${shapes}</shapeLst><trigLst /><localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></feedBackLayer>`;
 }
 
@@ -518,44 +530,142 @@ function accentForText(ctx: Ctx): string {
   return c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
+// Slides come in different pixel sizes (1280 wide here, 1920 in Storyline's
+// default). Sizes below are for a 1280-wide slide and scale with it, so text
+// and outlines keep their weight.
+const scaleOf = (ctx: Ctx) => Math.max(0.75, ctx.w / 1280);
+
+const QUESTION_TYPES = new Set(['multipleChoice', 'dragDrop', 'matching', 'sequence']);
+
 function questionXml(ctx: Ctx, b: Block, zStart: number, totalMs: number, firstLayerId: number): { shapes: string; count: number; layers: string } {
-  const p = b.props as unknown as { question: string; choices: { id: string; text: string }[]; correctChoiceIds: string[]; allowMultiple: boolean; feedbackCorrect: string; feedbackIncorrect: string };
+  const p = b.props as unknown as Record<string, unknown>;
+  const k = scaleOf(ctx);
+  const px = (v: number) => Math.round(v * k);
   const accent = accentForText(ctx);
-  const pad = 24;
+  const pad = px(28);
+  const gap = px(14);
   const innerW = b.w - pad * 2;
-  const qH = Math.max(48, Math.min(120, Math.round(b.h * 0.2)));
-  const submitH = 52;
-  const gap = 12;
-  const room = b.h - pad * 2 - qH - submitH - gap * 2;
-  const rowH = Math.max(40, Math.min(64, Math.floor((room - gap * Math.max(0, p.choices.length - 1)) / Math.max(1, p.choices.length))));
+  const question = String(p.question ?? '');
+  const qSize = px(24);
+  // Room for the question at roughly 1.35 line height, two lines at least.
+  const qLines = Math.max(1, Math.ceil((question.length * qSize * 0.55) / Math.max(1, innerW)));
+  const qH = Math.max(px(64), Math.round(qLines * qSize * 1.4) + px(12));
+  const submitH = px(56);
+  const top = b.y + pad + qH + gap;
+  const bodyH = Math.max(px(120), b.h - pad * 2 - qH - submitH - gap * 2);
   let z = zStart;
-  let shapes = boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Question', z: z++, x: b.x + pad, y: b.y + pad, w: innerW, h: qH, totalMs, fill: null, line: null, lineW: 0, text: { value: p.question, size: 22, color: '1C211D', bold: true, align: 'left', pad: 0 } });
+  let shapes = boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Question', z: z++, x: b.x + pad, y: b.y + pad, w: innerW, h: qH, totalMs, fill: null, line: null, lineW: 0, grow: true, text: { value: question, size: qSize, color: '1C211D', bold: true, align: 'left', pad: 0 } });
   const choiceXml: string[] = [];
-  p.choices.forEach((c, i) => {
-    const cg = guid();
-    const letter = String.fromCharCode(65 + (i % 26));
-    const base = { tag: 'roundRect' as const, g: cg, name: `Choice ${letter}`, z: 0, x: b.x + pad, y: b.y + pad + qH + gap + i * (rowH + gap), w: innerW, h: rowH, totalMs, radius: 0.2, lineW: 2 };
-    const label = { value: `${letter}.  ${c.text}`, size: 18, bold: false, align: 'left', pad: 18 };
-    const states =
-      stateXml(ctx, 'Normal', { ...base, fill: 'FFFFFF', line: 'D5DCD6', text: { ...label, color: '1C211D' } }) +
-      stateXml(ctx, 'Hover', { ...base, fill: 'F7FAF8', line: accent, text: { ...label, color: '1C211D' } }) +
-      stateXml(ctx, 'Selected', { ...base, fill: accent, line: accent, text: { ...label, color: 'FFFFFF', bold: true } });
-    shapes += boxShape(ctx, { ...base, z: z++, fill: 'FFFFFF', line: 'D5DCD6', states, initState: 'Normal' });
-    choiceXml.push(`<intrFreeChoice ${gv()} shpG="${cg}" matchShpG="${ZERO}" shpMainGrpG="${ZERO}" matchShpMainGrpG="${ZERO}" compType="none" numA="0" numB="0"><scoringData correct="${p.correctChoiceIds.includes(c.id)}" pts="0" feedBkG="${ZERO}" showFeedBk="false" shuffle="true" /><text></text><localizedText /></intrFreeChoice>`);
-  });
+  const order: string[] = [];
+  const line = Math.max(2, px(2));
+  const choice = (drag: string, target: string, correct: boolean) =>
+    `<intrFreeChoice ${gv()} shpG="${drag}" matchShpG="${target}" shpMainGrpG="${ZERO}" matchShpMainGrpG="${ZERO}" compType="none" numA="0" numB="0"><scoringData correct="${correct}" pts="0" feedBkG="${ZERO}" showFeedBk="false" shuffle="true" /><text></text><localizedText /></intrFreeChoice>`;
+  let template = PICK_ONE_INTR;
+
+  if (b.type === 'multipleChoice') {
+    const choices = (p.choices ?? []) as { id: string; text: string }[];
+    const right = (p.correctChoiceIds ?? []) as string[];
+    template = p.allowMultiple ? PICK_MANY_INTR : PICK_ONE_INTR;
+    const count = Math.max(1, choices.length);
+    const rowH = Math.max(px(60), Math.min(px(84), Math.floor((bodyH - gap * (count - 1)) / count)));
+    choices.forEach((c, i) => {
+      const cg = guid();
+      const letter = String.fromCharCode(65 + (i % 26));
+      const base = { tag: 'roundRect' as const, g: cg, name: `Choice ${letter}`, z: 0, x: b.x + pad, y: top + i * (rowH + gap), w: innerW, h: rowH, totalMs, radius: 0.22, lineW: line };
+      const label = { value: `${letter}.   ${c.text}`, size: px(20), bold: false, align: 'left', pad: px(24) };
+      const states =
+        stateXml(ctx, 'Normal', { ...base, fill: 'FFFFFF', line: 'C3CCC5', text: { ...label, color: '1C211D' } }) +
+        stateXml(ctx, 'Hover', { ...base, fill: 'F1F8F4', line: accent, text: { ...label, color: '1C211D' } }) +
+        stateXml(ctx, 'Selected', { ...base, fill: accent, line: accent, text: { ...label, color: 'FFFFFF', bold: true } });
+      shapes += boxShape(ctx, { ...base, z: z++, fill: 'FFFFFF', line: 'C3CCC5', states, initState: 'Normal' });
+      choiceXml.push(choice(cg, ZERO, right.includes(c.id)));
+    });
+  } else {
+    // Drag and drop, matching and sequence all become a freeform drag-and-drop
+    // question: drag items on the left, drop targets on the right.
+    template = DRAG_DROP_INTR;
+    let drags: { text: string; target: number }[] = [];
+    let targets: string[] = [];
+    if (b.type === 'dragDrop') {
+      const ts = (p.targets ?? []) as { id: string; label: string }[];
+      targets = ts.map((t) => t.label);
+      drags = ((p.items ?? []) as { text: string; targetId: string }[]).map((it) => ({ text: it.text, target: ts.findIndex((t) => t.id === it.targetId) }));
+    } else if (b.type === 'matching') {
+      const pairs = (p.pairs ?? []) as { left: string; right: string }[];
+      targets = pairs.map((x) => x.left);
+      drags = pairs.map((x, i) => ({ text: x.right, target: i }));
+    } else {
+      const items = (p.items ?? []) as { text: string }[];
+      targets = items.map((_, i) => `${i + 1}`);
+      drags = items.map((x, i) => ({ text: x.text, target: i }));
+    }
+    // Shown in a different order from the answer, so the layout does not give it away.
+    const shown = drags.map((d, i) => ({ ...d, i })).sort((a, c) => ((a.i * 7 + 3) % drags.length) - ((c.i * 7 + 3) % drags.length));
+    const colW = Math.floor((innerW - gap * 2) / 2);
+    const dragH = Math.max(px(52), Math.min(px(72), Math.floor((bodyH - gap * (Math.max(1, shown.length) - 1)) / Math.max(1, shown.length))));
+    const tCount = Math.max(1, targets.length);
+    const targetH = Math.max(px(72), Math.floor((bodyH - gap * (tCount - 1)) / tCount));
+    const targetG = targets.map(() => guid());
+    targets.forEach((label, i) => {
+      shapes += boxShape(ctx, { tag: 'roundRect', g: targetG[i], name: `Drop target ${i + 1}`, z: z++, x: b.x + pad + colW + gap * 2, y: top + i * (targetH + gap), w: colW, h: targetH, totalMs, fill: 'F4F7F5', line: 'A9B5AC', lineW: line, radius: 0.12, text: { value: label, size: px(18), color: '3D4A42', bold: true, align: 'center', pad: px(12) } });
+    });
+    shown.forEach((d, row) => {
+      const dg = guid();
+      shapes += boxShape(ctx, { tag: 'roundRect', g: dg, name: `Drag item ${row + 1}`, z: z++, x: b.x + pad, y: top + row * (dragH + gap), w: colW, h: dragH, totalMs, fill: 'FFFFFF', line: accent, lineW: line, radius: 0.25, text: { value: d.text, size: px(18), color: '1C211D', bold: false, align: 'center', pad: px(14) } });
+      choiceXml.push(choice(dg, targetG[d.target] ?? ZERO, false));
+      order.push(`<g>${dg}</g>`);
+    });
+  }
+
   const intrG = guid(), corG = guid(), incG = guid(), submitG = guid();
-  shapes += boxShape(ctx, { tag: 'roundRect', g: submitG, name: 'Submit', z: z++, x: b.x + pad, y: b.y + b.h - pad - submitH, w: 170, h: submitH, totalMs, fill: accent, line: null, lineW: 0, radius: 0.5, text: { value: 'Submit', size: 18, color: 'FFFFFF', bold: true, align: 'center', pad: 8 }, trigs: trigXml(submitG, { name: 'SubmitInteraction', group: 'next', event: 'OnClick', action: 'submitInteraction', submitG: intrG, cue: '0' }) });
+  shapes += boxShape(ctx, { tag: 'roundRect', g: submitG, name: 'Submit', z: z++, x: b.x + pad, y: b.y + b.h - pad - submitH, w: px(190), h: submitH, totalMs, fill: accent, line: null, lineW: 0, radius: 0.5, text: { value: 'Submit', size: px(20), color: 'FFFFFF', bold: true, align: 'center', pad: px(8) }, trigs: trigXml(submitG, { name: 'SubmitInteraction', group: 'next', event: 'OnClick', action: 'submitInteraction', submitG: intrG, cue: '0' }) });
   // Fresh ids for everything inside the copied question object, then the ones it is wired by.
-  shapes += (p.allowMultiple ? PICK_MANY_INTR : PICK_ONE_INTR)
-    .replace(/ (g|verG)="[0-9a-f-]{36}"/g, (_m, k) => ` ${k}="${guid()}"`)
+  shapes += template
+    .replace(/ (g|verG)="[0-9a-f-]{36}"/g, (_m, key) => ` ${key}="${guid()}"`)
     .replace('@@G@@', intrG).replace('@@ANS@@', guid()).replace('@@INC@@', incG).replace('@@COR@@', corG).replace('@@ZERO@@', ZERO).replace('@@INTRG@@', guid())
     .replace(/@@W@@/g, String(ctx.w)).replace(/@@H@@/g, String(ctx.h)).replace('@@ATTEMPTS@@', 'one')
     .replace(/zOrder="\d+"/, `zOrder="${z++}"`)
-    .replace('@@CHOICES@@', choiceXml.join(''));
+    .replace('@@CHOICES@@', choiceXml.join('')).replace('@@ORDER@@', order.join(''));
   const layers =
-    feedbackLayer(ctx, { g: corG, id: firstLayerId, label: 'Correct', message: p.feedbackCorrect || 'That is right.', totalMs }) +
-    feedbackLayer(ctx, { g: incG, id: firstLayerId + 1, label: 'Incorrect', message: p.feedbackIncorrect || 'That is not right.', totalMs });
+    feedbackLayer(ctx, { g: corG, id: firstLayerId, label: 'Correct', message: String(p.feedbackCorrect || 'That is right.'), totalMs }) +
+    feedbackLayer(ctx, { g: incG, id: firstLayerId + 1, label: 'Incorrect', message: String(p.feedbackIncorrect || 'That is not right.'), totalMs });
   return { shapes, count: z - zStart, layers };
+}
+
+// Tabs and accordions: a button per panel and a layer per panel. Showing one
+// layer hides the others, which is how Storyline builds tabs.
+function tabsXml(ctx: Ctx, b: Block, zStart: number, totalMs: number, firstLayerId: number): { shapes: string; count: number; layers: string; onStart: string } {
+  const p = b.props as unknown as { panels: { id: string; label: string; html: string }[]; accent?: string; fontSize?: number };
+  const k = scaleOf(ctx);
+  const px = (v: number) => Math.round(v * k);
+  const accent = accentForText(ctx);
+  const panels = p.panels ?? [];
+  const tabH = px(52);
+  const gap = px(8);
+  const tabW = Math.floor((b.w - gap * Math.max(0, panels.length - 1)) / Math.max(1, panels.length));
+  let z = zStart;
+  let shapes = '';
+  let layers = '';
+  let first = '';
+  panels.forEach((panel, i) => {
+    const tg = guid(), lg = guid();
+    if (i === 0) first = lg;
+    shapes += boxShape(ctx, { tag: 'roundRect', g: tg, name: `Tab: ${panel.label}`, z: z++, x: b.x + i * (tabW + gap), y: b.y, w: tabW, h: tabH, totalMs, fill: accent, line: null, lineW: 0, radius: 0.25, text: { value: panel.label, size: px(17), color: 'FFFFFF', bold: true, align: 'center', pad: px(8) }, trigs: trigXml(tg, { event: 'OnClick', action: 'showSubSlide', sub: 'spec', layer: `showG="${lg}" ` }) });
+    const body: Block = { id: `tabbody-${i}`, type: 'text', x: b.x, y: b.y + tabH + gap, w: b.w, h: Math.max(px(60), b.h - tabH - gap), props: {} } as Block;
+    const paras = htmlToParas(panel.html || '<p> </p>', { color: '1C211D', size: (p.fontSize ?? 16) * k, font: DEFAULT_FONT, align: 'left', bold: false });
+    const text = `<text>${xa(documentXml(paras.length ? paras : [{ runs: [], align: 'left', list: '' }]))}</text>`;
+    const inset = px(18);
+    const panelShape = `<roundRect g="${guid()}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(panel.label)} panel" state="110855" zOrder="0" editCtx="Normal" initState="" handCur="true" rot="-1" acc="true" autoFit="none" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="l" vertAlign="t" textDir="not"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="2"><txtTmCtx ${gv()} start="0" dur="${totalMs}" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="true" assetStart="0" name="" /></tmCtxLst><childLst /><trigLst /><stateLst />${paintBg('FFFFFF', 'C3CCC5', Math.max(1, px(1.5)))}${locXml(ctx, body)}<animEffect />${hLink}${text}${propBag()}<prstGeom><roundRect vertexSet="true" radius="0.04" /></prstGeom>${DIAL}<textMargin l="${inset}" t="${inset}" r="${inset}" b="${inset}" /><bounds l="${inset}" t="${inset}" r="${n(body.w - inset)}" b="${n(body.h - inset)}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(plainOf(paras))}</plain><hLinkLst /></roundRect>`;
+    layers += layerXml(ctx, { g: lg, id: firstLayerId + i, name: panel.label || `Panel ${i + 1}`, shapes: `<shapeLst>${panelShape}</shapeLst>`, trigs: '', modal: false, pause: false, ms: totalMs });
+  });
+  const slideG = '';
+  void slideG;
+  return { shapes, count: z - zStart, layers, onStart: first };
+}
+
+function layerXml(ctx: Ctx, o: { g: string; id: number; name: string; shapes: string; trigs: string; modal: boolean; pause: boolean; ms: number }): string {
+  void ctx;
+  return `<sldLayer g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${o.id}" state="0" showMasterSp="false" name="${xa(o.name)}" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="${o.modal ? 'true' : 'false'}" pause="${o.pause ? 'true' : 'false'}" stop="true" hideEnd="false" top="true" seek="auto" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}"><tmProps ${gv()} cur="0" min="${o.ms}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg>${o.shapes}${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}<localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></sldLayer>`;
 }
 
 // ---------- slides ----------
@@ -577,13 +687,22 @@ async function shapeList(ctx: Ctx, layer: Layer, totalMs: number, blockTrigs: Ma
   const blocks = flatBlocks(layer.blocks).filter((b) => !(b.type === 'audio'));
   let z = 0;
   for (const b of blocks) {
-    if (b.type === 'multipleChoice' && asQuestion && !ctx.question) {
-      const q = questionXml(ctx, b, z, totalMs, asQuestion.firstLayerId);
+    if (QUESTION_TYPES.has(b.type) && asQuestion && !ctx.question) {
+      const q = questionXml(ctx, b, z, totalMs, asQuestion.firstLayerId + ctx.addedLayers);
       out += q.shapes; z += q.count;
       ctx.question = { layers: q.layers };
+      ctx.addedLayers += 2;
       continue;
     }
-    if (b.type === 'multipleChoice' && asQuestion) warn(ctx, 'Storyline allows one question per slide; a second quiz block on a slide was left as an outlined box');
+    if (QUESTION_TYPES.has(b.type) && asQuestion) warn(ctx, 'Storyline allows one question per slide; a second quiz block on a slide was left as an outlined box');
+    if (b.type === 'tabs' && asQuestion) {
+      const t = tabsXml(ctx, b, z, totalMs, asQuestion.firstLayerId + ctx.addedLayers);
+      out += t.shapes; z += t.count;
+      ctx.extraLayers += t.layers;
+      ctx.addedLayers += ((b.props as unknown as { panels?: unknown[] }).panels ?? []).length;
+      if (t.onStart) ctx.showOnStart.push(t.onStart);
+      continue;
+    }
     out += await shapeXml(ctx, b, z++, totalMs, blockTrigs.get(b.id) ?? '');
   }
   if (flatBlocks(layer.blocks).some((b) => b.type === 'audio')) warn(ctx, 'audio was left out: adding narration needs Storyline itself (Insert > Audio)');
@@ -594,7 +713,7 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
   const g = ctx.slideG.get(slide.id)!;
   const totalMs = Math.max(5000, Math.round((slide.timeline?.duration ?? 5) * 1000));
   const { slideTrigs, layerTrigs, blockTrigs, customNext } = sortTriggers(ctx, slide);
-  ctx.question = null;
+  ctx.question = null; ctx.extraLayers = ''; ctx.addedLayers = 0; ctx.showOnStart = [];
   const base = await shapeList(ctx, slide.layers[0], totalMs, blockTrigs, { firstLayerId: slide.layers.length });
   const question = ctx.question as { layers: string } | null;
   let layers = '';
@@ -610,7 +729,7 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
     : SLIDE_BG;
   if (slide.background && slide.background.type !== 'color') warn(ctx, 'gradient and picture slide backgrounds were left out');
   const nav = `${customNext ? '' : defaultNext(g)}${defaultPrev(g)}`;
-  return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${question ? QUESTION_LAYOUT_G : layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="${question ? 'Quiz Questions' : 'Content'}" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}</trigLst><localizedName /><trans />${noteXml(slide.notes)}<navData prev="${slide.nav?.back === 'hide' ? 'false' : 'true'}" prevGesture="true" next="${slide.nav?.next === 'hide' ? 'false' : 'true'}" nextGesture="true" submit="false" default="true" menu="true" res="true" glos="false" notes="false" seek="false" replay="false" play="true" search="false" ltBxClse="true" />${layers || question ? `<sldLayerLst nextIdx="0">${layers}${question?.layers ?? ''}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
+  return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${question ? QUESTION_LAYOUT_G : layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="${question ? 'Quiz Questions' : 'Content'}" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}${ctx.showOnStart.map((lg) => trigXml(g, { event: 'OnStart', action: 'showSubSlide', sub: 'spec', layer: `showG="${lg}" ` })).join('')}</trigLst><localizedName /><trans />${noteXml(slide.notes)}<navData prev="${slide.nav?.back === 'hide' ? 'false' : 'true'}" prevGesture="true" next="${slide.nav?.next === 'hide' ? 'false' : 'true'}" nextGesture="true" submit="false" default="true" menu="true" res="true" glos="false" notes="false" seek="false" replay="false" play="true" search="false" ltBxClse="true" />${layers || question || ctx.extraLayers ? `<sldLayerLst nextIdx="0">${layers}${ctx.extraLayers}${question?.layers ?? ''}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
 }
 
 const BOM = '\uFEFF';
@@ -626,7 +745,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const first = project.slides[0];
   const ctx: Ctx = {
     project, w: first?.width ?? 1280, h: first?.height ?? 720, warnings: new Map(),
-    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), question: null
+    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), question: null, extraLayers: '', addedLayers: 0, showOnStart: []
   };
   for (const s of project.slides) {
     ctx.slideG.set(s.id, guid());

@@ -1796,3 +1796,14 @@ Large-media "Compress" is not built; the check only warns.
 - **Save as Storyline writes quiz blocks as freeform questions** (Pick One or
   Pick Many) with selectable choices, a Submit button and Correct / Incorrect
   feedback layers. Experimental until confirmed in Storyline.
+
+# v6.36
+
+## Save as Storyline: more blocks convert, sizes scale with the slide
+- Drag and drop, matching and sequence blocks are saved as freeform
+  drag-and-drop questions. Tabs and accordions become buttons with a layer per
+  panel. A progress block becomes a text readout.
+- Generated questions scale with the slide size: on a 1920-wide slide the
+  text, choice rows, buttons and outlines are proportionally larger, and the
+  question text box grows to fit.
+- The demo course now saves with no "not converted" boxes.
