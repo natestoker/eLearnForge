@@ -129,6 +129,21 @@ becomes a text readout ("Slide 3 of 6", or the variable it follows). Sizes
 scale with the slide, so a 1920-wide project gets proportionally larger text
 and outlines.
 
+**Font sizes.** Storyline defines a point size on a 960-wide slide and scales
+it with the slide, so 14pt on a 1920-wide slide is twice as large as on a
+960-wide one. Saving divides by that factor and opening multiplies by it, so
+text keeps its real size both ways. Every shape that holds text is set to
+"Expand height" so a font difference lengthens the box instead of clipping
+the text.
+
+**Backgrounds.** A slide's colour, gradient or picture background is saved as
+a full-slide picture named Background at the back of the base layer.
+
+**Value displays.** Slide number, total slides, slides viewed and progress
+use Storyline's own `Project.` variables. The score has no built-in without a
+result slide, so the file gets a number variable named `Score` and each
+question's Correct layer adds its share of 100 to it.
+
 Left out, and listed in the report:
 
 - Fill-in-the-blank, sliders, flashcards, scenarios and the other interactive

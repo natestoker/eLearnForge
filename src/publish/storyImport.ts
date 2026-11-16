@@ -26,6 +26,9 @@ import { md5 } from './md5';
 // what the original did, and listed in the warnings.
 
 const PT_TO_PX = 4 / 3;
+// Storyline point sizes are defined on a 960-wide slide and grow with the
+// slide, so a 1920-wide story renders the same number twice as large.
+let fontScale = 1;
 const ZERO_G = '00000000-0000-0000-0000-000000000000';
 
 export interface StoryImportResult {
@@ -171,13 +174,14 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
     const list: '' | 'ul' | 'ol' = listType === 'None' ? '' : listType === 'Bullet' ? 'ul' : 'ol';
 
     const runs: string[] = [];
-    for (const span of kids(block, 'Span')) {
+    const spans = kids(block, 'Span');
+    for (const span of spans) {
       const text = span.getAttribute('Text') ?? '';
       if (!text) continue;
       const st = kid(span, 'Style');
       let css = '';
       const size = num(st, 'FontSize', 0);
-      const px = size ? Math.round(size * PT_TO_PX) : 0;
+      const px = size ? Math.round(size * PT_TO_PX * fontScale) : 0;
       const color = textColor(st?.getAttribute('ForegroundColor') ?? null, theme);
       let family = st?.getAttribute('FontFamily') ?? '';
       if (family === '+major') family = theme.major;
@@ -187,7 +191,10 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
       if (color && color !== firstColor) css += `color: ${color};`;
       if (family && family !== firstFont) css += `font-family: ${family};`;
       if (family) fonts.add(family);
-      let part = escapeHtml(text).replace(/\r?\n/g, '<br/>');
+      // Each paragraph's last run ends in a line-feed; it is the paragraph
+      // break, not an extra line.
+      const isLast = span === spans[spans.length - 1];
+      let part = escapeHtml(isLast ? text.replace(/\r?\n$/, '') : text).replace(/\r?\n/g, '<br/>');
       if (css) part = `<span style="${css}">${part}</span>`;
       const elev = st?.getAttribute('Elevation');
       if (elev === 'Superscript') part = `<sup>${part}</sup>`;
@@ -806,6 +813,8 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
   for (const sz of Array.from(kid(story, 'propLst')?.getElementsByTagName('sz') ?? [])) {
     if (num(sz, 'w') > 0 && num(sz, 'h') > 0) { width = Math.round(num(sz, 'w')); height = Math.round(num(sz, 'h')); break; }
   }
+
+  fontScale = width / 960;
 
   // Variables: only the author's own. Built-ins (Player., Project. ...) stay behind.
   const variables: Variable[] = [];

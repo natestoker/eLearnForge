@@ -1807,3 +1807,20 @@ Large-media "Compress" is not built; the check only warns.
   text, choice rows, buttons and outlines are proportionally larger, and the
   question text box grows to fit.
 - The demo course now saves with no "not converted" boxes.
+
+# v6.37
+
+## Save as Storyline: text size, backgrounds and the score
+- Font sizes are corrected for the slide width. Storyline scales a point size
+  with the slide (it is defined at 960 wide), which made exported text too big
+  on 1280 and 1920 slides and clipped it. Opening a .story file applies the
+  same rule in reverse.
+- Every shape that holds text is set to "Expand height", so text that runs
+  long grows the shape instead of showing scrollbars.
+- Paragraphs keep their line breaks (a heading and its body no longer run
+  together on one line).
+- Slide backgrounds come across: a colour, gradient or picture background is
+  saved as a full-slide picture at the back of the base layer.
+- Value displays map to Storyline's built-in variables (slide number, total
+  slides, slides viewed, progress). A score display uses a new `Score`
+  variable that each question's Correct layer adds to.

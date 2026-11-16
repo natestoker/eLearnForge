@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { Action, AnimSpec, Block, Condition, Layer, Project, Slide, Trigger, Variable } from '../schema/types';
+import type { SlideBackground, Action, AnimSpec, Block, Condition, Layer, Project, Slide, Trigger, Variable } from '../schema/types';
 import { STORY_SHELL_BASE64 } from './storyShell';
 import { md5 } from './md5';
 import { DRAG_DROP_INTR, PICK_MANY_INTR, PICK_ONE_INTR } from './storyQuizTemplates';
@@ -22,6 +22,12 @@ export interface StoryExportResult { blob: Blob; warnings: string[] }
 
 const ZERO = '00000000-0000-0000-0000-000000000000';
 const PX_TO_PT = 3 / 4;
+// Storyline scales font sizes with the slide: a point size is defined on a
+// 960-wide slide, so on a 1920-wide one the same number renders twice as big.
+// Measured in real files (10.5pt fills a 28px line on a 1920 slide). Set once
+// per export.
+let fontScale = 1;
+const fontPt = (px: number) => px * PX_TO_PT * fontScale;
 const BIG = '3.40282347E+38';
 // Text with no font set uses the system UI font in eLearnForge; on Windows,
 // where Storyline runs, that is Segoe UI. Naming it keeps line breaks close.
@@ -136,14 +142,17 @@ function htmlToParas(html: string, base: { color: string; size: number; font: st
 
 function documentXml(paras: Para[]): string {
   const just = (a: string) => (a === 'center' ? 'Center' : a === 'right' ? 'Right' : 'Left');
-  const blocks = paras.map((p) => {
+  const blocks = paras.map((p, pi) => {
     const listType = p.list === 'ul' ? 'Bullet' : p.list === 'ol' ? 'ListNumberedAsArabic' : 'None';
     const fmt = p.list === 'ol' ? 'Period' : 'Plain';
     const style = `<Style LeadingMargin="0" FirstLineMargin="0" Justification="${just(p.align)}" ListLevel="1" LineSpacingRule="Multiple" LineSpacing="20" SpacingBefore="0" SpacingAfter="0"><ListStyle ListType="${listType}" ListTypeFormat="${fmt}" Start="0" Color="#000000,00" BulletChar="•" BulletFont="Arial"><BulletPicture Size="0x0" /></ListStyle></Style>`;
-    const spans = p.runs.map((r) => {
+    // Storyline ends every paragraph but the last with a line-feed in its
+    // final run; without it the paragraphs run together on one line.
+    const runs = pi < paras.length - 1 && p.runs.length ? [...p.runs.slice(0, -1), { ...p.runs[p.runs.length - 1], text: `${p.runs[p.runs.length - 1].text}\n` }] : p.runs;
+    const spans = runs.map((r) => {
       const c = `#${r.color}`;
       const b = (v: boolean) => (v ? 'True' : 'False');
-      return `<Span Text="${xa(r.text).replace(/\n/g, '&#xA;')}"><Style FontFamily="${xa(r.font)}" FontSize="${n(r.size * PX_TO_PT)}" FontIsBold="${b(r.bold)}" FontIsItalic="${b(r.italic)}" FontIsUnderline="${b(r.underline)}" FontIsStrikeout="${b(r.strike)}" ForegroundColor="${c}" Elevation="${r.sup ? 'Superscript' : 'Normal'}" DisplayCase="AsIs" LinkColor="${c}" /></Span>`;
+      return `<Span Text="${xa(r.text).replace(/\n/g, '&#xA;')}"><Style FontFamily="${xa(r.font)}" FontSize="${n(fontPt(r.size))}" FontIsBold="${b(r.bold)}" FontIsItalic="${b(r.italic)}" FontIsUnderline="${b(r.underline)}" FontIsStrikeout="${b(r.strike)}" ForegroundColor="${c}" Elevation="${r.sup ? 'Superscript' : 'Normal'}" DisplayCase="AsIs" LinkColor="${c}" /></Span>`;
     }).join('');
     return `<Block>${style}${spans}</Block>`;
   }).join('');
@@ -184,6 +193,9 @@ interface Ctx {
   extraLayers: string;   // layers made for tabs on this slide
   addedLayers: number;   // how many layers this slide has gained
   showOnStart: string[]; // layers to show when the slide starts (a tab set's first panel)
+  needsScore: boolean;   // something shows the score, so a Score variable is kept
+  scoreG: string;        // that variable's id
+  questionCount: number;
 }
 const warn = (ctx: Ctx, msg: string) => ctx.warnings.set(msg, (ctx.warnings.get(msg) ?? 0) + 1);
 
@@ -203,6 +215,47 @@ async function toPng(src: string): Promise<Uint8Array | null> {
     c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
     const bin = atob(c.toDataURL('image/png').split(',')[1]);
     return Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+// A slide's background (colour, gradient or picture) drawn at slide size.
+// Storyline keeps its own backgrounds on the slide master, so the reliable way
+// to carry one across is a full-slide picture at the back of the base layer.
+async function backgroundPng(bg: SlideBackground, w: number, h: number): Promise<string | null> {
+  try {
+    // The picture is stretched to the slide, so a flat colour or a smooth
+    // gradient needs very few pixels; only a real picture is drawn full size.
+    const k = bg.type === 'color' ? 64 / w : bg.type === 'gradient' ? Math.min(1, 640 / w) : Math.min(1, 1920 / w);
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    if (bg.type === 'color') {
+      g.fillStyle = bg.color || '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    } else if (bg.type === 'gradient') {
+      // Same geometry as CSS linear-gradient(angle).
+      const a = ((bg.angle ?? 135) * Math.PI) / 180;
+      const dx = Math.sin(a), dy = -Math.cos(a);
+      const len = (Math.abs(c.width * dx) + Math.abs(c.height * dy)) / 2;
+      const grad = g.createLinearGradient(c.width / 2 - dx * len, c.height / 2 - dy * len, c.width / 2 + dx * len, c.height / 2 + dy * len);
+      grad.addColorStop(0, bg.from || '#3ddc97'); grad.addColorStop(1, bg.to || '#0b1f17');
+      g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
+    } else {
+      if (!bg.src) return null;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('image')); img.src = bg.src!; });
+      const iw = img.naturalWidth || 300, ih = img.naturalHeight || 150;
+      if (bg.fit === 'tile') {
+        g.fillStyle = g.createPattern(img, 'repeat')!; g.scale(k, k); g.fillRect(0, 0, w, h);
+      } else {
+        const r = bg.fit === 'contain' ? Math.min(c.width / iw, c.height / ih) : Math.max(c.width / iw, c.height / ih);
+        g.drawImage(img, (c.width - iw * r) / 2, (c.height - ih * r) / 2, iw * r, ih * r);
+      }
+    }
+    return c.toDataURL('image/png');
   } catch {
     return null;
   }
@@ -331,18 +384,25 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
   } else if (b.type === 'varDisplay') {
     // A variable readout: Storyline shows a variable's value wherever its
     // name sits between percent signs.
-    const ref = String(p.reference ?? '').replace(/[^A-Za-z0-9_.]/g, '_');
+    // eLearnForge's built-in readouts map onto Storyline's own variables. The
+    // score has none without a result slide, so a Score variable is added and
+    // each question's Correct layer adds to it.
+    const raw = String(p.reference ?? '');
+    const builtIn = ({ ProgressPercent: 'Project.Progress', SlideNumber: 'Project.SlideNumber', CurrentSlide: 'Project.SlideNumber', TotalSlides: 'Project.TotalSlides', ViewedSlides: 'Project.SlidesViewed', SlideName: 'Project.SlideTitle' } as Record<string, string>)[raw];
+    if (raw === 'Score' || raw === 'ScorePercent') ctx.needsScore = true;
+    const ref = builtIn ?? (raw === 'ScorePercent' ? 'Score' : raw.replace(/[^A-Za-z0-9_.]/g, '_'));
     const label = p.label ? `<p><span style="font-size: ${Math.round((Number(p.fontSize) || 32) * 0.4)}px">${xa(String(p.label))}</span></p>` : '';
     if (p.tile) { tag = 'roundRect'; geom = '<prstGeom><roundRect vertexSet="true" radius="0.1" /></prstGeom>'; fill = 'FFFFFF'; line = 'C5CEC7'; lineW = 1; }
     text = { html: `<p>${xa(String(p.prefix ?? ''))}%${ref}%${xa(String(p.suffix ?? ''))}</p>${label}`, size: Math.min(Number(p.fontSize) || 32, Math.max(14, Math.round(b.w / 5))), color: hex6(p.color as string, '0B6B45'), font: DEFAULT_FONT, align: String(p.align ?? 'center'), valign: 'center', bold: true, inset: { l: 7, t: 3, r: 7, b: 3 } };
-    if (!ctx.project.variables.some((v) => v.name.replace(/[^A-Za-z0-9_]/g, '_') === ref)) warn(ctx, `a value display points at "${ref}", which is not one of the course's own variables, so Storyline will show the name as text`);
+    if (raw === 'CourseName' || raw === 'ProjectName') text.html = `<p>${xa(ctx.project.title)}</p>${label}`;
+    else if (!builtIn && ref !== 'Score' && !ctx.project.variables.some((v) => v.name.replace(/[^A-Za-z0-9_]/g, '_') === ref)) warn(ctx, `a value display points at "${ref}", which is not one of the course's own variables, so Storyline will show the name as text`);
   } else {
     warn(ctx, `"${b.type}" blocks have no Storyline equivalent; an outlined box marks where each one was`);
     line = 'C2410C'; lineW = 1;
     text = { html: `<p>${xa(`${b.name || b.type} (eLearnForge ${b.type} block, not converted)`)}</p>`, size: 14, color: 'C2410C', font: DEFAULT_FONT, align: 'center', valign: 'center', bold: false, inset: { l: 7, t: 3, r: 7, b: 3 } };
   }
   const t = textTail(b, text);
-  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="none" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? halignAttr(text.align) : 'not'}" vertAlign="${text ? valignAttr(text.valign) : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
+  return `<${tag} ${head(b, g, z, '110855', tag)} autoFit="${text ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="c" horzAlign="${text ? halignAttr(text.align) : 'not'}" vertAlign="${text ? valignAttr(text.valign) : 'not'}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${paintBg(fill, line, lineW)}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${geom}${t.tail}</${tag}>`;
 }
 
 // ---------- triggers ----------
@@ -498,7 +558,7 @@ function boxShape(ctx: Ctx, o: BoxOpts): string {
     : `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />`;
   const geom = o.tag === 'roundRect' ? `<prstGeom><roundRect vertexSet="true" radius="${n(o.radius ?? 0.16667)}" /></prstGeom>` : '';
   const bg = o.tag === 'textBox' ? BG_DEFAULT : paintBg(o.fill, o.line, o.lineW);
-  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="${o.grow ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? (o.grow ? 't' : 'm') : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
+  return `<${o.tag} g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="-1" name="${xa(o.name)}" state="110855" zOrder="${o.z}" editCtx="Normal" initState="${o.initState ?? ''}" handCur="true" rot="-1" acc="true" autoFit="${t ? 'resize' : 'none'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${t ? halignAttr(t.align) : 'not'}" vertAlign="${t ? (o.grow ? 't' : 'm') : 'not'}" textDir="not">${timing}<childLst />${o.trigs ? `<trigLst>${o.trigs}</trigLst>` : '<trigLst />'}${o.states ? `<stateLst>${o.states}</stateLst>` : '<stateLst />'}${bg}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="${n(o.x)}" t="${n(o.y)}" r="${n(o.x + o.w)}" b="${n(o.y + o.h)}" /><animEffect />${hLink}${text}${propBag()}${geom}${tail}</${o.tag}>`;
 }
 
 function stateXml(ctx: Ctx, name: string, inner: BoxOpts): string {
@@ -518,7 +578,7 @@ function feedbackLayer(ctx: Ctx, o: { g: string; id: number; label: 'Correct' | 
     boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback title', z: 1, x: x + px(36), y: y + px(30), w: w - px(72), h: px(60), totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: ok ? 'Correct' : 'Not quite', size: px(30), color: ok ? '0B6B45' : 'A3231F', bold: true, align: 'left', pad: 0 } }) +
     boxShape(ctx, { tag: 'textBox', g: guid(), name: 'Feedback text', z: 2, x: x + px(36), y: y + px(98), w: w - px(72), h: px(104), totalMs: o.totalMs, fill: null, line: null, lineW: 0, text: { value: o.message, size: px(20), color: '1C211D', bold: false, align: 'left', pad: 0 } }) +
     boxShape(ctx, { tag: 'roundRect', g: btnG, name: 'Continue', z: 3, x: x + px(36), y: y + h - px(88), w: px(190), h: px(56), totalMs: o.totalMs, fill: ok ? '0B6B45' : 'A3231F', line: null, lineW: 0, radius: 0.5, text: { value: 'Continue', size: px(19), color: 'FFFFFF', bold: true, align: 'center', pad: px(8) }, trigs: trigXml(btnG, { event: 'OnClick', action: 'jumpToSlide', sub: 'next' }) });
-  return `<feedBackLayer g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${o.id}" state="0" showMasterSp="false" name="" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="false" pause="false" stop="true" hideEnd="false" top="true" seek="n" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}" seekInheritable="n" choiceG="${ZERO}" defaultName="${o.label}"><tmProps ${gv()} cur="0" min="${o.totalMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg><shapeLst>${shapes}</shapeLst><trigLst /><localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></feedBackLayer>`;
+  return `<feedBackLayer g="${o.g}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${o.id}" state="0" showMasterSp="false" name="" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="false" pause="false" stop="true" hideEnd="false" top="true" seek="n" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}" seekInheritable="n" choiceG="${ZERO}" defaultName="${o.label}"><tmProps ${gv()} cur="0" min="${o.totalMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg><shapeLst>${shapes}</shapeLst>${ok ? `<trigLst>${trigXml(o.g, { event: 'OnStart', action: 'adjustVar', sub: 'next', other: `varG="${ctx.scoreG}" op="add" varVal1="" useVar="false" dblVal="@@SCORE_STEP@@" boolVal="True"` })}</trigLst>` : '<trigLst />'}<localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></feedBackLayer>`;
 }
 
 // The course accent, darkened until white text reads on it.
@@ -682,15 +742,24 @@ function noteXml(notes: string | undefined): string {
   return `<note>${xa(`<Document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><Content>${blocks}</Content></Document>`)}</note>`;
 }
 
-async function shapeList(ctx: Ctx, layer: Layer, totalMs: number, blockTrigs: Map<string, string>, asQuestion?: { firstLayerId: number }): Promise<string> {
+async function shapeList(ctx: Ctx, layer: Layer, totalMs: number, blockTrigs: Map<string, string>, asQuestion?: { firstLayerId: number }, backdrop?: SlideBackground): Promise<string> {
   let out = '';
   const blocks = flatBlocks(layer.blocks).filter((b) => !(b.type === 'audio'));
   let z = 0;
+  if (backdrop) {
+    const src = await backgroundPng(backdrop, ctx.w, ctx.h);
+    if (src) {
+      const b = { id: `bg-${guid()}`, type: 'image', name: 'Background', x: 0, y: 0, w: ctx.w, h: ctx.h, props: { src, alt: '' }, aria: 'exclude' } as unknown as Block;
+      ctx.blockG.set(b.id, guid());
+      out += await shapeXml(ctx, b, z++, totalMs, '');
+    } else warn(ctx, 'a slide background picture could not be read and was left out');
+  }
   for (const b of blocks) {
     if (QUESTION_TYPES.has(b.type) && asQuestion && !ctx.question) {
       const q = questionXml(ctx, b, z, totalMs, asQuestion.firstLayerId + ctx.addedLayers);
       out += q.shapes; z += q.count;
       ctx.question = { layers: q.layers };
+      ctx.questionCount++;
       ctx.addedLayers += 2;
       continue;
     }
@@ -714,7 +783,7 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
   const totalMs = Math.max(5000, Math.round((slide.timeline?.duration ?? 5) * 1000));
   const { slideTrigs, layerTrigs, blockTrigs, customNext } = sortTriggers(ctx, slide);
   ctx.question = null; ctx.extraLayers = ''; ctx.addedLayers = 0; ctx.showOnStart = [];
-  const base = await shapeList(ctx, slide.layers[0], totalMs, blockTrigs, { firstLayerId: slide.layers.length });
+  const base = await shapeList(ctx, slide.layers[0], totalMs, blockTrigs, { firstLayerId: slide.layers.length }, slide.background);
   const question = ctx.question as { layers: string } | null;
   let layers = '';
   for (const [i, layer] of slide.layers.slice(1).entries()) {
@@ -724,10 +793,7 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
     const lt = layerTrigs.get(layer.id);
     layers += `<sldLayer g="${lg}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${i + 1}" state="0" showMasterSp="false" name="${xa(layer.name)}" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="${layer.modal ? 'true' : 'false'}" pause="${layer.pauseBase ? 'true' : 'false'}" stop="true" hideEnd="false" top="true" seek="auto" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}"><tmProps ${gv()} cur="0" min="${lMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg>${shapes}${lt ? `<trigLst>${lt}</trigLst>` : '<trigLst />'}<localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></sldLayer>`;
   }
-  const bg = slide.background?.type === 'color' && slide.background.color && hex6(slide.background.color, 'FFFFFF') !== 'FFFFFF'
-    ? `<solidFill><clr><srgbClr val="${hex6(slide.background.color, 'FFFFFF')}" /></clr></solidFill>${SLIDE_BG}`
-    : SLIDE_BG;
-  if (slide.background && slide.background.type !== 'color') warn(ctx, 'gradient and picture slide backgrounds were left out');
+  const bg = SLIDE_BG;
   const nav = `${customNext ? '' : defaultNext(g)}${defaultPrev(g)}`;
   return `<?xml version="1.0" encoding="utf-8" standalone="yes"?><sld g="${g}" verG="${guid()}" timeManagerVisibilityLocked="true" typeName="" id="0" state="0" showMasterSp="false" name="${xa(slide.name)}" role="" resetMode="auto" layoutG="${question ? QUESTION_LAYOUT_G : layoutG}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" assetG="${ZERO}" backVis="trans" layoutType="${question ? 'Quiz Questions' : 'Content'}" hideToc="${slide.lightbox ? 'true' : 'false'}" advMode="${slide.timeline?.autoAdvance ? 'auto' : 'user'}" linkType="none" showInReview="true" includeInSlideCounts="true" zoomTransDur="1000" useNextTrans="true"><tmProps ${gv()} cur="0" min="${totalMs}" visible="true" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${bg}</bg>${base}<trigLst>${nav}${slideTrigs}${ctx.showOnStart.map((lg) => trigXml(g, { event: 'OnStart', action: 'showSubSlide', sub: 'spec', layer: `showG="${lg}" ` })).join('')}</trigLst><localizedName /><trans />${noteXml(slide.notes)}<navData prev="${slide.nav?.back === 'hide' ? 'false' : 'true'}" prevGesture="true" next="${slide.nav?.next === 'hide' ? 'false' : 'true'}" nextGesture="true" submit="false" default="true" menu="true" res="true" glos="false" notes="false" seek="false" replay="false" play="true" search="false" ltBxClse="true" />${layers || question || ctx.extraLayers ? `<sldLayerLst nextIdx="0">${layers}${ctx.extraLayers}${question?.layers ?? ''}</sldLayerLst>` : ''}<thumb g="${guid()}" sz="300" /><localizedNote /><panTime ${gv()} timeManagerVisibilityLocked="false" typeName="" hide="false" lock="false"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="0" /></panTime><panRect g="${guid()}"><rect l="0" t="0" r="0" b="0" /></panRect></sld>`;
 }
@@ -745,7 +811,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const first = project.slides[0];
   const ctx: Ctx = {
     project, w: first?.width ?? 1280, h: first?.height ?? 720, warnings: new Map(),
-    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), question: null, extraLayers: '', addedLayers: 0, showOnStart: []
+    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), question: null, extraLayers: '', addedLayers: 0, showOnStart: [], needsScore: false, scoreG: guid(), questionCount: 0
   };
   for (const s of project.slides) {
     ctx.slideG.set(s.id, guid());
@@ -755,6 +821,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     }
   }
   project.variables.forEach((v) => ctx.varG.set(v.id, guid()));
+  fontScale = 960 / ctx.w;
   if (project.slides.some((s) => s.width !== ctx.w || s.height !== ctx.h)) warn(ctx, 'slides of different sizes were all saved at the size of the first slide');
   if (project.banks?.length) warn(ctx, 'question banks were left out');
 
@@ -769,10 +836,11 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const slideRels: { type: string; target: string; id: string }[] = [];
   const slideIds: string[] = [];
   let overrides = '';
+  const slideXmls: [string, string][] = [];
   for (const [i, slide] of project.slides.entries()) {
     const name = `slide${i === 0 ? '' : (i + 1).toString(16)}.xml`;
     ctx.slideMedia = new Set();
-    put(`story/slides/${name}`, BOM + await slideXml(ctx, slide, layoutG));
+    slideXmls.push([name, await slideXml(ctx, slide, layoutG)]);
     if (ctx.slideMedia.size) {
       put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
     }
@@ -780,6 +848,14 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     slideIds.push(id);
     slideRels.push({ type: 'slide', target: `/story/slides/${name}`, id });
     overrides += `<Override PartName="/story/slides/${name}" ContentType="application/slide+xml" />`;
+  }
+  // The score step depends on how many questions the whole course has.
+  const keepScore = ctx.needsScore && !project.variables.some((v) => v.name === 'Score');
+  const step = n(Math.round((100 / Math.max(1, ctx.questionCount)) * 100) / 100);
+  for (const [name, xml] of slideXmls) {
+    put(`story/slides/${name}`, BOM + (keepScore
+      ? xml.split('@@SCORE_STEP@@').join(step)
+      : xml.replace(/<trigLst>(?:(?!<\/trigLst>).)*@@SCORE_STEP@@(?:(?!<\/trigLst>).)*<\/trigLst>/g, '<trigLst />')));
   }
   for (const m of ctx.media.values()) put(`story/media/${m.file}`, m.bytes);
 
@@ -790,7 +866,12 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     const val = v.type === 'boolean' ? (v.defaultValue ? 'True' : 'False') : String(v.defaultValue ?? '');
     return `<var g="${ctx.varG.get(v.id)}" verG="${guid()}" name="${xa(v.name.replace(/[^A-Za-z0-9_]/g, '_'))}" dataType="${dt}" val="${xa(val)}" type="user" propPath="" isRandom="false" randomMin="0" randomMax="0" defaultEmptyIfZero="false" />`;
   }).join('');
-  story = story.replace('</varLst>', `${vars}</varLst>`);
+  // Score: a number that each question's Correct layer adds to, so a
+  // "%Score%" readout shows a real percentage in Storyline.
+  const hasScoreVar = project.variables.some((v) => v.name === 'Score');
+  const scoreVar = ctx.needsScore && !hasScoreVar
+    ? `<var g="${ctx.scoreG}" verG="${guid()}" name="Score" dataType="num" val="0" type="user" propPath="" isRandom="false" randomMin="0" randomMax="0" defaultEmptyIfZero="false" />` : '';
+  story = story.replace('</varLst>', `${vars}${scoreVar}</varLst>`);
   const now = new Date().toISOString().replace('Z', '0000+00:00');
   const mediaXml = [...ctx.media.values()].map((m) =>
     `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="C:\\eLearnForge\\${xa(m.name)}" source="C:\\eLearnForge\\${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><langAltText /><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');

@@ -67,7 +67,11 @@ eq('slides survive the round trip', after.slides, before.slides);
 // A tab set adds a layer per panel as well.
 eq('layers survive the round trip (a question adds Correct and Incorrect, tabs add one per panel)', after.layers, before.layers.map((n, i) => n + (before.quiz[i] ? 2 : 0) + before.tabs[i]));
 check('the question comes back as a working pick question', after.quizTriggers >= 2, String(after.quizTriggers));
-eq('variables survive the round trip', after.vars, before.vars.map((v) => v.replace(/[^A-Za-z0-9_]/g, '_')));
+// The demo shows a score, so the export adds a Score number that each
+// question's Correct layer feeds.
+eq('variables survive the round trip (plus the added Score)', after.vars, [...before.vars.map((v) => v.replace(/[^A-Za-z0-9_]/g, '_')), 'Score']);
+check('the score readout uses the Score variable, fed by the Correct layers', allSlides.includes('%Score%') && /<feedBackLayer(?:(?!<\/feedBackLayer>).)*action="adjustVar"/s.test(allSlides) && !allSlides.includes('@@SCORE_STEP@@'));
+check('font sizes are scaled to the slide width', !/FontSize="(?:[4-9]\d|\d{3,})/.test(allSlides));
 check('text comes back as text', after.text > 0);
 
 await browser.close();
