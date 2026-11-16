@@ -1827,3 +1827,9 @@ Large-media "Compress" is not built; the check only warns.
   variable that each question's Correct layer adds to.
 - Text margins are written as whole numbers. A decimal there makes Storyline
   report the file as invalid or corrupt.
+- Quiz choice rows, drag items, buttons and value displays always keep a
+  fixed size. Only an author's text box or the question text can expand.
+- A text block's line spacing is saved (as "at least" spacing) and read back,
+  so text and the hotspots placed over it stay lined up.
+- Demo course: the third hotspot on "Spot the red flags" now sits over the
+  link line it is meant to flag.

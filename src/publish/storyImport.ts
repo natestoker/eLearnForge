@@ -155,6 +155,7 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
   let firstFont: string | null = null;
   let align: TextResult['align'] = 'left';
   let lineHeight: number | null = null;
+  let atLeastPt = 0; // "at least" spacing: the whole line height in points
   let any = false;
   let listOpen: '' | 'ul' | 'ol' = '';
 
@@ -164,6 +165,7 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
     const pAlign = just === 'Center' ? 'center' : just === 'Right' ? 'right' : 'left';
     if (bi === 0) {
       align = pAlign;
+      if (pStyle?.getAttribute('LineSpacingRule') === 'AtLeast') atLeastPt = num(pStyle, 'LineSpacing', 0);
       if (pStyle?.getAttribute('LineSpacingRule') === 'Multiple') {
         // Storyline stores "Multiple" spacing as twentieths: 20 = single.
         const ls = num(pStyle, 'LineSpacing', 20) / 20;
@@ -218,6 +220,10 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
   });
   if (listOpen) parts.push(`</${listOpen}>`);
   if (!any) return null;
+  if (atLeastPt && firstSize) {
+    const lh = (atLeastPt * PT_TO_PX * fontScale) / firstSize;
+    if (lh > 1.25 && lh < 4) lineHeight = Number(lh.toFixed(2));
+  }
   return { html: parts.join(''), fontSize: firstSize || 16, align, color: firstColor, font: firstFont, lineHeight };
 }
 

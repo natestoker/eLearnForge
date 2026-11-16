@@ -425,7 +425,7 @@ export function createDemoProject(): Project {
   hs1.props = { showHint: false, tooltip: 'Look closely at the sender' };
   const hs2 = blk('hotspot', 'Urgency hotspot', 110, 193, 640, 44);
   hs2.props = { showHint: false, tooltip: 'Pressure is a tactic' };
-  const hs3 = blk('hotspot', 'Link hotspot', 110, 430, 640, 60);
+  const hs3 = blk('hotspot', 'Link hotspot', 110, 368, 640, 44);
   hs3.props = { showHint: false, tooltip: 'Check the link' };
   s2.layers[0].blocks.push(s2Title, card, fromLine, subjLine, bodyText, hs1, hs2, hs3);
 

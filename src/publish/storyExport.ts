@@ -140,12 +140,18 @@ function htmlToParas(html: string, base: { color: string; size: number; font: st
   return paras.filter((p) => p.runs.length);
 }
 
-function documentXml(paras: Para[]): string {
+// lineHeight is the author's line spacing as a multiple of the font size.
+// Storyline's "at least" rule takes the full line height in points, the form
+// seen in real files (16.8 for 14pt text).
+function documentXml(paras: Para[], lineHeight?: number): string {
   const just = (a: string) => (a === 'center' ? 'Center' : a === 'right' ? 'Right' : 'Left');
+  const spacing = (p: Para) => (lineHeight && lineHeight > 1.4
+    ? `LineSpacingRule="AtLeast" LineSpacing="${n(fontPt(Math.max(1, ...p.runs.map((r) => r.size)) * lineHeight))}"`
+    : 'LineSpacingRule="Multiple" LineSpacing="20"');
   const blocks = paras.map((p, pi) => {
     const listType = p.list === 'ul' ? 'Bullet' : p.list === 'ol' ? 'ListNumberedAsArabic' : 'None';
     const fmt = p.list === 'ol' ? 'Period' : 'Plain';
-    const style = `<Style LeadingMargin="0" FirstLineMargin="0" Justification="${just(p.align)}" ListLevel="1" LineSpacingRule="Multiple" LineSpacing="20" SpacingBefore="0" SpacingAfter="0"><ListStyle ListType="${listType}" ListTypeFormat="${fmt}" Start="0" Color="#000000,00" BulletChar="•" BulletFont="Arial"><BulletPicture Size="0x0" /></ListStyle></Style>`;
+    const style = `<Style LeadingMargin="0" FirstLineMargin="0" Justification="${just(p.align)}" ListLevel="1" ${spacing(p)} SpacingBefore="0" SpacingAfter="0"><ListStyle ListType="${listType}" ListTypeFormat="${fmt}" Start="0" Color="#000000,00" BulletChar="•" BulletFont="Arial"><BulletPicture Size="0x0" /></ListStyle></Style>`;
     // Storyline ends every paragraph but the last with a line-feed in its
     // final run; without it the paragraphs run together on one line.
     const runs = pi < paras.length - 1 && p.runs.length ? [...p.runs.slice(0, -1), { ...p.runs[p.runs.length - 1], text: `${p.runs[p.runs.length - 1].text}\n` }] : p.runs;
@@ -292,11 +298,11 @@ const hLink = `<hLink enabled="false" trigG="${ZERO}" />`;
 // taller than its text snaps shut the first time it is touched. It is only
 // switched on where the text will not fit the box as drawn; everything else
 // keeps a fixed size, which is also what stops shapes shifting when selected.
-function textHeight(html: string, width: number, size: number, font: string, bold: boolean): number {
+function textHeight(html: string, width: number, size: number, font: string, bold: boolean, lineHeight?: number): number {
   try {
     const d = document.createElement('div');
     // Storyline spaces lines by the font's own metrics (1.33 for Segoe UI).
-    d.style.cssText = `position:absolute;left:-99999px;top:0;visibility:hidden;box-sizing:content-box;width:${Math.max(1, width)}px;font:${bold ? 700 : 400} ${size}px/1.36 "${font}", "Segoe UI", sans-serif;white-space:normal;overflow-wrap:break-word;`;
+    d.style.cssText = `position:absolute;left:-99999px;top:0;visibility:hidden;box-sizing:content-box;width:${Math.max(1, width)}px;font:${bold ? 700 : 400} ${size}px/${lineHeight && lineHeight > 1.4 ? lineHeight : 1.36} "${font}", "Segoe UI", sans-serif;white-space:normal;overflow-wrap:break-word;`;
     d.innerHTML = html;
     d.querySelectorAll('p,ul,ol,li,h1,h2,h3').forEach((e) => {
       (e as HTMLElement).style.margin = '0';
@@ -315,17 +321,19 @@ function textHeight(html: string, width: number, size: number, font: string, bol
 // error covers a different font or wrap point in Storyline.
 const fitsBox = (h: number, textH: number, t: number, b: number, size: number) => h >= textH * 1.1 + t + b || (textH <= size * 1.5 && h >= textH + t + b);
 
-interface TextOpts { html: string; size: number; color: string; font: string; align: string; valign: string; bold: boolean; inset: { l: number; t: number; r: number; b: number } }
+interface TextOpts { lineHeight?: number; html: string; size: number; color: string; font: string; align: string; valign: string; bold: boolean; inset: { l: number; t: number; r: number; b: number } }
 function textTail(b: Block, t: TextOpts | null): { text: string; tail: string; fits: boolean } {
   if (!t) {
     return { text: '', fits: true, tail: `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />` };
   }
   const paras = htmlToParas(t.html, { color: t.color, size: t.size, font: t.font, align: t.align, bold: t.bold });
   const i = { l: Math.round(t.inset.l), r: Math.round(t.inset.r), t: Math.round(t.inset.t), b: Math.round(t.inset.b) };
-  const fits = fitsBox(b.h, textHeight(t.html, b.w - i.l - i.r, t.size, t.font, t.bold), i.t, i.b, t.size);
+  // A variable reference is longer than the value it shows, so measuring it
+  // says nothing; those boxes keep their size.
+  const fits = /%[A-Za-z_][\w.]*%/.test(t.html) || fitsBox(b.h, textHeight(t.html, b.w - i.l - i.r, t.size, t.font, t.bold, t.lineHeight), i.t, i.b, t.size);
   return {
     fits,
-    text: `<text>${xa(documentXml(paras))}</text>`,
+    text: `<text>${xa(documentXml(paras, t.lineHeight))}</text>`,
     tail: `${DIAL}<textMargin l="${n(i.l)}" t="${n(i.t)}" r="${n(i.r)}" b="${n(i.b)}" /><bounds l="${n(i.l)}" t="${n(i.t)}" r="${n(Math.max(i.l + 1, b.w - i.r))}" b="${n(Math.max(i.t + 1, b.h - i.b))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(plainOf(paras))}</plain><hLinkLst />`
   };
 }
@@ -344,6 +352,7 @@ async function shapeXml(ctx: Ctx, b: Block, z: number, totalMs: number, trigs: s
       html: String(p.html ?? ''), size: Number(p.fontSize) || 16, color: hex6(p.color as string, '000000'), font: String(p.fontFamily || DEFAULT_FONT),
       align: String(p.align ?? 'left'), valign: String(p.valign ?? 'top'), bold: Boolean(p.bold) || Number(p.fontWeight) >= 600,
       // eLearnForge pads every text block by 8px; Storyline's margin carries it.
+      lineHeight: Number(p.lineHeight) || undefined,
       inset: { l: (inset.left ?? 0) + 8, t: (inset.top ?? 0) + 8, r: (inset.right ?? 0) + 8, b: (inset.bottom ?? 0) + 8 }
     });
     return `<textBox ${head(b, g, z, '110855', 'Text')} autoFit="${t.fits ? 'none' : 'resize'}" shdw="none" wrap="true" scrollOverflow="none" rtl="false" defHorzAlign="l" horzAlign="${halignAttr(p.align as string)}" vertAlign="${valignAttr(p.valign as string)}" textDir="not">${tmCtx('txtTmCtx', b, totalMs)}<childLst />${trigLst}<stateLst />${BG_DEFAULT}${locXml(ctx, b)}${anim}${hLink}${t.text}${propBag()}${t.tail}</textBox>`;
@@ -583,7 +592,9 @@ function boxShape(ctx: Ctx, o: BoxOpts): string {
   const t = o.text;
   const text = t ? `<text>${xa(plainDoc(t.value, t.size, t.color, t.bold, t.align))}</text>` : '';
   if (t) t.pad = Math.round(t.pad);
-  const fits = !t || fitsBox(o.h, textHeight(xa(t.value), o.w - t.pad * 2, t.size, DEFAULT_FONT, t.bold), 6, 6, t.size);
+  // Choice rows, drag items and buttons sit in a fixed layout, so they keep
+  // their size; only the question text may grow.
+  const fits = !t || !o.grow || fitsBox(o.h, textHeight(xa(t.value), o.w - t.pad * 2, t.size, DEFAULT_FONT, t.bold), 6, 6, t.size);
   const tail = t
     ? `${DIAL}<textMargin l="${t.pad}" t="6" r="${t.pad}" b="6" /><bounds l="${t.pad}" t="6" r="${n(Math.max(t.pad + 1, o.w - t.pad))}" b="${n(Math.max(7, o.h - 6))}" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain>${xa(t.value)}</plain><hLinkLst />`
     : `${DIAL}<textMargin l="7" t="3" r="7" b="3" /><bounds l="0" t="0" r="0" b="0" /><resize fontNm="" fontSz="0" /><margins l="0" t="0" r="0" b="0" /><parLst /><plain></plain><hLinkLst />`;
