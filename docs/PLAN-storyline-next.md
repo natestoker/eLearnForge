@@ -3,6 +3,16 @@
 Written 16 November 2026, after v6.37. Order is by how much each item matters
 to a real course, not by difficulty.
 
+## Status, 19 November 2026
+
+- **Done:** SCORM Cloud (v6.38). Open Storyline: all the question types in
+  Part 2 and result slides (v6.40). Screen reader checklist written
+  (`docs/screen-reader-checklist.md`).
+- **Waiting on a Storyline check:** audio export (v6.39), test files Y1 to Y5.
+- **Still open:** Part 1 items 2 to 7 (result slide, fill-in, video,
+  flashcards, scenario, slider on export), the NVDA pass itself, and on
+  import: points per question, attempt limits, Review and Reset Quiz.
+
 ## Before starting
 
 Three things only Nate can supply. Without them the matching section stalls.
