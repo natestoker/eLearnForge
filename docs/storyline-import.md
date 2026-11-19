@@ -139,6 +139,14 @@ text keeps its real size both ways.
 shape whose text would not fit is set to "Expand height". Text margins are
 always whole numbers: Storyline rejects a file with a decimal there.
 
+**Audio.** An audio block, or audio attached to a block, is saved as a
+Storyline sound at its start time. MP3 goes in as it is; anything else is
+converted to MP3. The slide's captions become the clip's caption file, and
+the slide is lengthened to cover its audio. Opening a file reads sounds
+(including AI voice clips) back as audio blocks and their captions onto the
+slide. Written from a real file's form; not yet confirmed by opening in
+Storyline.
+
 **Backgrounds.** A slide's colour, gradient or picture background is saved as
 a full-slide picture named Background at the back of the base layer.
 

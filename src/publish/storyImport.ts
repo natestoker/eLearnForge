@@ -268,6 +268,7 @@ interface Ctx {
   layerByG: Map<string, string>;       // sldLayer g -> our layer id
   blocksByG: Map<string, string[]>;    // shape g -> our block ids
   varByG: Map<string, Variable>;
+  captions: string | null;             // caption text of the last sound read (WebVTT)
   note: (slide: string, msg: string) => void;
 }
 
@@ -360,7 +361,7 @@ async function importShapes(
   for (const shape of kids(list)) {
     const rawTag = shape.localName;
     // Feedback layers use their own tag names for an ordinary text box and button.
-    const tag = ({ feedbackTextBox: 'textBox', feedBackBtn: 'btn', rsltBtn: 'btn' } as Record<string, string>)[rawTag] ?? rawTag;
+    const tag = ({ feedbackTextBox: 'textBox', feedBackBtn: 'btn', rsltBtn: 'btn', aisound: 'sound' } as Record<string, string>)[rawTag] ?? rawTag;
     const g = shape.getAttribute('g') ?? '';
     const name = shape.getAttribute('name') || undefined;
     for (const t of kids(kid(shape, 'trigLst'), 'trig')) shapeTriggers.push({ owner: g, el: t });
@@ -412,7 +413,13 @@ async function importShapes(
       const src = await mediaDataUrl(ctx, shape.getAttribute('assetG'));
       if (!src) ctx.note(slideName, `${tag} "${name ?? ''}" has no media file in the package`);
       else if (tag === 'video') made.push({ id: uid('blk'), type: 'video', ...box, ...common, props: { src, controls: false, autoplay: true, loop: false } } as Block);
-      else made.push({ id: uid('blk'), type: 'audio', x: 20, y: 20, w: 240, h: 44, ...common, props: { src, controls: false, autoplay: true, label: name ?? 'Audio', hideInPlayer: true } } as Block);
+      else if (tag === 'sound') {
+        // Captions travel as a WebVTT file the sound points at.
+        const ccPath = ctx.mediaByAsset.get(kid(shape, 'sndProps')?.getAttribute('ccG') ?? '');
+        const cc = ccPath ? await ctx.zip.file(ccPath)?.async('string') : null;
+        if (cc && /-->/.test(cc)) ctx.captions = cc.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\nNOTE\n(?:.+\n)+/g, '\n');
+      }
+      if (src && tag !== 'video') made.push({ id: uid('blk'), type: 'audio', x: 20, y: 20, w: 240, h: 44, ...common, props: { src, controls: false, autoplay: true, label: name ?? 'Audio', hideInPlayer: true } } as Block);
     } else if (tag === 'btn') {
       const text = parseText(kid(shape, 'text')?.textContent, theme, ctx.fonts);
       const normal = kids(kid(shape, 'stateLst'), 'state').find((s) => s.getAttribute('name') === 'Normal');
@@ -806,7 +813,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
   const perSlide = new Map<string, Map<string, number>>();
   const ctx: Ctx = {
     zip, warnings, fonts: new Set(), mediaByAsset: new Map(), dataUrls: new Map(),
-    picks: new Map(), slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(),
+    picks: new Map(), slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(), captions: null,
     note: (slide, msg) => {
       const m = perSlide.get(slide) ?? new Map<string, number>();
       m.set(msg, (m.get(msg) ?? 0) + 1);
@@ -840,7 +847,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
   // Media: checksum -> file, then asset id -> checksum.
   const byHash = new Map<string, string>();
   for (const path of Object.keys(zip.files)) {
-    if (!/^story\/media\/[^/]+\.(png|jpe?g|gif|svg|webp|bmp|mp3|m4a|wav|ogg|mp4|webm|mov)$/i.test(path)) continue;
+    if (!/^story\/media\/[^/]+\.(png|jpe?g|gif|svg|webp|bmp|mp3|m4a|wav|ogg|mp4|webm|mov|vtt)$/i.test(path)) continue;
     byHash.set(md5(await zip.file(path)!.async('uint8array')), path);
   }
   const mediaEls = ['media', 'svgasset', 'audio', 'video'].flatMap((tag) => Array.from(story.getElementsByTagName(tag)));
@@ -922,7 +929,9 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     };
     if (layout?.el.getAttribute('showMasterSp') === 'true') await inheritFrom(layout.master?.el);
     await inheritFrom(layout?.el);
+    ctx.captions = null;
     const main = await importShapes(kid(el, 'shapeLst'), ctx, slideTheme, slide.name);
+    const slideCaptions = ctx.captions as string | null;
     base.blocks = [...inherited, ...main.blocks];
     const startHidden = [...main.hidden];
     main.shapeTriggers.forEach((t) => triggers.push({ owner: { kind: 'shape', g: t.owner }, el: t.el }));
@@ -959,9 +968,9 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
 
     slide.layers.push(...popups);
 
-    if (base.blocks.some((b) => b.timing) || el.getAttribute('advMode') === 'auto') {
+    if (base.blocks.some((b) => b.timing) || el.getAttribute('advMode') === 'auto' || slideCaptions) {
       endMs = Math.max(endMs, num(kid(el, 'tmProps'), 'min', 0));
-      slide.timeline = { duration: Math.max(1, endMs / 1000), autoAdvance: el.getAttribute('advMode') === 'auto' };
+      slide.timeline = { duration: Math.max(1, endMs / 1000), autoAdvance: el.getAttribute('advMode') === 'auto' , ...(slideCaptions ? { captionsVtt: slideCaptions } : {}) };
     }
     // Objects whose initial state is Hidden start hidden here too.
     if (startHidden.length) {

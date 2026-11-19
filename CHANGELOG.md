@@ -1849,3 +1849,12 @@ Large-media "Compress" is not built; the check only warns.
   is allowed to drop the saved progress.
 - SCORM 2004: reopening a finished course no longer writes "incomplete"
   over its completed status.
+
+# v6.39
+
+## Storyline: audio
+- Save as Storyline now writes audio: narration and block audio become
+  Storyline sounds with their captions, and the slide timeline is lengthened
+  to fit. Clips that are not MP3 are converted. Experimental until confirmed
+  in Storyline.
+- Open Storyline reads captions and AI voice clips, not only plain sounds.

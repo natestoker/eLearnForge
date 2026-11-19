@@ -77,5 +77,38 @@ check('shapes whose text fits keep a fixed size', /autoFit="none"[^>]*>(?:(?!<\/
 check('font sizes are scaled to the slide width', !/FontSize="(?:[4-9]\d|\d{3,})/.test(allSlides));
 check('text comes back as text', after.text > 0);
 
+// Narration: a WAV clip with captions goes out as MP3 plus a caption file,
+// and comes back as an audio block with the captions on the slide.
+const wav = await ed.evaluate(() => {
+  const rate = 22050, n = rate, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i / rate * 2 * Math.PI * 440) * 8000, true);
+  let s = ''; new Uint8Array(buf).forEach((b) => { s += String.fromCharCode(b); }); return 'data:audio/wav;base64,' + btoa(s);
+});
+await ed.evaluate((src) => window.__forgeStore.getState().setProject({ id: 'p', title: 'Narrated', variables: [], slides: [{ id: 's1', name: 'Narrated', width: 1280, height: 720, triggers: [], timeline: { duration: 5, autoAdvance: false, captionsVtt: 'WEBVTT\n\n00:00:00.100 --> 00:00:00.900\nA short tone\n' }, layers: [{ id: 'l1', name: 'Base layer', visibleByDefault: true, blocks: [{ id: 'a1', type: 'audio', name: 'Narration', x: 20, y: 20, w: 240, h: 44, timing: { start: 0.5 }, props: { src, controls: false, autoplay: true, label: 'Narration', hideInPlayer: true } }] }] }] }), wav);
+await ed.waitForTimeout(300);
+await ed.getByRole('button', { name: /^File/ }).click();
+const [adl] = await Promise.all([ed.waitForEvent('download'), ed.locator('.menu-item', { hasText: 'Save as Storyline' }).click()]);
+const apath = await adl.path();
+await ed.waitForSelector('.story-report'); await ed.locator('.story-report .btn-accent').click();
+const az = await JSZip.loadAsync(readFileSync(apath));
+const aNames = Object.keys(az.files);
+const aStory = await az.file('story/story.xml').async('string');
+const aSlide = await az.file('story/slides/slide.xml').async('string');
+const mp3Name = aNames.find((n) => n.endsWith('.mp3'));
+check('the clip is stored as MP3 with a caption file', !!mp3Name && aNames.some((n) => n.endsWith('.vtt')));
+check('the MP3 is a real MPEG stream', !!mp3Name && (await az.file(mp3Name).async('uint8array')).some((b, i, a) => b === 0xff && (a[i + 1] & 0xe0) === 0xe0));
+check('the clip is listed in the story and the theme, pointing at its captions', /<audio g="[^"]+"[^>]*ClosedCaptionsAssetGuid="[^"]+" hasClosedCaptions="true"/.test(aStory) && (await az.file('story/theme/theme.xml').async('string')).includes('<audio g='));
+check('content types cover mp3 and vtt', /Extension="mp3"/.test(await az.file('[Content_Types].xml').async('string')) && /Extension="vtt"/.test(await az.file('[Content_Types].xml').async('string')));
+const snd = /<sndTmCtx [^>]*start="(\d+)" dur="(\d+)"/.exec(aSlide);
+check('the sound sits on the timeline at its start time for its real length', !!snd && snd[1] === '500' && Math.abs(Number(snd[2]) - 1000) < 120, snd ? `${snd[1]} ${snd[2]}` : 'no sound');
+await ed.locator('input[aria-label="Storyline file"]').setInputFiles({ name: 'Narrated.story', mimeType: 'application/octet-stream', buffer: readFileSync(apath) });
+await ed.waitForSelector('.story-report'); await ed.locator('.story-report .btn-accent').click();
+const aAfter = await ed.evaluate(() => { const s = window.__forgeStore.getState().project.slides[0]; const a = s.layers[0].blocks.find((b) => b.type === 'audio'); return { audio: !!a && String(a.props.src).startsWith('data:audio/'), start: a?.timing?.start, cc: s.timeline?.captionsVtt ?? '' }; });
+check('the clip comes back as an audio block at the same start', aAfter.audio && Math.abs((aAfter.start ?? 0) - 0.5) < 0.01, JSON.stringify({ audio: aAfter.audio, start: aAfter.start }));
+check('the captions come back on the slide', aAfter.cc.includes('A short tone') && aAfter.cc.startsWith('WEBVTT'), aAfter.cc.slice(0, 80));
+
 await browser.close();
 finish();

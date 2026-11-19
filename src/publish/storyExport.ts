@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import type { SlideBackground, Action, AnimSpec, Block, Condition, Layer, Project, Slide, Trigger, Variable } from '../schema/types';
 import { STORY_SHELL_BASE64 } from './storyShell';
 import { md5 } from './md5';
+import { encodeMp3 } from '../editor/audioBake';
 import { DRAG_DROP_INTR, PICK_MANY_INTR, PICK_ONE_INTR } from './storyQuizTemplates';
 
 // Save a project as an Articulate Storyline 360 file.
@@ -195,6 +196,8 @@ interface Ctx {
   varG: Map<string, string>;
   media: Map<string, { g: string; file: string; bytes: Uint8Array; hash: string; name: string }>; // by hash
   slideMedia: Set<string>; // media files used by the slide being written
+  audio: Map<string, AudioAsset>; // by hash of the MP3
+  blockAudio: Map<string, AudioAsset>; // audio resolved for the slide being written, by block id
   question: { layers: string } | null; // the quiz question on the slide being written, if any
   extraLayers: string;   // layers made for tabs on this slide
   addedLayers: number;   // how many layers this slide has gained
@@ -202,6 +205,13 @@ interface Ctx {
   needsScore: boolean;   // something shows the score, so a Score variable is kept
   scoreG: string;        // that variable's id
   questionCount: number;
+}
+// One narration clip as Storyline stores it: the MP3, what it decodes to, and
+// an optional caption file.
+interface AudioAsset {
+  g: string; file: string; bytes: Uint8Array; hash: string; name: string;
+  ms: number; sampleCnt: number; rate: number;
+  vtt: { g: string; file: string; bytes: Uint8Array; hash: string; name: string } | null;
 }
 const warn = (ctx: Ctx, msg: string) => ctx.warnings.set(msg, (ctx.warnings.get(msg) ?? 0) + 1);
 
@@ -279,6 +289,88 @@ async function mediaFor(ctx: Ctx, src: string, name: string): Promise<string | n
   }
   ctx.slideMedia.add(m.file);
   return m.g;
+}
+
+// ---------- audio ----------
+// Sample rate from the first MPEG audio frame header (after any ID3 tag).
+function mp3Rate(b: Uint8Array): number {
+  let i = 0;
+  if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) i = 10 + ((b[6] & 0x7f) << 21 | (b[7] & 0x7f) << 14 | (b[8] & 0x7f) << 7 | (b[9] & 0x7f));
+  for (; i < b.length - 3; i++) {
+    if (b[i] !== 0xff || (b[i + 1] & 0xe0) !== 0xe0) continue;
+    const version = (b[i + 1] >> 3) & 3, layer = (b[i + 1] >> 1) & 3, idx = (b[i + 2] >> 2) & 3;
+    if (version === 1 || layer === 0 || idx === 3 || (b[i + 2] >> 4) === 15) continue;
+    return [44100, 48000, 32000][idx] / (version === 3 ? 1 : version === 2 ? 2 : 4);
+  }
+  return 44100;
+}
+
+// Storyline keeps audio as MP3 and records what it decodes to (it works from a
+// mono 16-bit WAV: sample count, byte size, a 78-byte header). Anything that
+// is not MP3 already is re-encoded.
+async function audioFor(ctx: Ctx, src: string, name: string, captions: string | null): Promise<AudioAsset | null> {
+  try {
+    const res = await fetch(src);
+    const raw = new Uint8Array(await res.arrayBuffer());
+    const mime = (res.headers.get('content-type') || /^data:([^;,]+)/.exec(src)?.[1] || '').toLowerCase();
+    const AC: typeof AudioContext = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ac = new AC();
+    let decoded: AudioBuffer;
+    try { decoded = await ac.decodeAudioData(raw.slice().buffer); } finally { void ac.close(); }
+    let bytes = raw;
+    if (!/mpeg|mp3/.test(mime)) {
+      const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 44100)), 44100);
+      const node = off.createBufferSource();
+      node.buffer = decoded; node.connect(off.destination); node.start();
+      const mono = (await off.startRendering()).getChannelData(0);
+      bytes = new Uint8Array(await encodeMp3(mono, 44100, 128).arrayBuffer());
+    }
+    const hash = md5(bytes);
+    let a = ctx.audio.get(hash);
+    if (!a) {
+      const g = guid();
+      const rate = mp3Rate(bytes);
+      const clean = (name.replace(/[\\/:*?"<>|]/g, '_').replace(/\.mp3$/i, '') || 'Audio');
+      let vtt: AudioAsset['vtt'] = null;
+      const text = captions?.trim() ? captions : ((window as unknown as { __storyEmptyCaptions?: boolean }).__storyEmptyCaptions ? 'WEBVTT\n\n' : null);
+      if (text) {
+        const vb = new TextEncoder().encode(`\uFEFF${text.replace(/^\uFEFF/, '').replace(/\r?\n/g, '\r\n')}`);
+        const vg = guid();
+        vtt = { g: vg, file: `${partId(vg)}.vtt`, bytes: vb, hash: md5(vb), name: `${clean}.vtt` };
+      }
+      a = { g, file: `${partId(g)}.mp3`, bytes, hash, name: `${clean}.mp3`, ms: Math.max(250, Math.round(decoded.duration * 1000)), sampleCnt: Math.round(decoded.duration * rate), rate, vtt };
+      ctx.audio.set(hash, a);
+    }
+    ctx.slideMedia.add(a.file);
+    if (a.vtt) { ctx.slideMedia.add(a.vtt.file); }
+    return a;
+  } catch {
+    return null;
+  }
+}
+
+// The sound object on a slide or layer: off-stage at the bottom left, the way
+// Storyline places it.
+function soundXml(ctx: Ctx, a: AudioAsset, z: number, startMs: number): string {
+  return `<sound ${gv()} timeManagerVisibilityLocked="false" typeName="" id="1" name="Audio" state="106503" zOrder="${z}" editCtx="Normal" initState="" handCur="true" rot="-1" acc="true" assetG="${a.g}"><tmProps ${gv()} cur="0" min="5000" visible="true" hideAll="false" /><tmCtxLst version="1"><sndTmCtx ${gv()} start="${startMs}" dur="${a.ms}" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" audioStart="0" /></tmCtxLst><childLst /><trigLst /><stateLst />${BG_DEFAULT}<sldSz w="${ctx.w}" h="${ctx.h}" /><loc l="-38" t="${ctx.h - 29}" r="-8" b="${ctx.h}" /><animEffect />${hLink}${propBag()}${DIAL}<langAltText /><sndProps volume="50" mute="false" loop="false" playAll="false" advMode="auto" ccG="${a.vtt ? a.vtt.g : ZERO}" /></sound>`;
+}
+
+// Resolve every clip on a layer before the slide is written, since the
+// timeline has to be at least as long as its audio.
+async function prepareAudio(ctx: Ctx, layer: Layer, captions: string | null): Promise<number> {
+  let end = 0;
+  let first = true;
+  for (const b of flatBlocks(layer.blocks)) {
+    const src = b.type === 'audio' ? String((b.props as unknown as { src?: string }).src ?? '') : (b.audio?.src ?? '');
+    if (!src) continue;
+    const label = b.type === 'audio' ? String((b.props as unknown as { label?: string }).label || b.name || 'Audio') : `${b.name || 'Block'} audio`;
+    const a = await audioFor(ctx, src, label, first ? captions : null);
+    first = false;
+    if (!a) { warn(ctx, 'an audio clip could not be read and was left out'); continue; }
+    ctx.blockAudio.set(b.id, a);
+    end = Math.max(end, Math.round((b.timing?.start ?? 0) * 1000) + a.ms);
+  }
+  return end;
 }
 
 // ---------- shapes ----------
@@ -838,13 +930,19 @@ async function shapeList(ctx: Ctx, layer: Layer, totalMs: number, blockTrigs: Ma
     }
     out += await shapeXml(ctx, b, z++, totalMs, blockTrigs.get(b.id) ?? '');
   }
-  if (flatBlocks(layer.blocks).some((b) => b.type === 'audio')) warn(ctx, 'audio was left out: adding narration needs Storyline itself (Insert > Audio)');
+  // Sounds go last, each at its block's start time.
+  for (const b of flatBlocks(layer.blocks)) {
+    const a = ctx.blockAudio.get(b.id);
+    if (a) out += soundXml(ctx, a, z++, Math.max(0, Math.round((b.timing?.start ?? 0) * 1000)));
+  }
   return out ? `<shapeLst>${out}</shapeLst>` : '<shapeLst />';
 }
 
 async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string> {
   const g = ctx.slideG.get(slide.id)!;
-  const totalMs = Math.max(5000, Math.round((slide.timeline?.duration ?? 5) * 1000));
+  ctx.blockAudio = new Map();
+  const audioEnd = await prepareAudio(ctx, slide.layers[0], slide.timeline?.captionsVtt ?? null);
+  const totalMs = Math.max(5000, Math.round((slide.timeline?.duration ?? 5) * 1000), audioEnd);
   const { slideTrigs, layerTrigs, blockTrigs, customNext } = sortTriggers(ctx, slide);
   ctx.question = null; ctx.extraLayers = ''; ctx.addedLayers = 0; ctx.showOnStart = [];
   const base = await shapeList(ctx, slide.layers[0], totalMs, blockTrigs, { firstLayerId: slide.layers.length }, slide.background);
@@ -852,7 +950,7 @@ async function slideXml(ctx: Ctx, slide: Slide, layoutG: string): Promise<string
   let layers = '';
   for (const [i, layer] of slide.layers.slice(1).entries()) {
     const lg = ctx.layerG.get(layer.id)!;
-    const lMs = Math.max(5000, Math.round((layer.timeline?.duration ?? 5) * 1000));
+    const lMs = Math.max(5000, Math.round((layer.timeline?.duration ?? 5) * 1000), await prepareAudio(ctx, layer, null));
     const shapes = await shapeList(ctx, layer, lMs, blockTrigs);
     const lt = layerTrigs.get(layer.id);
     layers += `<sldLayer g="${lg}" verG="${guid()}" timeManagerVisibilityLocked="false" typeName="" id="${i + 1}" state="0" showMasterSp="false" name="${xa(layer.name)}" role="" resetMode="auto" layoutG="${LAYER_LAYOUT_G}" stateG="${ZERO}" showPlay="false" clrScheme="def" isDrawingThemeUpgraded="true" modal="${layer.modal ? 'true' : 'false'}" pause="${layer.pauseBase ? 'true' : 'false'}" stop="true" hideEnd="false" top="true" seek="auto" presentAs="Layer" labeledBy="${ZERO}" describedBy="${ZERO}"><tmProps ${gv()} cur="0" min="${lMs}" visible="false" hideAll="false"><markers nextId="0" /></tmProps><tmCtxLst version="1"><tmCtx ${gv()} start="0" dur="0" min="250" max="0" hasMax="false" alwysShw="false" untilEnd="false" assetStart="0" name="" /></tmCtxLst><sz w="0" h="0" /><bg>${SLIDE_BG}</bg>${shapes}${lt ? `<trigLst>${lt}</trigLst>` : '<trigLst />'}<localizedName /><trans /><thumbProv g="${guid()}" sz="30" /></sldLayer>`;
@@ -875,7 +973,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   const first = project.slides[0];
   const ctx: Ctx = {
     project, w: first?.width ?? 1280, h: first?.height ?? 720, warnings: new Map(),
-    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), question: null, extraLayers: '', addedLayers: 0, showOnStart: [], needsScore: false, scoreG: guid(), questionCount: 0
+    slideG: new Map(), layerG: new Map(), blockG: new Map(), varG: new Map(), media: new Map(), slideMedia: new Set(), audio: new Map(), blockAudio: new Map(), question: null, extraLayers: '', addedLayers: 0, showOnStart: [], needsScore: false, scoreG: guid(), questionCount: 0
   };
   for (const s of project.slides) {
     ctx.slideG.set(s.id, guid());
@@ -908,7 +1006,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     const xml = (await slideXml(ctx, slide, layoutG)).replace(/<textMargin [^>]*\/>/g, (m) => m.replace(/"(-?\d+\.\d+)"/g, (_, v) => `"${Math.round(Number(v))}"`));
     slideXmls.push([name, xml]);
     if (ctx.slideMedia.size) {
-      put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
+      put(`story/slides/_rels/${name}.rels`, relsXml([...ctx.slideMedia].flatMap((f) => (f.endsWith('.vtt') ? [f, f] : [f])).map((f) => ({ type: 'media', target: `/story/media/${f}`, id: `R${guid().replace(/-/g, '').slice(0, 16)}` }))));
     }
     const id = partId(ctx.slideG.get(slide.id)!);
     slideIds.push(id);
@@ -924,6 +1022,7 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
       : xml.replace(/<trigLst>(?:(?!<\/trigLst>).)*@@SCORE_STEP@@(?:(?!<\/trigLst>).)*<\/trigLst>/g, '<trigLst />')));
   }
   for (const m of ctx.media.values()) put(`story/media/${m.file}`, m.bytes);
+  for (const a of ctx.audio.values()) { put(`story/media/${a.file}`, a.bytes); if (a.vtt) put(`story/media/${a.vtt.file}`, a.vtt.bytes); }
 
   // story.xml: variables, media list, slide order, menu entries, slide size.
   let story = await read('story/story.xml');
@@ -939,8 +1038,20 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
     ? `<var g="${ctx.scoreG}" verG="${guid()}" name="Score" dataType="num" val="0" type="user" propPath="" isRandom="false" randomMin="0" randomMax="0" defaultEmptyIfZero="false" />` : '';
   story = story.replace('</varLst>', `${vars}${scoreVar}</varLst>`);
   const now = new Date().toISOString().replace('Z', '0000+00:00');
-  const mediaXml = [...ctx.media.values()].map((m) =>
+  const pictureXml = [...ctx.media.values()].map((m) =>
     `<media g="${m.g}" verG="${guid()}" type="Png" displayName="${xa(m.name)}" origFile="C:\\eLearnForge\\${xa(m.name)}" source="C:\\eLearnForge\\${xa(m.name)}" useCnt="0" bytes="${m.bytes.length}" modDT="${now}" addDT="${now}"><langAltText /><md5Checksum><stream>${m.hash}</stream><source>${m.hash}</source></md5Checksum></media>`).join('');
+  // Caption files come first, then the clips that point at them, as
+  // Storyline orders them. A clip records the WAV it decodes to: mono,
+  // 16-bit, at the MP3's own sample rate, with a 78-byte header.
+  const clips = [...ctx.audio.values()];
+  const vttXml = clips.filter((c) => c.vtt).map((c) =>
+    `<media g="${c.vtt!.g}" verG="${guid()}" type="Vtt" displayName="${xa(c.vtt!.name)}" origFile="C:\\eLearnForge\\${xa(c.vtt!.name)}" source="C:\\eLearnForge\\${xa(c.vtt!.name)}" useCnt="0" bytes="${c.vtt!.bytes.length}" modDT="${now}" addDT="${now}"><md5Checksum><stream>${c.vtt!.hash}</stream><source>${c.vtt!.hash}</source></md5Checksum></media>`).join('');
+  const audioXml = clips.map((c) => {
+    const file = `C:\\eLearnForge\\${xa(c.name)}`;
+    const cc = c.vtt ? ` ClosedCaptionsAssetGuid="${c.vtt.g}" hasClosedCaptions="true"` : ' hasClosedCaptions="false"';
+    return `<audio g="${c.g}" verG="${guid()}" type="Mp3" displayName="${xa(c.name)}" origFile="${file}" source="${file}" useCnt="0" bytes="${c.bytes.length}" modDT="${now}" addDT="${now}"${cc} origBytes="${c.bytes.length}" origModDT="${now}"><langAltText /><md5Checksum><stream>${c.hash}</stream><source>${c.hash}</source></md5Checksum><props valid="true" file="${file.replace(/\.mp3$/, '.wav')}" bytes="${c.sampleCnt * 2 + 78}" channels="1" samples="${c.rate}" bits="${c.sampleCnt * 2}" sampleCnt="${c.sampleCnt}" startPt="78" mp3="false" origFile="${file}" /></audio>`;
+  }).join('');
+  const mediaXml = pictureXml + vttXml + audioXml;
   story = story.replace('<mediaLst><mediaLst /></mediaLst>', mediaXml ? `<mediaLst><mediaLst>${mediaXml}</mediaLst></mediaLst>` : '<mediaLst><mediaLst /></mediaLst>');
   // Storyline lists every asset twice: in story.xml and in the theme.
   if (mediaXml) {
@@ -960,6 +1071,9 @@ export async function exportStory(project: Project): Promise<StoryExportResult> 
   put('story/_rels/story.xml.rels', relsXml([...slideRels, ...kept]));
   let types = await read('[Content_Types].xml');
   types = types.replace('<Override PartName="/story/slides/slide.xml" ContentType="application/slide+xml" />', overrides);
+  const addType = (ext: string, type: string) => { if (!types.includes(`Extension="${ext}"`)) types = types.replace('<Default Extension="jpg" ContentType="image/jpeg" />', `<Default Extension="jpg" ContentType="image/jpeg" /><Default Extension="${ext}" ContentType="${type}" />`); };
+  if (ctx.audio.size) addType('mp3', 'audio/mp3');
+  if ([...ctx.audio.values()].some((a) => a.vtt)) addType('vtt', 'text/vtt');
   if (ctx.media.size && !types.includes('Extension="png"')) {
     types = types.replace('<Default Extension="jpg" ContentType="image/jpeg" />', '<Default Extension="jpg" ContentType="image/jpeg" /><Default Extension="png" ContentType="image/png" />');
   }
