@@ -224,7 +224,10 @@ function parseText(escaped: string | null | undefined, theme: Theme, fonts: Set<
     const lh = (atLeastPt * PT_TO_PX * fontScale) / firstSize;
     if (lh > 1.25 && lh < 4) lineHeight = Number(lh.toFixed(2));
   }
-  return { html: parts.join(''), fontSize: firstSize || 16, align, color: firstColor, font: firstFont, lineHeight };
+  // A result slide reads the quiz through Storyline's own variables; here
+  // the score and pass mark are built-in references, both in percent.
+  const html = parts.join('').replace(/%\w+\.(ScorePercent|ScorePoints)%/g, '%Score%').replace(/%\w+\.(PassPercent|PassPoints)%/g, '%PassPercent%');
+  return { html, fontSize: firstSize || 16, align, color: firstColor, font: firstFont, lineHeight };
 }
 
 // ---------- animation ----------
@@ -269,6 +272,13 @@ interface Ctx {
   blocksByG: Map<string, string[]>;    // shape g -> our block ids
   varByG: Map<string, Variable>;
   captions: string | null;             // caption text of the last sound read (WebVTT)
+  nativeIntr: Set<string>;             // questions rebuilt as a quiz block
+  deadShapes: Set<string>;             // Submit buttons those blocks make redundant
+  hasResults: boolean;                 // the file has a result slide
+  hotspotQuestions: { spots: { g: string; correct: boolean }[]; correctLayerG: string; incorrectLayerG: string }[];
+  scoreVars: Map<string, 'score' | 'pass'>; // Storyline's quiz variables
+  passScore: number | null;
+  droppedLayers: Set<string>;          // feedback layers those blocks replace
   note: (slide: string, msg: string) => void;
 }
 
@@ -348,6 +358,187 @@ function stateStylesOf(shape: Element, theme: Theme, fonts: Set<string>): Partia
   return Object.keys(out).length ? out : undefined;
 }
 
+// ---------- questions as native blocks ----------
+// Storyline's form questions (and the freeform ones that are not a plain
+// pick) carry their answers as data, so they come across as eLearnForge's own
+// quiz blocks. The Storyline shapes that drew them are dropped in favour of
+// the block.
+const PICK_FORMS: Record<string, boolean> = { trueFalseIntr: false, multiChoiceIntr: false, whichWordIntr: false, multiRespIntr: true };
+const SURVEY_FORMS = new Set(['pickOneIntr', 'pickManyIntr', 'likertIntr', 'rankingDrapDropIntr']);
+
+interface NativeQuestion { block: Block | null; consumed: Set<string>; layers: string[] }
+
+const escText = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// The words in a shape: its plain copy, or the runs of its rich text.
+function wordsOf(el: Element | undefined): string {
+  if (!el) return '';
+  const plain = kid(el, 'plain')?.textContent?.trim();
+  if (plain) return plain;
+  // Radio buttons and check boxes keep their label on the Normal state.
+  const inner = Array.from(el.getElementsByTagName('plain')).map((x) => x.textContent?.trim() ?? '').find(Boolean);
+  if (inner) return inner;
+  const rich = kid(el, 'text')?.textContent ?? '';
+  // An accepted answer is stored as bare words, not rich text.
+  if (rich.trim() && !rich.includes('<')) return rich.trim();
+  return Array.from(rich.matchAll(/Text="([^"]*)"/g)).map((m) => m[1]).join('')
+    .replace(/&#xA;|&#10;/g, ' ').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
+}
+function unionBox(els: (Element | undefined)[]): { x: number; y: number; w: number; h: number } {
+  const boxes = els.filter((e): e is Element => !!e && !!kid(e, 'loc')).map(locOf).filter((b) => b.w > 0 && b.h > 0);
+  if (!boxes.length) return { x: 80, y: 120, w: 800, h: 400 };
+  const x = Math.min(...boxes.map((b) => b.x)), y = Math.min(...boxes.map((b) => b.y));
+  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
+}
+
+function nativeQuestion(intr: Element, all: Element[], ctx: Ctx, slideName: string): NativeQuestion | null {
+  const tag = intr.localName;
+  const g = intr.getAttribute('g') ?? '';
+  const props = kid(intr, 'intrProps');
+  const byG = (id: string | null | undefined) => (id && !id.startsWith('00000000') ? all.find((e) => e.getAttribute('g') === id) : undefined);
+  const children = all.filter((e) => e.getAttribute('parentG') === g);
+  const byTop = (a: Element, b: Element) => locOf(a).y - locOf(b).y || locOf(a).x - locOf(b).x;
+  const title = byG(props?.getAttribute('titleBoxG'));
+  const question = wordsOf(title);
+  const sld = intr.parentElement?.parentElement;
+  // Feedback text lives on the question's Correct and Incorrect layers.
+  const feedback = (attr: string, fallback: string) => {
+    const lg = props?.getAttribute(attr);
+    const layer = kids(kid(sld, 'sldLayerLst')).find((l) => l.getAttribute('g') === lg);
+    const boxes = kids(kid(layer, 'shapeLst')).filter((e) => e.localName === 'feedbackTextBox' || e.localName === 'textBox').map(wordsOf).filter(Boolean);
+    return boxes[boxes.length - 1] || fallback;
+  };
+  const fb = () => ({ feedbackCorrect: feedback('corFbG', 'That is right.'), feedbackIncorrect: feedback('incFbG', 'That is not right.') });
+  const layers = ['corFbG', 'incFbG', 'tryFbG'].map((a) => props?.getAttribute(a) ?? '').filter((x) => x && !x.startsWith('00000000'));
+  const consumed = new Set<string>();
+  const eat = (...els: (Element | undefined)[]) => els.forEach((e) => { if (e) consumed.add(e.getAttribute('g') ?? ''); });
+  const make = (type: string, box: { x: number; y: number; w: number; h: number }, p: Record<string, unknown>, name: string): NativeQuestion =>
+    ({ block: { id: uid('blk'), type, name, ...box, props: p } as unknown as Block, consumed, layers });
+
+  if (tag in PICK_FORMS) {
+    const shapes = children.filter((e) => ['radio', 'checkBox', 'wordBankItem'].includes(e.localName)).sort(byTop);
+    if (shapes.length < 2) return null;
+    const choices = shapes.map((e, i) => ({ id: uid('c'), text: wordsOf(e) || (tag === 'trueFalseIntr' ? ['True', 'False'][i] ?? `Choice ${i + 1}` : `Choice ${i + 1}`) }));
+    let right = shapes.map((e, i) => (kid(e, 'scoreData')?.getAttribute('correct') === 'true' ? choices[i].id : '')).filter(Boolean);
+    // A word bank lists the right word first; it carries no per-word flag.
+    if (!right.length && tag === 'whichWordIntr') right = [choices[shapes.indexOf(children.filter((e) => e.localName === 'wordBankItem')[0])]?.id ?? choices[0].id];
+    if (!right.length) ctx.note(slideName, 'a question has no answer marked correct in the Storyline file; mark one in its properties');
+    eat(...shapes, title, byG(intr.getAttribute('dropSpotG')));
+    return make('multipleChoice', unionBox([intr, title]), { question, choices, correctChoiceIds: right, allowMultiple: PICK_FORMS[tag], ...fb() }, 'Question');
+  }
+
+  if (tag === 'matchDragDropIntr' || tag === 'matchDropDownIntr') {
+    let pairs: { id: string; left: string; right: string }[] = [];
+    if (tag === 'matchDragDropIntr') {
+      const rows = children.filter((e) => e.localName === 'matchDragDropItem').sort(byTop);
+      pairs = rows.map((row) => {
+        const kidsG = kids(kid(row, 'childLst'), 'g').map((c) => byG(c.textContent));
+        eat(row, ...kidsG);
+        return { id: uid('p'), left: wordsOf(kidsG.find((e) => e?.localName === 'matchDropArea')), right: wordsOf(kidsG.find((e) => e?.localName === 'matchDragItem')) };
+      });
+    } else {
+      const labels = children.filter((e) => e.localName === 'intrLabelDropDown');
+      const combos = all.filter((e) => e.localName === 'comboMatch');
+      pairs = labels.map((l, i) => ({ id: uid('p'), left: wordsOf(l), right: wordsOf(combos[i]) }));
+      eat(...labels, ...combos);
+    }
+    pairs = pairs.filter((x) => x.left || x.right);
+    if (pairs.length < 2) return null;
+    eat(title);
+    return make('matching', unionBox([intr, title]), { question, pairs, ...fb() }, 'Matching question');
+  }
+
+  if (tag === 'seqDragDropIntr' || tag === 'seqDropDownIntr') {
+    const shapes = children.filter((e) => e.localName === 'seqDragDropItem' || e.localName === 'comboSeq').sort(byTop);
+    if (shapes.length < 2) return null;
+    eat(...shapes, title);
+    return make('sequence', unionBox([intr, title]), { question, items: shapes.map((e) => ({ id: uid('s'), text: wordsOf(e) })), ...fb() }, 'Sequence question');
+  }
+
+  if (['textEntryIntr', 'freeTextEntryIntr', 'numericIntr', 'shortAnswerIntr', 'howManyIntr'].includes(tag)) {
+    const entry = byG(intr.getAttribute('textEntryG')) ?? all.find((e) => e.localName === 'intrTextEntryBox' || e.localName === 'textEntry');
+    const free = kids(kid(intr, 'choices'), 'intrFreeChoice');
+    let answers = free.map(wordsOf).filter(Boolean);
+    if (tag === 'numericIntr') {
+      answers = free.filter((c) => c.getAttribute('compType') === 'eq').map((c) => c.getAttribute('numA') ?? '').filter(Boolean);
+      if (free.some((c) => c.getAttribute('compType') !== 'eq')) ctx.note(slideName, 'a numeric question uses a range or comparison; only "equal to" answers were kept');
+    }
+    const size = Math.round(Math.max(14, Math.min(28, (entry ? locOf(entry).h : 40) * 0.45)));
+    if (!answers.length) {
+      // No right answer on file: a survey field, or a question nobody filled in.
+      if (!entry) return null;
+      if (['textEntryIntr', 'freeTextEntryIntr', 'numericIntr'].includes(tag)) ctx.note(slideName, 'a fill-in question has no accepted answers in the Storyline file; it was kept as a plain text field');
+      eat(entry);
+      return { ...make('textEntry', locOf(entry), { placeholder: 'Type your answer', fontSize: size, multiline: entry.getAttribute('multi') === 'true' }, 'Answer'), layers: [] };
+    }
+    const formTitle = tag === 'freeTextEntryIntr' ? undefined : title;
+    eat(entry, formTitle);
+    const box = formTitle ? unionBox([intr, formTitle]) : { ...locOf(entry!), h: Math.max(locOf(entry!).h, 150) };
+    return make('fillBlank', box, { question: formTitle ? question : '', correctAnswers: answers, caseSensitive: intr.getAttribute('case') === 'true', fontSize: size, ...fb() }, 'Fill in the blank');
+  }
+
+  if (tag === 'dragDropIntr') {
+    const free = kids(kid(intr, 'choices'), 'intrFreeChoice');
+    const drags = free.map((c) => ({ shape: byG(c.getAttribute('shpG')), target: byG(c.getAttribute('matchShpG')) })).filter((d) => d.shape);
+    const targetEls = [...new Set(drags.map((d) => d.target).filter((t): t is Element => !!t))];
+    // Picture-only drag items have no words to rebuild a block from.
+    if (drags.length < 2 || !targetEls.length || drags.some((d) => !wordsOf(d.shape))) return null;
+    // Slots often all carry the same prompt ("Drop here") and are named by a
+    // label beside them. When the slots do not tell each other apart, the
+    // nearest label on the same row names the slot.
+    const own = targetEls.map(wordsOf);
+    const distinct = new Set(own.filter(Boolean)).size === targetEls.length;
+    const used = new Set<Element>([...targetEls, ...drags.map((d) => d.shape!)]);
+    const labelFor = (t: Element): Element | undefined => {
+      const tb = locOf(t);
+      return all.filter((e) => !used.has(e) && !e.localName.endsWith('Intr') && kid(e, 'loc') && wordsOf(e) && !kids(kid(e, 'trigLst'), 'trig').length)
+        .map((e) => ({ e, b: locOf(e) }))
+        .filter(({ b }) => Math.abs((b.y + b.h / 2) - (tb.y + tb.h / 2)) < tb.h / 2 && b.h < tb.h * 1.6 && b.x + b.w <= tb.x + 4)
+        .sort((m, n) => (tb.x - (m.b.x + m.b.w)) - (tb.x - (n.b.x + n.b.w)))[0]?.e;
+    };
+    const labels = distinct ? [] : targetEls.map(labelFor);
+    const targets = targetEls.map((t, i) => ({ id: uid('t'), label: (labels[i] ? wordsOf(labels[i]) : own[i]) || `Target ${i + 1}` }));
+    const items = drags.map((d) => ({ id: uid('i'), text: wordsOf(d.shape), targetId: d.target ? targets[targetEls.indexOf(d.target)].id : '' }));
+    labels.forEach((l) => { if (l) used.add(l); });
+    eat(...used);
+    const box = unionBox([...used]);
+    // One item for every slot is a matching question.
+    const oneEach = items.length === targets.length && targets.every((t) => items.filter((it) => it.targetId === t.id).length === 1);
+    if (oneEach) {
+      return make('matching', box, { question: '', pairs: targets.map((t) => ({ id: uid('p'), left: t.label, right: items.find((it) => it.targetId === t.id)!.text })), ...fb() }, 'Matching question');
+    }
+    return make('dragDrop', box, { question: '', items, targets, ...fb() }, 'Drag and drop');
+  }
+
+  if (tag === 'rsltsIntr') {
+    // The result object is invisible; the slide around it does the showing.
+    ctx.hasResults = true;
+    return { block: null, consumed, layers: [] };
+  }
+
+  if (tag === 'hotSpotIntr' || tag === 'freeHotSpotIntr') {
+    // Click a region, get the feedback layer straight away.
+    const free = kids(kid(intr, 'choices'), 'intrFreeChoice').map((c) => ({ g: c.getAttribute('shpG') ?? '', correct: kid(c, 'scoringData')?.getAttribute('correct') === 'true' }));
+    const form = all.filter((e) => e.localName.startsWith('clkArea') && kid(e, 'scoreData')).map((e) => ({ g: e.getAttribute('g') ?? '', correct: kid(e, 'scoreData')?.getAttribute('correct') === 'true' }));
+    const spots = (free.length ? free : form).filter((x) => x.g && !x.g.startsWith('00000000'));
+    if (!spots.length) return null;
+    ctx.hotspotQuestions.push({ spots, correctLayerG: props?.getAttribute('corFbG') ?? '', incorrectLayerG: props?.getAttribute('incFbG') ?? '' });
+    return { block: null, consumed, layers: [] };
+  }
+
+  if (SURVEY_FORMS.has(tag)) {
+    // Ungraded: keep the wording visible instead of inventing a right answer.
+    const likert = all.filter((e) => e.localName.startsWith('likert'));
+    const shapes = (tag === 'likertIntr' ? likert.filter((e) => e.localName === 'likertStatement') : children.filter((e) => kid(e, 'loc'))).sort(byTop);
+    if (tag === 'likertIntr') eat(...likert);
+    const lines = shapes.map(wordsOf).filter(Boolean);
+    if (!lines.length) return null;
+    ctx.note(slideName, 'a survey question (no right answer) was kept as a list of its choices');
+    eat(...shapes);
+    return { ...make('text', locOf(intr), { html: `<ul>${lines.map((l) => `<li>${escText(l)}</li>`).join('')}</ul>`, fontSize: 20, align: 'left' }, 'Survey choices'), layers: [] };
+  }
+  return null;
+}
+
 async function importShapes(
   list: Element | undefined, ctx: Ctx, theme: Theme, slideName: string
 ): Promise<{ blocks: Block[]; endMs: number; hidden: string[]; popups: Layer[]; popupTriggers: Trigger[]; shapeTriggers: { owner: string; el: Element }[] }> {
@@ -358,8 +549,31 @@ async function importShapes(
   const shapeTriggers: { owner: string; el: Element }[] = [];
   let endMs = 0;
 
-  for (const shape of kids(list)) {
+  // Questions that become one native block: work out which shapes they replace.
+  const everything = kids(list);
+  const natives = new Map<string, NativeQuestion>();
+  const replaced = new Set<string>();
+  for (const el of everything) {
+    if (!el.localName.endsWith('Intr') || el.localName.startsWith('freePick')) continue;
+    const n = nativeQuestion(el, everything, ctx, slideName);
+    if (!n) continue;
+    natives.set(el.getAttribute('g') ?? '', n);
+    n.consumed.forEach((x) => replaced.add(x));
+    n.layers.forEach((x) => ctx.droppedLayers.add(x));
+    ctx.nativeIntr.add(el.getAttribute('g') ?? '');
+  }
+
+  for (const shape of everything) {
     const rawTag = shape.localName;
+    const selfG = shape.getAttribute('g') ?? '';
+    // Shapes a native block stands in for, and anything nested in them.
+    if (replaced.has(selfG) || replaced.has(shape.getAttribute('parentG') ?? '')) { ctx.blocksByG.set(selfG, []); continue; }
+    const native = natives.get(selfG);
+    if (native) {
+      if (native.block) blocks.push(native.block);
+      ctx.blocksByG.set(selfG, native.block ? [native.block.id] : []);
+      continue;
+    }
     // Feedback layers use their own tag names for an ordinary text box and button.
     const tag = ({ feedbackTextBox: 'textBox', feedBackBtn: 'btn', rsltBtn: 'btn', aisound: 'sound' } as Record<string, string>)[rawTag] ?? rawTag;
     const g = shape.getAttribute('g') ?? '';
@@ -452,7 +666,9 @@ async function importShapes(
       if (paint.fillImageG) {
         const src = await mediaDataUrl(ctx, paint.fillImageG);
         if (src) made.push({ id: uid('blk'), type: 'image', ...box, ...common, props: { src, fit: 'cover', alt: alt ?? '', ...(kind !== 'rectangle' ? { clipKind: kind } : {}) } } as Block);
-      } else if (visible) {
+      } else if (visible || (!text && kids(kid(shape, 'stateLst')).length > 1)) {
+        // A shape with nothing to show in its Normal state still has to exist
+        // when other states draw it (a marker that appears when selected).
         const radius = tag.startsWith('round') ? Math.round(Math.min(box.w, box.h) * Math.min(0.5, num(kid(kid(shape, 'prstGeom'), 'roundRect'), 'radius', 0.12))) : 0;
         made.push({
           id: uid('blk'), type: 'shape', ...box, ...common,
@@ -625,7 +841,10 @@ function convertTrigger(
       break;
     }
     case 'submitInteraction': {
-      const q = ctx.picks.get(kid(data, 'interaction')?.getAttribute('submitG') ?? '');
+      const submitG = kid(data, 'interaction')?.getAttribute('submitG') ?? '';
+      // A question rebuilt as a quiz block checks itself.
+      if (ctx.nativeIntr.has(submitG)) { if (owner.kind === 'shape') ctx.deadShapes.add(owner.g); return []; }
+      const q = ctx.picks.get(submitG);
       if (!q) { actions = unsupported('it submits a question type that is not converted yet'); break; }
       // Marked below: the one trigger becomes a "right answer" and a "wrong answer" trigger.
       actions = [{ type: 'executeJs', code: '// submit' }];
@@ -671,6 +890,10 @@ function convertTrigger(
       const value: VariableValue = v.type === 'boolean' ? (c.getAttribute('boolVal') ?? '').toLowerCase() === 'true' || num(c, 'floatVal1') === 1
         : v.type === 'number' ? num(c, 'floatVal1') : c.getAttribute('strVal1') ?? '';
       conditions.push({ variableId: v.id, operator, value });
+    } else if (ctx.scoreVars.get(c.getAttribute('varG') ?? '') === 'score') {
+      // "Score at least the pass mark", or a score against a number.
+      const againstPass = ctx.scoreVars.get(c.getAttribute('varG2') ?? '') === 'pass';
+      conditions.push({ variableId: '', score: true, operator, value: againstPass ? ctx.passScore ?? 80 : num(c, 'floatVal1') });
     } else {
       ctx.note(slideName, 'a trigger condition on a built-in Storyline variable was dropped');
     }
@@ -813,7 +1036,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
   const perSlide = new Map<string, Map<string, number>>();
   const ctx: Ctx = {
     zip, warnings, fonts: new Set(), mediaByAsset: new Map(), dataUrls: new Map(),
-    picks: new Map(), slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(), captions: null,
+    picks: new Map(), slideByG: new Map(), layerByG: new Map(), blocksByG: new Map(), varByG: new Map(), captions: null, nativeIntr: new Set(), deadShapes: new Set(), droppedLayers: new Set(), hasResults: false, hotspotQuestions: [], scoreVars: new Map(), passScore: null,
     note: (slide, msg) => {
       const m = perSlide.get(slide) ?? new Map<string, number>();
       m.set(msg, (m.get(msg) ?? 0) + 1);
@@ -842,6 +1065,13 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     };
     variables.push(variable);
     ctx.varByG.set(v.getAttribute('g') ?? '', variable);
+  }
+
+  // Quizzes: which built-in variables hold the score and the pass mark.
+  for (const quiz of Array.from(story.getElementsByTagName('quiz'))) {
+    for (const a of ['scorePct', 'scorePoints']) ctx.scoreVars.set(quiz.getAttribute(a) ?? '', 'score');
+    for (const a of ['passPct', 'passPoints']) ctx.scoreVars.set(quiz.getAttribute(a) ?? '', 'pass');
+    if (ctx.passScore === null && quiz.hasAttribute('passScore')) ctx.passScore = num(quiz, 'passScore', 80);
   }
 
   // Media: checksum -> file, then asset id -> checksum.
@@ -947,7 +1177,7 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
         feedbackNames.set(intr.getAttribute(attr) ?? '', label);
       }
     }
-    for (const lay of kids(kid(el, 'sldLayerLst')).filter((l) => l.localName === 'sldLayer' || l.localName === 'feedBackLayer')) {
+    for (const lay of kids(kid(el, 'sldLayerLst')).filter((l) => (l.localName === 'sldLayer' || l.localName === 'feedBackLayer') && !ctx.droppedLayers.has(l.getAttribute('g') ?? ''))) {
       const layer: Layer = createLayer(lay.getAttribute('name') || feedbackNames.get(lay.getAttribute('g') ?? '') || 'Layer', false);
       if (lay.getAttribute('modal') === 'true') layer.modal = true;
       const res = await importShapes(kid(lay, 'shapeLst'), ctx, slideTheme, slide.name);
@@ -990,6 +1220,13 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
     // Every block that is part of a choice needs a Selected state to toggle.
     const choiceIds = new Set([...ctx.picks.entries()].filter(([g]) => !seenPicks.has(g)).flatMap(([, q]) => q.choices.flatMap((c) => ctx.blocksByG.get(c.g) ?? [])));
     for (const layer of slide.layers) for (const b of layer.blocks) if (choiceIds.has(b.id)) b.stateStyles = { ...(b.stateStyles ?? {}), selected: b.stateStyles?.selected ?? {} };
+    for (const hq of ctx.hotspotQuestions.splice(0)) {
+      for (const spot of hq.spots) {
+        const blockId = (ctx.blocksByG.get(spot.g) ?? [])[0];
+        const layerId = ctx.layerByG.get(spot.correct ? hq.correctLayerG : hq.incorrectLayerG);
+        if (blockId && layerId) slide.triggers.push({ id: uid('trg'), event: 'onClick', sourceBlockId: blockId, conditions: [], actions: [{ type: 'showLayer', layerId }] });
+      }
+    }
     const fresh = new Map([...ctx.picks].filter(([g]) => !seenPicks.has(g)));
     slide.triggers.push(...pickSelectionTriggers({ ...ctx, picks: fresh }));
     fresh.forEach((_, g) => seenPicks.add(g));
@@ -1010,6 +1247,17 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
       }
     }
   }
+  // A Submit button whose question now checks itself has nothing left to do.
+  const dead = new Set([...ctx.deadShapes].flatMap((g) => ctx.blocksByG.get(g) ?? []));
+  if (dead.size) {
+    for (const p of pending) {
+      for (const layer of p.slide.layers) layer.blocks = layer.blocks.filter((b) => !dead.has(b.id));
+      p.slide.triggers = p.slide.triggers
+        .filter((t) => !(t.sourceBlockId && dead.has(t.sourceBlockId)))
+        .map((t) => ({ ...t, actions: t.actions.filter((x) => !('blockId' in x && dead.has((x as { blockId: string }).blockId))) }))
+        .filter((t) => t.actions.length);
+    }
+  }
   // A slide that is only ever opened as a lightbox becomes a lightbox slide,
   // so it drops out of Next/Back and the menu as it did in Storyline.
   const slides = pending.map((p) => p.slide);
@@ -1025,7 +1273,8 @@ export async function importStory(file: File | Blob, fileName = 'course.story'):
       title: fileName.replace(/\.story$/i, ''),
       slides,
       variables,
-      completion: { mode: 'allSlides' },
+      // Graded questions or a result slide: score the course and keep the pass mark.
+      completion: { mode: 'allSlides', ...(ctx.nativeIntr.size || ctx.hasResults || ctx.picks.size ? { autoScore: true, passingScore: ctx.passScore ?? 80 } : {}) },
       fonts: [...ctx.fonts]
     },
     warnings

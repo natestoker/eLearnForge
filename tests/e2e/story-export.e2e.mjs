@@ -9,7 +9,7 @@ const browser = await launch();
 const ed = await editorPage(browser);
 const before = await ed.evaluate(() => {
   const p = window.__forgeStore.getState().project;
-  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), quiz: p.slides.map((s) => s.layers[0].blocks.some((b) => ['multipleChoice', 'dragDrop', 'matching', 'sequence'].includes(b.type))), tabs: p.slides.map((s) => s.layers[0].blocks.filter((b) => b.type === 'tabs').reduce((n, b) => n + b.props.panels.length, 0)) };
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), quiz: p.slides.map((s) => s.layers[0].blocks.some((b) => b.type === 'multipleChoice')), drag: p.slides.map((s) => s.layers[0].blocks.filter((b) => b.type === 'dragDrop').length), tabs: p.slides.map((s) => s.layers[0].blocks.filter((b) => b.type === 'tabs').reduce((n, b) => n + b.props.panels.length, 0)) };
 });
 
 await ed.getByRole('button', { name: /^File/ }).click();
@@ -60,12 +60,15 @@ await ed.waitForSelector('.story-report');
 await ed.locator('.story-report .btn-accent').click();
 const after = await ed.evaluate(() => {
   const p = window.__forgeStore.getState().project;
-  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), text: p.slides[0].layers[0].blocks.filter((b) => b.type === 'text').length, quizTriggers: p.slides.flatMap((s) => s.triggers.filter((t) => t.actions[0].type === 'showLayer' && ['Correct', 'Incorrect'].includes(s.layers.find((l) => l.id === t.actions[0].layerId)?.name))).length, jumps: p.slides.flatMap((s) => s.triggers).filter((t) => ['goToSlide', 'nextSlide'].includes(t.actions[0].type)).length };
+  return { slides: p.slides.map((s) => s.name), vars: p.variables.map((v) => v.name), layers: p.slides.map((s) => s.layers.length), drag: p.slides.map((s) => s.layers[0].blocks.filter((b) => b.type === 'dragDrop').length), text: p.slides[0].layers[0].blocks.filter((b) => b.type === 'text').length, quizTriggers: p.slides.flatMap((s) => s.triggers.filter((t) => t.actions[0].type === 'showLayer' && ['Correct', 'Incorrect'].includes(s.layers.find((l) => l.id === t.actions[0].layerId)?.name))).length, jumps: p.slides.flatMap((s) => s.triggers).filter((t) => ['goToSlide', 'nextSlide'].includes(t.actions[0].type)).length };
 });
 eq('slides survive the round trip', after.slides, before.slides);
 // A quiz block is saved as a Storyline question, which adds its two feedback layers.
 // A tab set adds a layer per panel as well.
-eq('layers survive the round trip (a question adds Correct and Incorrect, tabs add one per panel)', after.layers, before.layers.map((n, i) => n + (before.quiz[i] ? 2 : 0) + before.tabs[i]));
+// A pick question keeps its Storyline shapes, so its two feedback layers
+// come back too. A drag-and-drop question comes back as the block it was.
+eq('layers survive the round trip (a pick question adds Correct and Incorrect, tabs add one per panel)', after.layers, before.layers.map((n, i) => n + (before.quiz[i] ? 2 : 0) + before.tabs[i]));
+eq('drag and drop comes back as a drag-and-drop block', after.drag, before.drag);
 check('the question comes back as a working pick question', after.quizTriggers >= 2, String(after.quizTriggers));
 // The demo shows a score, so the export adds a Score number that each
 // question's Correct layer feeds.

@@ -572,6 +572,10 @@ export interface Condition {
   // variable - "hotspot 1 is visited". operator 'ne' negates ("is not").
   blockId?: string;
   blockState?: BlockState;
+  // Score condition: when true, the condition tests the course score (0 to
+  // 100, 0 before anything is scored) with a number operator and `value`.
+  // This is how a result slide shows its pass or fail layer.
+  score?: boolean;
   // Older v1 projects stored { equals }. The runtime and UI treat a missing
   // operator as 'eq' with `value` falling back to `equals` for migration.
   operator?: ConditionOperator;

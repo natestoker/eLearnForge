@@ -1858,3 +1858,19 @@ Large-media "Compress" is not built; the check only warns.
   to fit. Clips that are not MP3 are converted. Experimental until confirmed
   in Storyline.
 - Open Storyline reads captions and AI voice clips, not only plain sounds.
+
+# v6.40
+
+## Open Storyline: the rest of the question types, and result slides
+- Storyline's form questions and the remaining freeform types now arrive as
+  working quiz blocks: true/false, multiple choice and response, word bank,
+  matching (drag and drop or drop-down), sequence, fill-in-the-blank,
+  numeric, freeform text entry and freeform drag and drop. Hotspot questions
+  show their feedback layer on click. Survey questions keep their wording as
+  a list.
+- Result slides work: score and pass-mark text is live, and the Success and
+  Failure layers follow the score.
+- New trigger condition: **Quiz score**, compared with a number. `%PassPercent%`
+  is a new built-in text reference.
+- A shape that is invisible in its Normal state but drawn in another state
+  (a marker that appears when selected) is no longer dropped on import.

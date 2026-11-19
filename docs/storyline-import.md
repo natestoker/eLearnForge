@@ -66,17 +66,45 @@ feedback layers come in named Correct, Incorrect and Try again, and Submit
 shows the right one. A question with no correct answer (a survey or rating)
 shows its Thank you layer.
 
-Not carried yet: points and the quiz score, attempt limits (a wrong answer
-always shows Incorrect), and shuffling.
+Storyline's **form questions** (the ones built in Form view) and the other
+freeform types carry their answers as data, so they arrive as eLearnForge quiz
+blocks. The block replaces the Storyline shapes that drew the question and
+shows the feedback text from its Correct and Incorrect layers.
+
+| Storyline question | Arrives as |
+| --- | --- |
+| True/False, Multiple Choice, Word Bank | Multiple choice |
+| Multiple Response | Multiple choice, several answers |
+| Matching Drag and Drop, Matching Drop-down | Matching |
+| Sequence Drag and Drop, Sequence Drop-down | Sequence |
+| Fill-in-the-Blank, Numeric ("equal to") | Fill in the blank |
+| Freeform Text Entry | Fill in the blank, placed where the field was |
+| Freeform Drag and Drop | Matching when every slot takes one item, otherwise drag and drop |
+| Hotspot, freeform Hotspot | The hotspots, each showing the Correct or Incorrect layer when clicked |
+| Short Answer, Essay, How Many | A plain text field (no right answer) |
+| Pick One, Pick Many, Likert, Ranking (survey) | The choices as a list (no right answer) |
+
+Where drop slots all carry the same prompt ("Drop here") and are named by a
+label beside them, the label names the slot. A Submit button that belonged to
+a converted question is removed, since the block checks itself.
+
+**Result slides** keep their design. Text that read the quiz variables
+(`%Quiz1.ScorePercent%`, `%Quiz1.PassPercent%`) reads `%Score%` and
+`%PassPercent%`; points are shown as percent. The Success and Failure layers
+follow a "Quiz score" trigger condition against the quiz's pass mark, and the
+pass mark becomes the course's pass mark with automatic scoring on.
+
+Not carried yet: points per question, attempt limits, shuffling, Review
+Quiz and Reset Quiz.
 
 ## Not converted yet
 
-- Audio and video narration timing has only been checked on files without
-  media; audio and video objects import, but treat them as unverified.
-- Fill-in-the-blank, matching, ordering, sorting and hotspot questions, result
-  slides, question banks, and quiz scoring.
-- Sliders, dials, scrolling panels, web objects, input fields: a labelled
-  outline marks where each one was.
+- Video narration timing has only been checked on files without media;
+  video objects import, but treat them as unverified.
+- Question banks, numeric questions that use a range, and picture-only drag
+  items (those stay as their original shapes).
+- Sliders, dials, scrolling panels, web objects: a labelled outline marks
+  where each one was.
 - Custom states (anything other than the built-in six) and motion paths.
 - Player settings (menu, colours, glossary, resources).
 - Picture crops, gradients beyond two stops, shadows and other effects.

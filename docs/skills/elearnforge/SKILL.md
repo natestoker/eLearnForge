@@ -10,7 +10,7 @@ Articulate Rise and Storyline**: Rise-style prebuilt **blocks** on a
 Storyline-style **canvas with layers and a trigger engine**. React,
 TypeScript, Vite, Zustand, compiled to a **single offline-capable HTML file**.
 
-**Current state: v6.37** (November 2026). `CHANGELOG.md` has every release;
+**Current state: v6.40** (November 2026). `CHANGELOG.md` has every release;
 read its tail before assuming what exists. This skill is the map; confirm
 specifics against the code.
 
@@ -69,7 +69,8 @@ is still self-contained; the bundler does that.
   restart slide, set / adjust / reset variable, set state, set score, complete
   course, exit course, open / close lightbox, open URL, execute JavaScript,
   audio and timeline control, emphasis pulse, player button enable.
-- Triggers can be disabled and carry conditions on variables. Graded
+- Triggers can be disabled and carry conditions on variables, on a block's
+  state, or on the quiz score (`Condition.score`, compared with a number). Graded
   questions can have a maximum number of attempts.
 
 ## Storyline `.story` support
@@ -80,16 +81,20 @@ live in the `story-file-internals` and `story-file-writing` skills; read those
 before touching `storyImport.ts` or `storyExport.ts`.
 
 - **Import** reads slides, masters and layouts, theme colours and fonts, text,
-  pictures, shapes, video and audio, states, layers, timing and entrances,
-  variables, triggers and freeform pick questions. Unsupported triggers become
+  pictures, shapes, video and audio with captions, states, layers, timing and
+  entrances, variables and triggers. Freeform pick questions keep their own
+  shapes; form questions and the other freeform types become native quiz
+  blocks (`nativeQuestion` in `storyImport.ts`); result slides keep their
+  design and read `%Score%` and `%PassPercent%`. Unsupported triggers become
   an Execute JavaScript note plus a warning.
 - **Export** starts from a blank project saved by Storyline
   (`storyShell.ts`) and writes slides, text, shapes, pictures, layers, notes,
   variables, triggers, backgrounds, and quiz blocks as freeform Pick One, Pick
   Many and Drag and Drop questions. Tabs become a button and a layer per
   panel.
-- **Not written yet:** audio, fill-in-the-blank, sliders, flashcards,
-  scenario, result slides.
+- Audio is written (MP3 plus captions) but not yet confirmed in Storyline.
+- **Not written yet:** fill-in-the-blank, sliders, flashcards, scenario,
+  result slides, video.
 - Font sizes scale with slide width on both sides
   (`pt = px * 0.75 * 960 / slideWidth`).
 - Client `.story` files are real courses. Keep them out of the repo.

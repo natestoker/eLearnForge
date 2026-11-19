@@ -76,6 +76,8 @@ export function slideTriggerIssues(slide: Slide, project: Project): TriggerIssue
     t.conditions.forEach((c, i) => {
       if (c.blockId) {
         if (!blocks.has(c.blockId)) add('condition', 'block', 'deleted', 'A condition block was deleted.', i);
+      } else if (c.score) {
+        // The score is always there.
       } else if (!c.variableId) {
         add('condition', 'variable', 'unset', 'A condition has no variable.', i);
       } else if (!variables.has(c.variableId)) {

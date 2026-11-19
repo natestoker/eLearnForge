@@ -449,8 +449,8 @@ export function TriggersPanel() {
       return { text: `${blockLabel(b)} ${c.operator === 'ne' ? 'is not' : 'is'} ${c.blockState ?? 'visited'}`, bad: false };
     }
     const v = variables.find((x) => x.id === c.variableId);
-    if (!v) return { text: c.variableId ? 'deleted variable' : 'choose variable…', bad: true };
-    const vname = variableLabel(project, v);
+    if (!v && !c.score) return { text: c.variableId ? 'deleted variable' : 'choose variable…', bad: true };
+    const vname = c.score ? 'Quiz score' : variableLabel(project, v!);
     const op = c.operator ?? 'eq';
     const opLabel = OPERATORS.find((o) => o.value === op)?.label ?? op;
     const val = (x: VariableValue | undefined) => (typeof x === 'string' ? `"${x}"` : String(x ?? ''));
@@ -565,21 +565,27 @@ export function TriggersPanel() {
         const ci = o.i ?? 0;
         const c = t.conditions[ci];
         if (!c) return null;
-        const variable = variables.find((v) => v.id === c.variableId);
-        const subject = c.blockId ? `blk:${c.blockId}` : `var:${c.variableId}`;
+        // The score behaves like a number variable in this form.
+        const variable = c.score ? ({ id: '', name: 'Quiz score', type: 'number', defaultValue: 0 } as Variable) : variables.find((v) => v.id === c.variableId);
+        const subject = c.score ? 'score:' : c.blockId ? `blk:${c.blockId}` : `var:${c.variableId}`;
         return (
           <Tray title="Edit condition" onClose={close}>
             <div className="tp-form">
               <SelectInput
                 value={subject}
                 options={[
-                  ...(c.variableId || c.blockId ? [] : [{ value: 'var:', label: 'Choose…' }]),
+                  ...(c.variableId || c.blockId || c.score ? [] : [{ value: 'var:', label: 'Choose…' }]),
+                  { value: 'score:', label: 'Quiz score (percent)' },
                   ...variables.map((v) => ({ value: `var:${v.id}`, label: variableLabel(project, v) })),
                   ...blocks.map(({ block, layerName }) => ({ value: `blk:${block.id}`, label: `state of ${blockLabel(block)} (${layerName})` }))
                 ]}
                 onChange={(raw) => edit(t.id, (x) => {
                   const cc = x.conditions[ci];
-                  if (raw.startsWith('blk:')) {
+                  cc.score = undefined;
+                  if (raw === 'score:') {
+                    cc.score = true; cc.variableId = ''; cc.blockId = undefined; cc.blockState = undefined;
+                    cc.operator = 'gte'; cc.value = 80; cc.value2 = undefined; delete cc.equals;
+                  } else if (raw.startsWith('blk:')) {
                     cc.blockId = raw.slice(4); cc.blockState = cc.blockState ?? 'visited'; cc.variableId = '';
                     cc.operator = cc.operator === 'ne' ? 'ne' : 'eq'; cc.value = undefined; cc.value2 = undefined; delete cc.equals;
                   } else {

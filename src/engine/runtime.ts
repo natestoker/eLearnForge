@@ -87,6 +87,8 @@ export class Runtime {
       case 'ViewedSlides': return String(this.viewedSlideIds.size);
       case 'Score':
       case 'ScorePercent': return String(this.lastScore);
+      case 'PassPercent':
+      case 'PassScore': return String(passingScoreOf(this.project));
       case 'Date': return new Date().toLocaleDateString();
       case 'Time': return new Date().toLocaleTimeString();
       case 'RandomNumber': return String(1 + Math.floor(Math.random() * 100));
@@ -683,7 +685,7 @@ export class Runtime {
         const match = this.getBlockState(c.blockId) === (c.blockState ?? 'visited');
         return (c.operator ?? 'eq') === 'ne' ? !match : match;
       }
-      const actual = this.snapshot.variables[c.variableId];
+      const actual = c.score ? (this.scoreSet ? this.lastScore : 0) : this.snapshot.variables[c.variableId];
       const expected = c.value !== undefined ? c.value : c.equals;
       const s = (v: unknown) => String(v ?? '').toLowerCase();
       switch (c.operator ?? 'eq') {
