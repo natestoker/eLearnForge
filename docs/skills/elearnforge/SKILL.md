@@ -92,7 +92,7 @@ before touching `storyImport.ts` or `storyExport.ts`.
   variables, triggers, backgrounds, and quiz blocks as freeform Pick One, Pick
   Many and Drag and Drop questions. Tabs become a button and a layer per
   panel.
-- Audio is written (MP3 plus captions) but not yet confirmed in Storyline.
+- Audio is written as MP3 plus captions (confirmed in Storyline).
 - **Not written yet:** fill-in-the-blank, sliders, flashcards, scenario,
   result slides, video.
 - Font sizes scale with slide width on both sides

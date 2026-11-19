@@ -332,7 +332,7 @@ async function audioFor(ctx: Ctx, src: string, name: string, captions: string | 
       const rate = mp3Rate(bytes);
       const clean = (name.replace(/[\\/:*?"<>|]/g, '_').replace(/\.mp3$/i, '') || 'Audio');
       let vtt: AudioAsset['vtt'] = null;
-      const text = captions?.trim() ? captions : ((window as unknown as { __storyEmptyCaptions?: boolean }).__storyEmptyCaptions ? 'WEBVTT\n\n' : null);
+      const text = captions?.trim() ? captions : null;
       if (text) {
         const vb = new TextEncoder().encode(`\uFEFF${text.replace(/^\uFEFF/, '').replace(/\r?\n/g, '\r\n')}`);
         const vg = guid();

@@ -195,7 +195,29 @@ python3 -I scripts/compare_story.py --real real1 real2 --made "T1 - text.story"
 
 More real files mean fewer false alarms. Keep client files out of the repo.
 
+## Audio
+
+Confirmed in Storyline 3.130, with and without captions.
+
+- `story.xml` and `theme.xml` media lists: an `<audio type="Mp3">` entry with
+  `<langAltText />`, the MD5, and `<props valid="true" file bytes channels="1"
+  samples bits sampleCnt startPt="78" mp3="false" origFile>`. The props
+  describe a mono 16-bit WAV: `bits = sampleCnt * 2`, `bytes = bits + 78`.
+  The WAV file itself does not need to exist.
+- With captions: a `<media type="Vtt">` entry (no `<langAltText />`) listed
+  before the clip, and on the clip `ClosedCaptionsAssetGuid="vtt g"
+  hasClosedCaptions="true"`. Without: `hasClosedCaptions="false"` and no
+  guid attribute.
+- Files are named by part id as usual (`.mp3`, `.vtt`); content types need
+  `mp3` (`audio/mp3`) and `vtt` (`text/vtt`); the slide rels list the MP3
+  once and the VTT twice.
+- On the slide: `<sound assetG state="106503" id="1" name="Audio">` with
+  `<sndTmCtx start dur audioStart="0">` in a `tmCtxLst version="1"`, `<loc>`
+  at `-38, h-29` to `-8, h`, and `<sndProps volume="50" ... ccG>` (the VTT's
+  g, or zeros). Works on layers too.
+- Raise the slide's `tmProps min` to cover start plus duration.
+
 ## Not solved yet
 
-Audio and video objects, fill-in-the-blank, sliders, result slides, and the
+Video objects, fill-in-the-blank, sliders, result slides, and the
 built-in form question types have not been written and confirmed.
