@@ -72,7 +72,7 @@ The pen tool edits one path at a time. Union, subtract, intersect and exclude ne
 ## Also queued
 `AUDIT.md` has what the November 2026 review found. Everything in it is done. What's left is checking on things I couldn't get at from the build environment. These two were deferred on purpose, to be picked up later:
 - Test the player with NVDA, JAWS or VoiceOver on a real machine. Orca, a real screen reader, was run against the published course and found and fixed real problems (see AUDIT.md, item 5), but the three commercial ones need Windows or a Mac.
-- Run a package through SCORM Cloud, which wasn't reachable from the build environment. SCORM 1.2 and 2004 were checked against scorm-again and a real LMS (Moodle 4.5), and xAPI against a real LRS (lrsql). Other LMSes (Cornerstone, Docebo, Workday) can still behave differently.
+- Other LMSes (Cornerstone, Docebo, Workday) can still behave differently. SCORM 1.2 and 2004 have been checked against scorm-again, a real LMS (Moodle 4.5) and SCORM Cloud (v6.38), and xAPI against a real LRS (lrsql).
 
 Smaller follow-up:
 - Video compression runs in real time (a 3-minute video takes about 3 minutes). A faster encoder would need a WebAssembly build of ffmpeg, which is large.

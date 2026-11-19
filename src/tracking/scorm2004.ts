@@ -51,7 +51,14 @@ export class Scorm2004Adapter implements TrackingAdapter {
     }
     this.call(() => this.api!.Initialize(''));
     this.startedAt = Date.now();
-    this.call(() => this.api!.SetValue('cmi.completion_status', 'incomplete'));
+    // Only a first visit is marked incomplete. Reopening a finished course must
+    // not turn its completion back into "incomplete".
+    const status = this.call(() => this.api!.GetValue('cmi.completion_status'));
+    if (status !== 'completed') this.call(() => this.api!.SetValue('cmi.completion_status', 'incomplete'));
+    // Tell the LMS this attempt is paused, not over. Without it the SCORM 2004
+    // rules let an LMS throw away suspend_data and start a new attempt on the
+    // next launch. Set up front so it holds even if the window is killed.
+    this.call(() => this.api!.SetValue('cmi.exit', 'suspend'));
     const suspend = this.call(() => this.api!.GetValue('cmi.suspend_data'));
     this.call(() => this.api!.Commit(''));
     return decodeResume(suspend);
@@ -113,6 +120,7 @@ export class Scorm2004Adapter implements TrackingAdapter {
 
   terminate(): void {
     if (this.terminated) return;
+    this.call(() => this.api!.SetValue('cmi.exit', 'suspend'));
     this.call(() => this.api!.SetValue('cmi.session_time', isoDuration(Date.now() - this.startedAt)));
     this.call(() => this.api!.Commit(''));
     this.call(() => this.api!.Terminate(''));

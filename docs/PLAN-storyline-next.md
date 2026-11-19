@@ -53,6 +53,9 @@ round trip (import, save, reopen in Storyline) needs Nate.
 
 ## Part 3: SCORM Cloud
 
+**Done 19 November 2026 (v6.38).** Both versions pass; results are at the end
+of item 2 in `AUDIT.md`. The steps below are kept for a repeat run.
+
 SCORM was already checked against an independent runtime. This is the check
 against the reference LMS.
 

@@ -57,6 +57,8 @@ export class Scorm12Adapter implements TrackingAdapter {
     if (status === 'not attempted' || status === '' || status === null) {
       this.call(() => this.api!.LMSSetValue('cmi.core.lesson_status', 'incomplete'));
     }
+    // Set up front as well as on exit, so it holds if the window is killed.
+    this.call(() => this.api!.LMSSetValue('cmi.core.exit', 'suspend'));
     const suspend = this.call(() => this.api!.LMSGetValue('cmi.suspend_data'));
     this.call(() => this.api!.LMSCommit(''));
     return decodeResume(suspend);
@@ -124,6 +126,8 @@ export class Scorm12Adapter implements TrackingAdapter {
   terminate(): void {
     if (this.terminated) return;
     // Time spent this session, so the LMS can show it and add it to total_time.
+    // "suspend" keeps suspend_data and makes the next launch a resume.
+    this.call(() => this.api!.LMSSetValue('cmi.core.exit', 'suspend'));
     this.call(() => this.api!.LMSSetValue('cmi.core.session_time', scormTimespan(Date.now() - this.startedAt)));
     this.call(() => this.api!.LMSCommit(''));
     this.call(() => this.api!.LMSFinish(''));

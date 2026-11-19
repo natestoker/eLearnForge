@@ -1836,3 +1836,16 @@ Large-media "Compress" is not built; the check only warns.
 - Quiz choice rows and drag items are sized to their own text, and the font
   steps down when the stack would not fit, so none of them shows a scrollbar
   in Storyline.
+
+# v6.38
+
+## SCORM: checked on SCORM Cloud, two fixes
+- The published SCORM 1.2 and SCORM 2004 packages were run on SCORM Cloud:
+  leave part-way, resume, finish, reopen. Bookmark, resume, completion,
+  score, the quiz interaction and time all came back correct, with no
+  errors in SCORM Cloud's log.
+- Both versions now tell the LMS the session is suspended (`exit` =
+  `suspend`). Without it an LMS may count each launch as a new attempt and
+  is allowed to drop the saved progress.
+- SCORM 2004: reopening a finished course no longer writes "incomplete"
+  over its completed status.

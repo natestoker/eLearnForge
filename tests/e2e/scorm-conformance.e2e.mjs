@@ -51,6 +51,8 @@ for (const target of ['scorm12', 'scorm2004']) {
   check(`${target}: session time written on exit`, /^(PT|0000:)/.test(String(last(k('cmi.core.session_time', 'cmi.session_time')))) || /^\d{4}:/.test(String(last('cmi.core.session_time'))), String(last(k('cmi.core.session_time', 'cmi.session_time'))));
   check(`${target}: resume data saved`, String(last('cmi.suspend_data') ?? '').startsWith('{'), String(last('cmi.suspend_data')));
   if (!v12) eq(`${target}: course completed`, last('cmi.completion_status'), 'completed');
+  // Without exit = suspend a strict LMS drops suspend_data and starts a new attempt.
+  eq(`${target}: exit is suspend`, last(k('cmi.core.exit', 'cmi.exit')), 'suspend');
   await page.context().close();
 }
 
